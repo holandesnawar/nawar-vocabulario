@@ -1,6 +1,5 @@
 import { notFound } from 'next/navigation';
-import { getModule, getLesson, getPreviousLesson, getNextLesson, getAllLessonIds } from '@/lib/courseService';
-import { getModules, getLessonsForModule } from "@/lib/course-data"
+import { getModule, getLesson, getPreviousLesson, getNextLesson, getAllLessonIds, getModules, getLessonsForModule } from '@/lib/courseService';
 import LessonViewer from '@/components/LessonViewer';
 
 export function generateStaticParams() {

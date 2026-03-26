@@ -3,11 +3,14 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getModule, getLessonsForModule } from '@/lib/courseService';
+import { getModule, getLessonsForModule, getModules } from "@/lib/courseService"
 import { getLessonProgress } from '@/lib/progress';
-import { getModules } from "@/lib/course-data";
 import type { Lesson, LessonStatus } from '@/lib/types';
-
+export function generateStaticParams() {
+  return getModules().map((module) => ({
+    moduleId: module.id,
+  }))
+}
 /* ─────────────────────────────────────────────────────────────────────────────
    STATUS BADGE
 ───────────────────────────────────────────────────────────────────────────── */
@@ -70,17 +73,17 @@ function LessonList({ lessons, moduleId }: { lessons: Lesson[]; moduleId: string
             key={lesson.id}
             href={`/modulo/${moduleId}/leccion/${lesson.id}`}
             className={`group flex items-start gap-4 rounded-2xl border p-5 transition-all duration-300 hover:shadow-[0_8px_32px_rgba(29,0,132,0.08)] ${isNext
-                ? 'border-[#1D0084]/30 bg-[#F0F5FF] hover:border-[#1D0084]/50'
-                : 'border-[#DDE6F5] bg-white hover:border-[#1D0084]/20'
+              ? 'border-[#1D0084]/30 bg-[#F0F5FF] hover:border-[#1D0084]/50'
+              : 'border-[#DDE6F5] bg-white hover:border-[#1D0084]/20'
               }`}
           >
             {/* Order number */}
             <div
               className={`w-10 h-10 rounded-xl flex items-center justify-center text-[14px] font-bold shrink-0 ${status === 'completed'
-                  ? 'bg-green-100 text-green-700'
-                  : isNext
-                    ? 'bg-[#1D0084] text-white'
-                    : 'bg-[#F8F9FA] text-[#9CA3AF]'
+                ? 'bg-green-100 text-green-700'
+                : isNext
+                  ? 'bg-[#1D0084] text-white'
+                  : 'bg-[#F8F9FA] text-[#9CA3AF]'
                 }`}
             >
               {String(lesson.order).padStart(2, '0')}
@@ -130,12 +133,6 @@ function LessonList({ lessons, moduleId }: { lessons: Lesson[]; moduleId: string
 /* ─────────────────────────────────────────────────────────────────────────────
    PAGE
 ───────────────────────────────────────────────────────────────────────────── */
-
-export function generateStaticParams() {
-  return getModules().map((module) => ({
-    moduleId: module.id,
-  }))
-}
 
 export default function ModulePage({ params }: { params: { moduleId: string } }) {
   const module = getModule(params.moduleId);
