@@ -1,12 +1,15 @@
 import { notFound } from 'next/navigation';
 import { getModule, getLesson, getPreviousLesson, getNextLesson, getAllLessonIds } from '@/lib/courseService';
+import { getModules, getLessonsForModule } from "@/lib/course-data"
 import LessonViewer from '@/components/LessonViewer';
 
-export async function generateStaticParams() {
-  return getAllLessonIds().map(({ moduleId, lessonId }) => ({
-    moduleId,
-    lessonId,
-  }));
+export function generateStaticParams() {
+  return getModules().flatMap((module) =>
+    getLessonsForModule(module.id).map((lesson) => ({
+      moduleId: module.id,
+      lessonId: lesson.id,
+    }))
+  )
 }
 
 export default function LessonPage({
