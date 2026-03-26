@@ -11,19 +11,20 @@ export function generateStaticParams() {
   )
 }
 
-export default function LessonPage({
+export default async function LessonPage({
   params,
 }: {
-  params: { moduleId: string; lessonId: string };
+  params: Promise<{ moduleId: string; lessonId: string }>;
 }) {
-  const module = getModule(params.moduleId);
+  const { moduleId, lessonId } = await params;
+  const module = getModule(moduleId);
   if (!module) notFound();
 
-  const lesson = getLesson(params.moduleId, params.lessonId);
+  const lesson = getLesson(moduleId, lessonId);
   if (!lesson) notFound();
 
-  const prevLesson = getPreviousLesson(params.moduleId, params.lessonId);
-  const nextLesson = getNextLesson(params.moduleId, params.lessonId);
+  const prevLesson = getPreviousLesson(moduleId, lessonId);
+  const nextLesson = getNextLesson(moduleId, lessonId);
 
   return (
     <main className="min-h-screen bg-white">

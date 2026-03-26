@@ -13,8 +13,9 @@ export function generateStaticParams() {
    PAGE
 ───────────────────────────────────────────────────────────────────────────── */
 
-export default function ModulePage({ params }: { params: { moduleId: string } }) {
-  const module = getModule(params.moduleId);
+export default async function ModulePage({ params }: { params: Promise<{ moduleId: string }> }) {
+  const { moduleId } = await params;
+  const module = getModule(moduleId);
   if (!module) notFound();
 
   const lessons = getLessonsForModule(module.id);
