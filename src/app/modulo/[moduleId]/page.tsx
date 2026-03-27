@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getModule, getLessonsForModule, getModules } from "@/lib/courseService"
+import { getModule, getLessonsForModule, getExtrasForModule, getModules } from "@/lib/courseService"
 import LessonList from '@/components/LessonList';
 
 export function generateStaticParams() {
@@ -19,6 +19,7 @@ export default async function ModulePage({ params }: { params: Promise<{ moduleI
   if (!module) notFound();
 
   const lessons = getLessonsForModule(module.id);
+  const extras = getExtrasForModule(module.id);
 
   return (
     <main className="min-h-screen bg-white">
@@ -65,6 +66,7 @@ export default async function ModulePage({ params }: { params: Promise<{ moduleI
 
           <div className="mt-5 text-[12px] text-white/40 font-medium">
             {lessons.length} lección{lessons.length !== 1 ? 'es' : ''} en este módulo
+            {extras.length > 0 && ` · ${extras.length} extra${extras.length !== 1 ? 's' : ''}`}
           </div>
         </div>
       </div>
@@ -72,6 +74,16 @@ export default async function ModulePage({ params }: { params: Promise<{ moduleI
       {/* Lesson list */}
       <div className="max-w-2xl mx-auto px-6 py-8">
         <LessonList lessons={lessons} moduleId={module.id} />
+
+        {extras.length > 0 && (
+          <div className="mt-10">
+            <div className="flex items-center gap-3 mb-4">
+              <span className="text-[13px] font-bold text-[#5A6480] uppercase tracking-widest">Lecciones extra</span>
+              <div className="flex-1 h-px bg-[#DDE6F5]" />
+            </div>
+            <LessonList lessons={extras} moduleId={module.id} />
+          </div>
+        )}
       </div>
     </main>
   );

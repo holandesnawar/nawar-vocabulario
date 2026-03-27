@@ -583,6 +583,81 @@ function ListenAndChooseExercise({
   );
 }
 
+function FillBlankExercise({
+  exercise,
+  onAnswer,
+}: {
+  exercise: ExerciseItem;
+  onAnswer: (correct: boolean) => void;
+}) {
+  const [value, setValue] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+  const isCorrect = value.trim().toLowerCase() === exercise.correctAnswer.trim().toLowerCase();
+
+  // Split prompt on ___ to render the blank inline
+  const parts = exercise.prompt.split('___');
+
+  function handleSubmit() {
+    if (!value.trim() || submitted) return;
+    setSubmitted(true);
+    onAnswer(isCorrect);
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-[#F0F5FF] rounded-2xl p-5 border border-[#DDE6F5]">
+        <p className="text-[16px] font-semibold text-[#1D0084] leading-snug flex flex-wrap items-center gap-1">
+          {parts[0]}
+          <input
+            type="text"
+            value={value}
+            onChange={e => setValue(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+            disabled={submitted}
+            placeholder="___"
+            className={`inline-block w-28 px-2 py-0.5 rounded-lg border text-[15px] font-semibold text-center focus:outline-none transition-colors duration-200 disabled:opacity-70 ${
+              submitted
+                ? isCorrect
+                  ? 'bg-green-50 border-green-400 text-green-800'
+                  : 'bg-red-50 border-red-400 text-red-700'
+                : 'bg-white border-[#025dc7] text-[#1D0084] focus:border-[#1D0084]'
+            }`}
+          />
+          {parts[1] ?? ''}
+        </p>
+        {exercise.hint && (
+          <p className="text-[13px] text-[#9CA3AF] mt-2">💡 {exercise.hint}</p>
+        )}
+      </div>
+      {!submitted && (
+        <button
+          onClick={handleSubmit}
+          disabled={!value.trim()}
+          className="w-full py-3.5 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200 disabled:opacity-40 disabled:pointer-events-none"
+        >
+          Comprobar
+        </button>
+      )}
+      {submitted && (
+        <div
+          className={`rounded-xl px-4 py-3 text-[14px] font-medium ${
+            isCorrect
+              ? 'bg-green-50 text-green-800 border border-green-200'
+              : 'bg-red-50 text-red-700 border border-red-200'
+          }`}
+        >
+          {isCorrect
+            ? '✓ ¡Correcto!'
+            : `✗ La respuesta era: "${exercise.correctAnswer}"`}
+          {exercise.explanation && (
+            <p className="mt-1 text-[13px] opacity-80">{exercise.explanation}</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function OrderSentenceExercise({
   exercise,
   onAnswer,
@@ -752,6 +827,9 @@ function PracticeSection({
         {exercise.type === 'order_sentence' && (
           <OrderSentenceExercise exercise={exercise} onAnswer={handleAnswer} />
         )}
+        {exercise.type === 'fill_blank' && (
+          <FillBlankExercise exercise={exercise} onAnswer={handleAnswer} />
+        )}
       </div>
 
       {answered && (
@@ -817,6 +895,9 @@ function DialogueSection({
     <div className="space-y-6">
       {dialogue.audio?.url && (
         <AudioPlayer src={dialogue.audio.url} title={`Audio: ${dialogue.title}`} />
+      )}
+      {dialogue.slowAudio?.url && (
+        <AudioPlayer src={dialogue.slowAudio.url} title="Audio lento" />
       )}
 
       <div className="bg-[#F0F5FF] rounded-2xl p-4 border border-[#DDE6F5]">

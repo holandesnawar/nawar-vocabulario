@@ -10,7 +10,11 @@ export function getModule(id: string): CourseModule | undefined {
 }
 
 export function getLessonsForModule(moduleId: string): Lesson[] {
-  return LESSONS.filter(l => l.moduleId === moduleId).sort((a, b) => a.order - b.order);
+  return LESSONS.filter(l => l.moduleId === moduleId && !l.isExtra).sort((a, b) => a.order - b.order);
+}
+
+export function getExtrasForModule(moduleId: string): Lesson[] {
+  return LESSONS.filter(l => l.moduleId === moduleId && l.isExtra === true).sort((a, b) => a.order - b.order);
 }
 
 export function getLesson(moduleId: string, lessonId: string): Lesson | undefined {

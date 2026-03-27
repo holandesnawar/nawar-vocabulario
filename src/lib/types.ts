@@ -46,7 +46,8 @@ export type ExerciseType =
   | 'multiple_choice'
   | 'listen_and_choose'
   | 'order_sentence'
-  | 'write_answer';
+  | 'write_answer'
+  | 'fill_blank';
 
 export interface ExerciseItem {
   id: string;
@@ -76,6 +77,7 @@ export interface Dialogue {
   title: string;
   context: string;
   audio?: AudioTrack;
+  slowAudio?: AudioTrack;
   lines: DialogueLine[];
 }
 
@@ -100,6 +102,7 @@ export interface Lesson {
   title: string;
   subtitle: string;
   order: number;
+  isExtra?: boolean;
   learningObjective: string;
   estimatedMinutes: number;
   blocks: LessonBlock[];
@@ -108,6 +111,7 @@ export interface Lesson {
 export interface CourseModule {
   id: string;
   title: string;
+  subtitle?: string;
   description: string;
   order: number;
   emoji: string;
