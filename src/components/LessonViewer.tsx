@@ -25,6 +25,19 @@ function speakDutch(text: string) {
   window.speechSynthesis.speak(u);
 }
 
+/**
+ * Play audio from a URL if available, otherwise fall back to browser TTS.
+ * This lets Supabase audio_url fields take priority over Web Speech API.
+ */
+function playAudio(url: string | undefined, fallbackText: string) {
+  if (url) {
+    const audio = new Audio(url);
+    audio.play().catch(() => speakDutch(fallbackText));
+  } else {
+    speakDutch(fallbackText);
+  }
+}
+
 function Stars({ score, total }: { score: number; total: number }) {
   const pct = total === 0 ? 0 : score / total;
   const stars = pct >= 0.9 ? 5 : pct >= 0.75 ? 4 : pct >= 0.55 ? 3 : pct >= 0.35 ? 2 : 1;
@@ -138,7 +151,7 @@ function VocabularySection({
                 {/* Audio + expand */}
                 <div className="flex items-center gap-2 shrink-0">
                   <button
-                    onClick={() => speakDutch((word.article ? `${word.article} ` : '') + word.dutch)}
+                    onClick={() => playAudio(word.audio?.url, (word.article ? `${word.article} ` : '') + word.dutch)}
                     className="w-8 h-8 rounded-full bg-[#F0F5FF] border border-[#DDE6F5] flex items-center justify-center text-[#025dc7] hover:bg-[#e0eaff] transition-colors duration-200"
                     aria-label="Escuchar"
                   >
@@ -361,7 +374,7 @@ function FlashcardSection({
             </p>
             {mode === 'nl-es' && (
               <button
-                onClick={e => { e.stopPropagation(); speakDutch(card?.dutch ?? ''); }}
+                onClick={e => { e.stopPropagation(); playAudio(card?.audio?.url, card?.dutch ?? ''); }}
                 className="mt-1 inline-flex items-center gap-1.5 text-[12px] font-medium text-[#025dc7] hover:text-[#1D0084]"
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -454,7 +467,7 @@ function PhrasesSection({
               {phrase.dutch}
             </h2>
             <button
-              onClick={() => speakDutch(phrase.dutch)}
+              onClick={() => playAudio(phrase.audio?.url, phrase.dutch)}
               className="w-9 h-9 rounded-full bg-[#F0F5FF] border border-[#DDE6F5] flex items-center justify-center text-[#025dc7] hover:bg-[#e0eaff] transition-colors duration-200 shrink-0"
               aria-label="Escuchar frase"
             >
@@ -693,7 +706,7 @@ function ListenAndChooseExercise({
       <div className="bg-[#F0F5FF] rounded-2xl p-5 border border-[#DDE6F5]">
         <p className="text-[16px] font-semibold text-[#1D0084] leading-snug mb-3">{exercise.prompt}</p>
         <button
-          onClick={() => speakDutch(dutchText)}
+          onClick={() => playAudio(exercise.audio?.url, dutchText)}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#1D0084] text-white text-[13px] font-semibold hover:bg-[#025dc7] transition-colors duration-200"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -1114,7 +1127,7 @@ function DialogueSection({
                 </span>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => speakDutch(line.dutch)}
+                    onClick={() => playAudio(line.audio?.url, line.dutch)}
                     className="w-7 h-7 rounded-full bg-[#F0F5FF] border border-[#DDE6F5] flex items-center justify-center text-[#025dc7] hover:bg-[#e0eaff] transition-colors duration-200"
                     aria-label="Escuchar"
                   >

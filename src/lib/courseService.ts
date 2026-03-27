@@ -1,5 +1,11 @@
 import { MODULES, LESSONS } from './courseData';
 import type { CourseModule, Lesson } from './types';
+import {
+  fetchModules,
+  fetchModule,
+  fetchLessonsForModule,
+  fetchLesson,
+} from './supabaseService';
 
 export function getModules(): CourseModule[] {
   return MODULES.slice().sort((a, b) => a.order - b.order);
@@ -37,4 +43,29 @@ export function getNextLesson(moduleId: string, lessonId: string): Lesson | unde
 
 export function getAllLessonIds(): { moduleId: string; lessonId: string }[] {
   return LESSONS.map(l => ({ moduleId: l.moduleId, lessonId: l.id }));
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   ASYNC VERSIONS — try Supabase first, fall back to local data silently.
+   Use these in server components for progressive Supabase integration.
+───────────────────────────────────────────────────────────────────────────── */
+
+export async function getModulesAsync(): Promise<CourseModule[]> {
+  return (await fetchModules()) ?? getModules();
+}
+
+export async function getModuleAsync(id: string): Promise<CourseModule | undefined> {
+  return (await fetchModule(id)) ?? getModule(id);
+}
+
+export async function getLessonsForModuleAsync(moduleId: string): Promise<Lesson[]> {
+  return (await fetchLessonsForModule(moduleId, false)) ?? getLessonsForModule(moduleId);
+}
+
+export async function getExtrasForModuleAsync(moduleId: string): Promise<Lesson[]> {
+  return (await fetchLessonsForModule(moduleId, true)) ?? getExtrasForModule(moduleId);
+}
+
+export async function getLessonAsync(moduleId: string, lessonId: string): Promise<Lesson | undefined> {
+  return (await fetchLesson(moduleId, lessonId)) ?? getLesson(moduleId, lessonId);
 }

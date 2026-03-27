@@ -1,22 +1,53 @@
 import { createClient } from '@supabase/supabase-js';
 
 /*
-  Supabase client — ready for future migration from mock data.
+  Supabase client — progressive migration layer.
 
   Set these in .env.local:
     NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
     NEXT_PUBLIC_SUPABASE_ANON_KEY=xxxx
 
-  Schema (reference):
+  When env vars are absent (local/mock development), supabase is null and the
+  app falls back to the local courseData.ts mock data automatically.
 
-  modules           id, slug, title_nl, title_es, sort_order
-  lessons           id, module_id, slug, title_nl, title_es, sort_order, is_extra
-  vocabulary_items  id, lesson_id, sort_order, article, word_nl, translation_es, audio_url
-  phrases           id, lesson_id, sort_order, phrase_nl, translation_es, audio_url
-  practice_items    id, lesson_id, sort_order, type, question_text, hint, correct_answer, explanation
-  practice_options  id, practice_item_id, sort_order, option_text, is_correct
-  dialogues         id, lesson_id, title, audio_normal_url, audio_slow_url
-  dialogue_lines    id, dialogue_id, sort_order, speaker, text_nl, text_es
+  Schema (full column definitions):
+
+  modules
+    id TEXT PK, title TEXT, subtitle TEXT, description TEXT,
+    sort_order INT, emoji TEXT, level TEXT, color TEXT
+
+  lessons
+    id TEXT PK, module_id TEXT → modules.id,
+    title TEXT, subtitle TEXT, sort_order INT, is_extra BOOL DEFAULT false,
+    learning_objective TEXT, estimated_minutes INT
+
+  vocabulary_items
+    id TEXT PK, lesson_id TEXT → lessons.id, sort_order INT,
+    dutch TEXT, spanish TEXT, article TEXT ('de'|'het'|null),
+    emoji TEXT, color TEXT, image TEXT, audio_url TEXT,
+    example_nl TEXT, example_es TEXT, category TEXT,
+    difficulty TEXT ('A0'|'A1'|'A2')
+
+  phrases
+    id TEXT PK, lesson_id TEXT → lessons.id, sort_order INT,
+    dutch TEXT, spanish TEXT, audio_url TEXT, context TEXT
+
+  practice_items
+    id TEXT PK, lesson_id TEXT → lessons.id, sort_order INT,
+    type TEXT, prompt TEXT, correct_answer TEXT,
+    audio_url TEXT, hint TEXT, explanation TEXT
+
+  practice_options
+    id TEXT PK, practice_item_id TEXT → practice_items.id,
+    sort_order INT, option_text TEXT
+
+  dialogues
+    id TEXT PK, lesson_id TEXT → lessons.id,
+    title TEXT, context TEXT, audio_url TEXT, slow_audio_url TEXT
+
+  dialogue_lines
+    id TEXT PK, dialogue_id TEXT → dialogues.id, sort_order INT,
+    speaker TEXT, dutch TEXT, spanish TEXT, audio_url TEXT
 
   Flashcards reuse vocabulary_items — no separate table needed.
   Audio is read from audio_url fields using the existing AudioPlayer component.

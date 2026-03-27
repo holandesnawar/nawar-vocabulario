@@ -1,5 +1,13 @@
 import { notFound } from 'next/navigation';
-import { getModule, getLesson, getPreviousLesson, getNextLesson, getModules, getLessonsForModule, getExtrasForModule } from '@/lib/courseService';
+import {
+  getModules,
+  getLessonsForModule,
+  getExtrasForModule,
+  getPreviousLesson,
+  getNextLesson,
+  getModuleAsync,
+  getLessonAsync,
+} from '@/lib/courseService';
 import LessonViewer from '@/components/LessonViewer';
 
 export function generateStaticParams() {
@@ -17,12 +25,15 @@ export default async function LessonPage({
   params: Promise<{ moduleId: string; lessonId: string }>;
 }) {
   const { moduleId, lessonId } = await params;
-  const module = getModule(moduleId);
-  if (!module) notFound();
 
-  const lesson = getLesson(moduleId, lessonId);
+  const [module, lesson] = await Promise.all([
+    getModuleAsync(moduleId),
+    getLessonAsync(moduleId, lessonId),
+  ]);
+  if (!module) notFound();
   if (!lesson) notFound();
 
+  // Navigation uses local data (metadata only — no Supabase query needed)
   const prevLesson = getPreviousLesson(moduleId, lessonId);
   const nextLesson = getNextLesson(moduleId, lessonId);
 

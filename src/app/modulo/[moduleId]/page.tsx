@@ -1,6 +1,11 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getModule, getLessonsForModule, getExtrasForModule, getModules } from "@/lib/courseService"
+import {
+  getModules,
+  getModuleAsync,
+  getLessonsForModuleAsync,
+  getExtrasForModuleAsync,
+} from "@/lib/courseService"
 import LessonList from '@/components/LessonList';
 
 export function generateStaticParams() {
@@ -15,11 +20,13 @@ export function generateStaticParams() {
 
 export default async function ModulePage({ params }: { params: Promise<{ moduleId: string }> }) {
   const { moduleId } = await params;
-  const module = getModule(moduleId);
+  const module = await getModuleAsync(moduleId);
   if (!module) notFound();
 
-  const lessons = getLessonsForModule(module.id);
-  const extras = getExtrasForModule(module.id);
+  const [lessons, extras] = await Promise.all([
+    getLessonsForModuleAsync(module.id),
+    getExtrasForModuleAsync(module.id),
+  ]);
 
   return (
     <main className="min-h-screen bg-white">
