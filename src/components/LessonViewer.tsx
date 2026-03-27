@@ -125,11 +125,6 @@ function VocabularySection({
                 {/* Dutch + article + Spanish */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-baseline gap-2 flex-wrap">
-                    {word.article && (
-                      <span className="text-[12px] font-bold text-[#025dc7] bg-[#F0F5FF] px-1.5 py-0.5 rounded-md shrink-0">
-                        {word.article}
-                      </span>
-                    )}
                     <span
                       className="text-[16px] font-bold text-[#1D0084] leading-tight"
                       style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}
@@ -320,36 +315,66 @@ function FlashcardSection({
       </div>
 
       {/* Card */}
-      <button
+      <div
         onClick={() => setFlipped(f => !f)}
-        className="w-full min-h-[220px] rounded-2xl border border-[#DDE6F5] bg-white flex flex-col items-center justify-center gap-4 p-8 hover:border-[#025dc7]/40 hover:bg-[#F8FAFF] transition-colors duration-200 active:scale-[0.98]"
+        className="w-full h-[220px] cursor-pointer"
+        style={{ perspective: '1000px' }}
       >
-        <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-widest">
-          {flipped ? (mode === 'nl-es' ? 'Español' : 'Nederlands') : (mode === 'nl-es' ? 'Nederlands' : 'Español')}
-        </p>
-        <p
-          className="text-[26px] font-bold text-[#1D0084] text-center leading-tight"
-          style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}
+        <div
+          style={{
+            transition: 'transform 0.45s cubic-bezier(0.4,0.2,0.2,1)',
+            transformStyle: 'preserve-3d',
+            transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+            position: 'relative',
+            height: '220px',
+          }}
         >
-          {flipped ? back : front}
-        </p>
-        {!flipped && (
-          <p className="text-[12px] text-[#9CA3AF]">Toca para ver la traducción</p>
-        )}
-        {flipped && mode === 'nl-es' && (
-          <button
-            onClick={e => { e.stopPropagation(); speakDutch(card?.dutch ?? ''); }}
-            className="mt-1 inline-flex items-center gap-1.5 text-[12px] font-medium text-[#025dc7] hover:text-[#1D0084]"
+          {/* Front */}
+          <div
+            className="rounded-2xl border border-[#DDE6F5] bg-white flex flex-col items-center justify-center gap-4 p-8 absolute inset-0"
+            style={{ backfaceVisibility: 'hidden' }}
           >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 5.636a9 9 0 010 12.728" />
-            </svg>
-            Escuchar
-          </button>
-        )}
-      </button>
+            <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-widest">
+              {mode === 'nl-es' ? 'Nederlands' : 'Español'}
+            </p>
+            <p
+              className="text-[26px] font-bold text-[#1D0084] text-center leading-tight"
+              style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}
+            >
+              {front}
+            </p>
+            <p className="text-[12px] text-[#9CA3AF]">Toca para ver la traducción</p>
+          </div>
+          {/* Back */}
+          <div
+            className="rounded-2xl border border-[#025dc7]/30 bg-[#F8FAFF] flex flex-col items-center justify-center gap-4 p-8 absolute inset-0"
+            style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
+          >
+            <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-widest">
+              {mode === 'nl-es' ? 'Español' : 'Nederlands'}
+            </p>
+            <p
+              className="text-[26px] font-bold text-[#1D0084] text-center leading-tight"
+              style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}
+            >
+              {back}
+            </p>
+            {mode === 'nl-es' && (
+              <button
+                onClick={e => { e.stopPropagation(); speakDutch(card?.dutch ?? ''); }}
+                className="mt-1 inline-flex items-center gap-1.5 text-[12px] font-medium text-[#025dc7] hover:text-[#1D0084]"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 5.636a9 9 0 010 12.728" />
+                </svg>
+                Escuchar
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Actions */}
       {flipped ? (
@@ -1103,7 +1128,7 @@ function DialogueSection({
                     onClick={() => toggleLine(line.id)}
                     className="text-[11px] font-semibold text-[#9CA3AF] hover:text-[#025dc7] transition-colors duration-200 px-2 py-0.5 rounded-md hover:bg-[#F0F5FF]"
                   >
-                    {show ? 'Ocultar' : 'Ver'}
+                    {show ? 'Ocultar' : 'Ver traducción'}
                   </button>
                 </div>
               </div>
@@ -1227,6 +1252,9 @@ function ReviewSection({
               )}
             </div>
           ))}
+          <p className="text-[12px] text-[#9CA3AF] bg-[#F8FAFF] border border-[#DDE6F5] rounded-xl px-4 py-3 leading-snug">
+            💡 Apunta estos fallos en tus notas para volver a repasar esto en el ejercicio.
+          </p>
         </div>
       )}
 
