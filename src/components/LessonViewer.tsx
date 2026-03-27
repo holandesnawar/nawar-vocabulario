@@ -87,152 +87,120 @@ function VocabularySection({
   items: VocabularyItem[];
   onComplete: () => void;
 }) {
-  const [index, setIndex] = useState(0);
-  const [flipped, setFlipped] = useState(false);
-  const [done, setDone] = useState(false);
-  const word = items[index];
+  const [expanded, setExpanded] = useState<string | null>(null);
 
-  function goNext() {
-    setFlipped(false);
-    if (index + 1 >= items.length) {
-      setDone(true);
-    } else {
-      setIndex(i => i + 1);
-    }
-  }
-
-  function goPrev() {
-    setFlipped(false);
-    setIndex(i => Math.max(0, i - 1));
+  function toggle(id: string) {
+    setExpanded(e => (e === id ? null : id));
   }
 
   return (
-    <div className="space-y-8">
-      <ProgressBar current={index + 1} total={items.length} label="Palabras" />
+    <div className="space-y-6">
+      {/* Header count */}
+      <div className="flex items-center justify-between">
+        <p className="text-[13px] font-semibold text-[#9CA3AF] uppercase tracking-widest">
+          {items.length} palabras
+        </p>
+      </div>
 
-      <div className="w-full max-w-sm mx-auto">
-        {/* Emoji visual */}
-        <div
-          className="relative flex items-center justify-center rounded-2xl mb-4 overflow-hidden"
-          style={{ background: word.color, height: 200 }}
-        >
-          <span
-            className="text-[80px] select-none"
-            style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.25))' }}
-          >
-            {word.emoji}
-          </span>
-
-          {word.article && (
-            <div className="absolute top-3 left-3 px-3 py-1 rounded-full bg-white/15 backdrop-blur-sm text-white text-[12px] font-bold">
-              {word.article}
-            </div>
-          )}
-
-          <button
-            onClick={() => speakDutch((word.article ? `${word.article} ` : '') + word.dutch)}
-            className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/25 transition-colors duration-200"
-            aria-label="Escuchar pronunciación"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 5.636a9 9 0 010 12.728" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Word info */}
-        <div className="bg-white rounded-2xl border border-[#DDE6F5] p-6 space-y-4">
-          <div>
-            <h2
-              className="text-[32px] font-bold text-[#1D0084] leading-none"
-              style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}
+      {/* Word list */}
+      <div className="space-y-2">
+        {items.map(word => {
+          const isOpen = expanded === word.id;
+          return (
+            <div
+              key={word.id}
+              className="rounded-2xl border border-[#DDE6F5] bg-white overflow-hidden"
             >
-              {word.dutch}
-            </h2>
-            <p className="text-[18px] text-[#5A6480] mt-1">{word.spanish}</p>
-          </div>
+              {/* Main row */}
+              <div className="flex items-center gap-3 px-4 py-3.5">
+                {/* Color stripe + emoji */}
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center text-[20px] shrink-0"
+                  style={{ background: word.color }}
+                >
+                  {word.emoji}
+                </div>
 
-          <button
-            onClick={() => setFlipped(f => !f)}
-            className="w-full text-left rounded-xl bg-[#F0F5FF] px-4 py-3 border border-[#DDE6F5] hover:border-[#025dc7]/30 transition-colors duration-200 group"
-          >
-            <p className="text-[12px] font-semibold text-[#9CA3AF] mb-1 group-hover:text-[#025dc7] transition-colors duration-200">
-              Ejemplo {flipped ? '↑' : '↓'}
-            </p>
-            <p className="text-[14px] text-[#1D0084] font-medium leading-snug">{word.exampleNl}</p>
-            {flipped && (
-              <p className="text-[13px] text-[#5A6480] mt-1 leading-snug">{word.exampleEs}</p>
-            )}
-          </button>
+                {/* Dutch + article + Spanish */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-baseline gap-2 flex-wrap">
+                    {word.article && (
+                      <span className="text-[12px] font-bold text-[#025dc7] bg-[#F0F5FF] px-1.5 py-0.5 rounded-md shrink-0">
+                        {word.article}
+                      </span>
+                    )}
+                    <span
+                      className="text-[16px] font-bold text-[#1D0084] leading-tight"
+                      style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}
+                    >
+                      {word.dutch}
+                    </span>
+                  </div>
+                  <p className="text-[13px] text-[#1D0084] font-medium mt-0.5">{word.spanish}</p>
+                </div>
 
-          <button
-            onClick={() => speakDutch(word.exampleNl)}
-            className="inline-flex items-center gap-2 text-[13px] font-medium text-[#025dc7] hover:text-[#1D0084] transition-colors duration-200"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 5.636a9 9 0 010 12.728" />
-            </svg>
-            Escuchar ejemplo
-          </button>
-        </div>
+                {/* Audio + expand */}
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => speakDutch((word.article ? `${word.article} ` : '') + word.dutch)}
+                    className="w-8 h-8 rounded-full bg-[#F0F5FF] border border-[#DDE6F5] flex items-center justify-center text-[#025dc7] hover:bg-[#e0eaff] transition-colors duration-200"
+                    aria-label="Escuchar"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 5.636a9 9 0 010 12.728" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => toggle(word.id)}
+                    className="w-8 h-8 rounded-full bg-[#F0F5FF] border border-[#DDE6F5] flex items-center justify-center text-[#9CA3AF] hover:text-[#1D0084] hover:bg-[#e0eaff] transition-all duration-200"
+                    aria-label={isOpen ? 'Cerrar ejemplo' : 'Ver ejemplo'}
+                  >
+                    <svg
+                      className={`w-3.5 h-3.5 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={2.5}
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* Expanded example */}
+              {isOpen && (
+                <div className="px-4 pb-4 pt-0 border-t border-[#DDE6F5] bg-[#F8FAFF]">
+                  <div className="pt-3 space-y-1">
+                    <p className="text-[14px] font-medium text-[#1D0084] leading-snug">{word.exampleNl}</p>
+                    <p className="text-[13px] text-[#5A6480] leading-snug">{word.exampleEs}</p>
+                    <button
+                      onClick={() => speakDutch(word.exampleNl)}
+                      className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[#025dc7] hover:text-[#1D0084] transition-colors duration-200 mt-1"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 5.636a9 9 0 010 12.728" />
+                      </svg>
+                      Escuchar ejemplo
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
-      {/* Navigation */}
-      <div className="flex items-center justify-between gap-4">
-        <button
-          onClick={goPrev}
-          disabled={index === 0}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#F0F5FF] text-[#1D0084] text-[14px] font-semibold border border-[#DDE6F5] hover:bg-[#e0eaff] transition-colors duration-200 disabled:opacity-30 disabled:pointer-events-none"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-          </svg>
-          Anterior
-        </button>
-
-        <div className="flex items-center gap-1.5 flex-wrap justify-center max-w-[160px]">
-          {items.map((_, i) => (
-            <button
-              key={i}
-              onClick={() => { setFlipped(false); setIndex(i); }}
-              className={`rounded-full transition-all duration-200 ${
-                i === index
-                  ? 'w-5 h-2 bg-[#1D0084]'
-                  : i < index
-                  ? 'w-2 h-2 bg-[#4da3ff]'
-                  : 'w-2 h-2 bg-[#DDE6F5]'
-              }`}
-              aria-label={`Ir a palabra ${i + 1}`}
-            />
-          ))}
-        </div>
-
-        {!done ? (
-          <button
-            onClick={goNext}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#1D0084] text-white text-[14px] font-semibold hover:bg-[#025dc7] transition-colors duration-200"
-          >
-            Siguiente
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        ) : (
-          <button
-            onClick={onComplete}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#4da3ff] text-[#0a1a4a] text-[14px] font-semibold hover:bg-[#3391f0] transition-colors duration-200"
-          >
-            Continuar
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
-            </svg>
-          </button>
-        )}
-      </div>
+      <button
+        onClick={onComplete}
+        className="w-full py-3.5 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200"
+      >
+        He repasado las palabras →
+      </button>
     </div>
   );
 }
@@ -305,7 +273,7 @@ function PhrasesSection({
               Traducción {showSpanish ? '↑' : '↓'}
             </p>
             {showSpanish ? (
-              <p className="text-[15px] text-[#5A6480] leading-snug">{phrase.spanish}</p>
+              <p className="text-[15px] text-[#1D0084] font-medium leading-snug">{phrase.spanish}</p>
             ) : (
               <p className="text-[14px] text-[#9CA3AF] italic">Toca para ver la traducción</p>
             )}

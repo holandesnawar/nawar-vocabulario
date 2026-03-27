@@ -47,17 +47,15 @@ export default async function ModulePage({ params }: { params: Promise<{ moduleI
           <div className="flex items-start gap-3">
             <span className="text-4xl">{module.emoji}</span>
             <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="inline-flex items-center px-3 py-0.5 rounded-full bg-white/15 text-white/80 text-[11px] font-semibold tracking-widest uppercase">
-                  {module.level}
-                </span>
-              </div>
               <h1
                 className="text-[24px] font-bold text-white leading-tight"
                 style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}
               >
                 {module.title}
               </h1>
+              {module.subtitle && (
+                <p className="text-[13px] font-semibold text-white/60 mt-0.5">{module.subtitle}</p>
+              )}
               <p className="text-[13px] text-white/50 mt-1 leading-snug max-w-sm">
                 {module.description}
               </p>

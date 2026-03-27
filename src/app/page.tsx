@@ -37,9 +37,6 @@ function ModuleCard({ module }: { module: CourseModule }) {
       {/* Content */}
       <div className="p-5 flex flex-col gap-3">
         <div className="flex items-center justify-between gap-2">
-          <span className="inline-flex items-center px-3 py-1 rounded-full bg-[#dde8f8] text-[#1D0084] eyebrow">
-            {module.level}
-          </span>
           <span className="text-[12px] text-[#9CA3AF] font-medium">
             {lessons.length} lección{lessons.length !== 1 ? 'es' : ''}
           </span>
@@ -52,6 +49,9 @@ function ModuleCard({ module }: { module: CourseModule }) {
           >
             {module.title}
           </h2>
+          {module.subtitle && (
+            <p className="text-[12px] font-semibold text-[#025dc7] mt-0.5">{module.subtitle}</p>
+          )}
           <p className="text-[13px] text-[#9CA3AF] mt-1 leading-snug">{module.description}</p>
         </div>
 
@@ -103,10 +103,10 @@ export default function HomePage() {
             className="text-[32px] font-bold text-white leading-tight"
             style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}
           >
-            Mi curso de neerlandés
+            Centro de aprendizaje
           </h1>
           <p className="text-[14px] text-white/50 mt-2">
-            {modules.length} módulo{modules.length !== 1 ? 's' : ''} · De A0 a A2
+            Formación Principiantes Nawar · {modules.length} módulo{modules.length !== 1 ? 's' : ''}
           </p>
         </div>
       </div>
