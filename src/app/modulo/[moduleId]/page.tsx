@@ -8,6 +8,9 @@ import {
 } from "@/lib/courseService"
 import LessonList from '@/components/LessonList';
 
+// Always server-render so Supabase is queried at request time, not baked at build time.
+export const dynamic = 'force-dynamic';
+
 export function generateStaticParams() {
   return getModules().map((module) => ({
     moduleId: module.id,
