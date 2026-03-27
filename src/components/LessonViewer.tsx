@@ -66,10 +66,11 @@ function ProgressBar({ current, total, label }: { current: number; total: number
    TAB TYPE
 ───────────────────────────────────────────────────────────────────────────── */
 
-type TabId = 'vocabulary' | 'phrases' | 'practice' | 'dialogue' | 'review';
+type TabId = 'vocabulary' | 'flashcards' | 'phrases' | 'practice' | 'dialogue' | 'review';
 
 const TAB_LABELS: Record<TabId, string> = {
   vocabulary: 'Vocabulario',
+  flashcards: 'Flashcards',
   phrases: 'Frases',
   practice: 'Práctica',
   dialogue: 'Diálogo',
@@ -206,6 +207,184 @@ function VocabularySection({
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
+   FLASHCARD SECTION
+───────────────────────────────────────────────────────────────────────────── */
+
+function FlashcardSection({
+  items,
+  onComplete,
+}: {
+  items: VocabularyItem[];
+  onComplete: () => void;
+}) {
+  const [mode, setMode] = useState<'nl-es' | 'es-nl'>('nl-es');
+  const [queue, setQueue] = useState<VocabularyItem[]>(() =>
+    [...items].sort(() => Math.random() - 0.5)
+  );
+  const [index, setIndex] = useState(0);
+  const [flipped, setFlipped] = useState(false);
+  const [knownCount, setKnownCount] = useState(0);
+  const [done, setDone] = useState(false);
+
+  const card = queue[index];
+  const front = mode === 'nl-es'
+    ? (card?.article ? `${card.article} ${card.dutch}` : card?.dutch) ?? ''
+    : card?.spanish ?? '';
+  const back = mode === 'nl-es' ? card?.spanish ?? '' : (card?.article ? `${card.article} ${card.dutch}` : card?.dutch) ?? '';
+
+  function handleKnown() {
+    setKnownCount(k => k + 1);
+    advance();
+  }
+
+  function handleRepeat() {
+    // Send to back of queue
+    setQueue(q => {
+      const next = [...q];
+      const [current] = next.splice(index, 1);
+      next.push(current);
+      return next;
+    });
+    setFlipped(false);
+  }
+
+  function advance() {
+    setFlipped(false);
+    if (index + 1 >= queue.length) {
+      setDone(true);
+    } else {
+      setIndex(i => i + 1);
+    }
+  }
+
+  function handleShuffle() {
+    setQueue(q => [...q].sort(() => Math.random() - 0.5));
+    setIndex(0);
+    setFlipped(false);
+    setDone(false);
+  }
+
+  function handleRestart() {
+    setQueue([...items].sort(() => Math.random() - 0.5));
+    setIndex(0);
+    setFlipped(false);
+    setKnownCount(0);
+    setDone(false);
+  }
+
+  if (done) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col items-center justify-center rounded-2xl bg-[#1D0084] py-10 px-6 text-center space-y-3">
+          <span className="text-5xl">🎉</span>
+          <p className="text-white font-bold text-[20px]" style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}>
+            ¡Ronda completada!
+          </p>
+          <p className="text-white/60 text-[14px]">{knownCount} de {items.length} palabras dominadas</p>
+        </div>
+        <button onClick={handleRestart} className="w-full py-3.5 rounded-xl bg-[#F0F5FF] text-[#1D0084] text-[15px] font-semibold border border-[#DDE6F5] hover:bg-[#e0eaff] transition-colors duration-200">
+          Repetir flashcards 🔄
+        </button>
+        <button onClick={onComplete} className="w-full py-3.5 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200">
+          Continuar a Frases →
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Controls */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex rounded-xl border border-[#DDE6F5] overflow-hidden">
+          <button
+            onClick={() => { setMode('nl-es'); setFlipped(false); }}
+            className={`px-3 py-2 text-[12px] font-semibold transition-colors duration-200 ${mode === 'nl-es' ? 'bg-[#1D0084] text-white' : 'bg-white text-[#9CA3AF] hover:text-[#1D0084]'}`}
+          >
+            NL → ES
+          </button>
+          <button
+            onClick={() => { setMode('es-nl'); setFlipped(false); }}
+            className={`px-3 py-2 text-[12px] font-semibold transition-colors duration-200 ${mode === 'es-nl' ? 'bg-[#1D0084] text-white' : 'bg-white text-[#9CA3AF] hover:text-[#1D0084]'}`}
+          >
+            ES → NL
+          </button>
+        </div>
+        <button onClick={handleShuffle} className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#DDE6F5] text-[12px] font-semibold text-[#5A6480] hover:text-[#1D0084] hover:bg-[#F0F5FF] transition-colors duration-200">
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+          Barajar
+        </button>
+        <span className="text-[12px] font-semibold text-[#9CA3AF]">{index + 1} / {queue.length}</span>
+      </div>
+
+      {/* Card */}
+      <button
+        onClick={() => setFlipped(f => !f)}
+        className="w-full min-h-[220px] rounded-2xl border border-[#DDE6F5] bg-white flex flex-col items-center justify-center gap-4 p-8 hover:border-[#025dc7]/40 hover:bg-[#F8FAFF] transition-colors duration-200 active:scale-[0.98]"
+      >
+        <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-widest">
+          {flipped ? (mode === 'nl-es' ? 'Español' : 'Nederlands') : (mode === 'nl-es' ? 'Nederlands' : 'Español')}
+        </p>
+        <p
+          className="text-[26px] font-bold text-[#1D0084] text-center leading-tight"
+          style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}
+        >
+          {flipped ? back : front}
+        </p>
+        {!flipped && (
+          <p className="text-[12px] text-[#9CA3AF]">Toca para ver la traducción</p>
+        )}
+        {flipped && mode === 'nl-es' && (
+          <button
+            onClick={e => { e.stopPropagation(); speakDutch(card?.dutch ?? ''); }}
+            className="mt-1 inline-flex items-center gap-1.5 text-[12px] font-medium text-[#025dc7] hover:text-[#1D0084]"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 5.636a9 9 0 010 12.728" />
+            </svg>
+            Escuchar
+          </button>
+        )}
+      </button>
+
+      {/* Actions */}
+      {flipped ? (
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={handleRepeat}
+            className="py-3.5 rounded-xl bg-[#FFF5F5] border border-red-100 text-red-600 text-[15px] font-semibold hover:bg-red-50 transition-colors duration-200"
+          >
+            🔄 Repasar
+          </button>
+          <button
+            onClick={handleKnown}
+            className="py-3.5 rounded-xl bg-[#F0FFF4] border border-green-200 text-green-700 text-[15px] font-semibold hover:bg-green-50 transition-colors duration-200"
+          >
+            ✓ Ya la sé
+          </button>
+        </div>
+      ) : (
+        <p className="text-center text-[13px] text-[#9CA3AF]">
+          Primero mira la tarjeta, luego decide
+        </p>
+      )}
+
+      {/* Progress bar */}
+      <div className="h-1.5 w-full rounded-full bg-[#DDE6F5] overflow-hidden">
+        <div
+          className="h-full rounded-full bg-[#4da3ff] transition-all duration-300"
+          style={{ width: `${((index) / queue.length) * 100}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
    PHRASES SECTION
 ───────────────────────────────────────────────────────────────────────────── */
 
@@ -217,12 +396,10 @@ function PhrasesSection({
   onComplete: () => void;
 }) {
   const [index, setIndex] = useState(0);
-  const [showSpanish, setShowSpanish] = useState(false);
   const [done, setDone] = useState(false);
   const phrase = items[index];
 
   function goNext() {
-    setShowSpanish(false);
     if (index + 1 >= items.length) {
       setDone(true);
     } else {
@@ -231,7 +408,6 @@ function PhrasesSection({
   }
 
   function goPrev() {
-    setShowSpanish(false);
     setIndex(i => Math.max(0, i - 1));
   }
 
@@ -265,19 +441,10 @@ function PhrasesSection({
             </button>
           </div>
 
-          <button
-            onClick={() => setShowSpanish(s => !s)}
-            className="w-full text-left rounded-xl bg-[#F0F5FF] px-4 py-3 border border-[#DDE6F5] hover:border-[#025dc7]/30 transition-colors duration-200"
-          >
-            <p className="text-[12px] font-semibold text-[#9CA3AF] mb-1">
-              Traducción {showSpanish ? '↑' : '↓'}
-            </p>
-            {showSpanish ? (
-              <p className="text-[15px] text-[#1D0084] font-medium leading-snug">{phrase.spanish}</p>
-            ) : (
-              <p className="text-[14px] text-[#9CA3AF] italic">Toca para ver la traducción</p>
-            )}
-          </button>
+          <div className="rounded-xl bg-[#F0F5FF] px-4 py-3 border border-[#DDE6F5]">
+            <p className="text-[11px] font-semibold text-[#9CA3AF] mb-1 uppercase tracking-widest">Traducción</p>
+            <p className="text-[15px] text-[#1D0084] font-medium leading-snug">{phrase.spanish}</p>
+          </div>
         </div>
       </div>
 
@@ -297,7 +464,7 @@ function PhrasesSection({
           {items.map((_, i) => (
             <button
               key={i}
-              onClick={() => { setShowSpanish(false); setIndex(i); }}
+              onClick={() => setIndex(i)}
               className={`rounded-full transition-all duration-200 ${
                 i === index ? 'w-5 h-2 bg-[#1D0084]' : i < index ? 'w-2 h-2 bg-[#4da3ff]' : 'w-2 h-2 bg-[#DDE6F5]'
               }`}
@@ -838,16 +1005,36 @@ function DialogueSection({
   onComplete: () => void;
 }) {
   const [showAll, setShowAll] = useState(false);
-  const [perLine, setPerLine] = useState<Set<string>>(new Set());
+  // When showAll=true, hiddenLines tracks individually hidden lines.
+  // When showAll=false, shownLines tracks individually shown lines.
+  const [shownLines, setShownLines] = useState<Set<string>>(new Set());
+  const [hiddenLines, setHiddenLines] = useState<Set<string>>(new Set());
   const bottomRef = useRef<HTMLDivElement>(null);
 
   function toggleLine(id: string) {
-    setPerLine(s => {
-      const next = new Set(s);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+    if (showAll) {
+      setHiddenLines(s => {
+        const next = new Set(s);
+        if (next.has(id)) next.delete(id); else next.add(id);
+        return next;
+      });
+    } else {
+      setShownLines(s => {
+        const next = new Set(s);
+        if (next.has(id)) next.delete(id); else next.add(id);
+        return next;
+      });
+    }
+  }
+
+  function handleGlobalToggle() {
+    setShowAll(v => !v);
+    setShownLines(new Set());
+    setHiddenLines(new Set());
+  }
+
+  function lineVisible(id: string): boolean {
+    return showAll ? !hiddenLines.has(id) : shownLines.has(id);
   }
 
   const speakerColors: Record<string, string> = {};
@@ -880,17 +1067,17 @@ function DialogueSection({
 
       <div className="flex justify-end">
         <button
-          onClick={() => setShowAll(s => !s)}
+          onClick={handleGlobalToggle}
           className="text-[13px] font-semibold text-[#025dc7] hover:text-[#1D0084] transition-colors duration-200"
         >
-          {showAll ? 'Ocultar traducciones' : 'Mostrar todas las traducciones'}
+          {showAll ? 'Ocultar todas las traducciones' : 'Mostrar todas las traducciones'}
         </button>
       </div>
 
       <div className="space-y-3">
         {dialogue.lines.map(line => {
           const color = speakerColors[line.speaker] ?? '#1D0084';
-          const show = showAll || perLine.has(line.id);
+          const show = lineVisible(line.id);
           return (
             <div key={line.id} className="bg-white rounded-2xl border border-[#DDE6F5] p-4 space-y-2">
               <div className="flex items-center justify-between gap-2">
@@ -900,28 +1087,29 @@ function DialogueSection({
                 >
                   {line.speaker}
                 </span>
-                <button
-                  onClick={() => speakDutch(line.dutch)}
-                  className="w-7 h-7 rounded-full bg-[#F0F5FF] border border-[#DDE6F5] flex items-center justify-center text-[#025dc7] hover:bg-[#e0eaff] transition-colors duration-200"
-                  aria-label="Escuchar"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 5.636a9 9 0 010 12.728" />
-                  </svg>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => speakDutch(line.dutch)}
+                    className="w-7 h-7 rounded-full bg-[#F0F5FF] border border-[#DDE6F5] flex items-center justify-center text-[#025dc7] hover:bg-[#e0eaff] transition-colors duration-200"
+                    aria-label="Escuchar"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 5.636a9 9 0 010 12.728" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => toggleLine(line.id)}
+                    className="text-[11px] font-semibold text-[#9CA3AF] hover:text-[#025dc7] transition-colors duration-200 px-2 py-0.5 rounded-md hover:bg-[#F0F5FF]"
+                  >
+                    {show ? 'Ocultar' : 'Ver'}
+                  </button>
+                </div>
               </div>
               <p className="text-[15px] font-medium text-[#1D0084] leading-snug">{line.dutch}</p>
-              {show ? (
-                <p className="text-[13px] text-[#5A6480] leading-snug">{line.spanish}</p>
-              ) : (
-                <button
-                  onClick={() => toggleLine(line.id)}
-                  className="text-[12px] text-[#9CA3AF] hover:text-[#025dc7] transition-colors duration-200"
-                >
-                  Ver traducción
-                </button>
+              {show && (
+                <p className="text-[13px] text-[#5A6480] leading-snug border-t border-[#DDE6F5] pt-2 mt-1">{line.spanish}</p>
               )}
             </div>
           );
@@ -1013,18 +1201,29 @@ function ReviewSection({
       {/* Wrong exercises */}
       {wrongExercises.length > 0 && (
         <div className="space-y-3">
-          <h3
-            className="text-[15px] font-bold text-[#1D0084]"
-            style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}
-          >
-            Ejercicios para repasar
-          </h3>
+          <div className="flex items-center gap-3">
+            <h3
+              className="text-[15px] font-bold text-[#1D0084]"
+              style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}
+            >
+              Repaso de errores
+            </h3>
+            <span className="text-[12px] font-semibold text-red-500 bg-red-50 border border-red-100 px-2 py-0.5 rounded-full">
+              {wrongExercises.length} fallado{wrongExercises.length !== 1 ? 's' : ''}
+            </span>
+          </div>
           {wrongExercises.map(ex => (
-            <div key={ex.id} className="bg-[#FFF5F5] rounded-xl border border-red-100 p-4">
-              <p className="text-[13px] text-[#5A6480] mb-1">{ex.prompt}</p>
-              <p className="text-[15px] font-semibold text-[#1D0084]">✓ {ex.correctAnswer}</p>
+            <div key={ex.id} className="bg-[#FFF5F5] rounded-2xl border border-red-100 p-4 space-y-2">
+              <p className="text-[12px] font-semibold text-red-400 uppercase tracking-wide">
+                {ex.type === 'fill_blank' ? 'Rellena el hueco' : ex.type === 'order_sentence' ? 'Ordena la frase' : ex.type === 'multiple_choice' ? 'Opción múltiple' : ex.type}
+              </p>
+              <p className="text-[13px] text-[#5A6480] leading-snug">{ex.prompt.replace('___', '____')}</p>
+              <div className="flex items-center gap-2">
+                <span className="text-[12px] text-[#9CA3AF]">Respuesta correcta:</span>
+                <span className="text-[14px] font-bold text-[#1D0084]">{ex.correctAnswer}</span>
+              </div>
               {ex.explanation && (
-                <p className="text-[12px] text-[#9CA3AF] mt-1">{ex.explanation}</p>
+                <p className="text-[12px] text-[#9CA3AF] border-t border-red-100 pt-2">{ex.explanation}</p>
               )}
             </div>
           ))}
@@ -1033,6 +1232,14 @@ function ReviewSection({
 
       {/* Actions */}
       <div className="space-y-3">
+        {wrongExercises.length > 0 && (
+          <button
+            onClick={onRetryPractice}
+            className="w-full py-3.5 rounded-xl bg-red-50 text-red-700 text-[15px] font-semibold hover:bg-red-100 transition-colors duration-200 border border-red-200"
+          >
+            Repasar solo mis errores ({wrongExercises.length})
+          </button>
+        )}
         {practiceTotal > 0 && (
           <button
             onClick={onRetryPractice}
@@ -1072,11 +1279,15 @@ interface LessonViewerProps {
 }
 
 export default function LessonViewer({ lesson, module, prevLesson: _prev, nextLesson }: LessonViewerProps) {
-  // Derive available tabs from block types
+  // Derive available tabs from block types, injecting 'flashcards' after 'vocabulary'
   const availableTabs = useCallback((): TabId[] => {
     const tabs: TabId[] = [];
     for (const block of lesson.blocks) {
-      if (!tabs.includes(block.type as TabId)) tabs.push(block.type as TabId);
+      const id = block.type as TabId;
+      if (!tabs.includes(id)) {
+        tabs.push(id);
+        if (id === 'vocabulary') tabs.push('flashcards');
+      }
     }
     return tabs;
   }, [lesson.blocks]);
@@ -1245,6 +1456,14 @@ export default function LessonViewer({ lesson, module, prevLesson: _prev, nextLe
             <VocabularySection
               items={vocabBlock.items}
               onComplete={() => completeTab('vocabulary')}
+            />
+          )}
+
+          {/* FLASHCARDS */}
+          {activeTab === 'flashcards' && vocabBlock && vocabBlock.type === 'vocabulary' && (
+            <FlashcardSection
+              items={vocabBlock.items}
+              onComplete={() => completeTab('flashcards')}
             />
           )}
 
