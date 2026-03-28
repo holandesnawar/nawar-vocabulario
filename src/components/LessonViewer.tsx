@@ -148,19 +148,21 @@ function VocabularySection({
                   <p className="text-[13px] text-[#1D0084] font-medium mt-0.5">{word.spanish}</p>
                 </div>
 
-                {/* Audio + expand */}
+                {/* Audio (TTS fallback) + expand */}
                 <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    onClick={() => playAudio(word.audio?.url, (word.article ? `${word.article} ` : '') + word.dutch)}
-                    className="w-8 h-8 rounded-full bg-[#F0F5FF] border border-[#DDE6F5] flex items-center justify-center text-[#025dc7] hover:bg-[#e0eaff] transition-colors duration-200"
-                    aria-label="Escuchar"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 5.636a9 9 0 010 12.728" />
-                    </svg>
-                  </button>
+                  {!word.audio?.url && (
+                    <button
+                      onClick={() => speakDutch((word.article ? `${word.article} ` : '') + word.dutch)}
+                      className="w-8 h-8 rounded-full bg-[#F0F5FF] border border-[#DDE6F5] flex items-center justify-center text-[#025dc7] hover:bg-[#e0eaff] transition-colors duration-200"
+                      aria-label="Escuchar"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 5.636a9 9 0 010 12.728" />
+                      </svg>
+                    </button>
+                  )}
                   <button
                     onClick={() => toggle(word.id)}
                     className="w-8 h-8 rounded-full bg-[#F0F5FF] border border-[#DDE6F5] flex items-center justify-center text-[#9CA3AF] hover:text-[#1D0084] hover:bg-[#e0eaff] transition-all duration-200"
@@ -178,6 +180,13 @@ function VocabularySection({
                   </button>
                 </div>
               </div>
+
+              {/* Compact audio player — only when a real URL exists */}
+              {word.audio?.url && (
+                <div className="px-4 pb-3">
+                  <AudioPlayer src={word.audio.url} compact />
+                </div>
+              )}
 
               {/* Expanded example */}
               {isOpen && (
@@ -466,18 +475,22 @@ function PhrasesSection({
             >
               {phrase.dutch}
             </h2>
-            <button
-              onClick={() => playAudio(phrase.audio?.url, phrase.dutch)}
-              className="w-9 h-9 rounded-full bg-[#F0F5FF] border border-[#DDE6F5] flex items-center justify-center text-[#025dc7] hover:bg-[#e0eaff] transition-colors duration-200 shrink-0"
-              aria-label="Escuchar frase"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 5.636a9 9 0 010 12.728" />
-              </svg>
-            </button>
+            {!phrase.audio?.url && (
+              <button
+                onClick={() => speakDutch(phrase.dutch)}
+                className="w-9 h-9 rounded-full bg-[#F0F5FF] border border-[#DDE6F5] flex items-center justify-center text-[#025dc7] hover:bg-[#e0eaff] transition-colors duration-200 shrink-0"
+                aria-label="Escuchar frase"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 5.636a9 9 0 010 12.728" />
+                </svg>
+              </button>
+            )}
           </div>
+
+          {phrase.audio?.url && <AudioPlayer src={phrase.audio.url} compact />}
 
           <div className="rounded-xl bg-[#F0F5FF] px-4 py-3 border border-[#DDE6F5]">
             <p className="text-[11px] font-semibold text-[#9CA3AF] mb-1 uppercase tracking-widest">Traducción</p>
@@ -705,17 +718,21 @@ function ListenAndChooseExercise({
     <div className="space-y-4">
       <div className="bg-[#F0F5FF] rounded-2xl p-5 border border-[#DDE6F5]">
         <p className="text-[16px] font-semibold text-[#1D0084] leading-snug mb-3">{exercise.prompt}</p>
-        <button
-          onClick={() => playAudio(exercise.audio?.url, dutchText)}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#1D0084] text-white text-[13px] font-semibold hover:bg-[#025dc7] transition-colors duration-200"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072" />
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12" />
-            <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 5.636a9 9 0 010 12.728" />
-          </svg>
-          Escuchar
-        </button>
+        {exercise.audio?.url ? (
+          <AudioPlayer src={exercise.audio.url} compact />
+        ) : (
+          <button
+            onClick={() => speakDutch(dutchText)}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#1D0084] text-white text-[13px] font-semibold hover:bg-[#025dc7] transition-colors duration-200"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 5.636a9 9 0 010 12.728" />
+            </svg>
+            Escuchar
+          </button>
+        )}
       </div>
       <div className="grid grid-cols-1 gap-2.5">
         {exercise.options?.map(opt => (
