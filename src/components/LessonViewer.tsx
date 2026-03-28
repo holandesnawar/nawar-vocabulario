@@ -369,7 +369,7 @@ function FlashcardSection({
           </div>
           {/* Back */}
           <div
-            className="rounded-2xl border border-[#025dc7]/30 bg-[#F8FAFF] flex flex-col items-center justify-center gap-3 p-5 absolute inset-0"
+            className="rounded-2xl border border-[#025dc7]/30 bg-[#F8FAFF] flex flex-col items-center justify-center gap-4 p-8 absolute inset-0"
             style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
           >
             <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-widest">
@@ -381,25 +381,6 @@ function FlashcardSection({
             >
               {back}
             </p>
-            {mode === 'nl-es' && (
-              card?.audio?.url ? (
-                <div onClick={e => e.stopPropagation()} className="w-full mt-1">
-                  <AudioPlayer src={card.audio.url} compact />
-                </div>
-              ) : (
-                <button
-                  onClick={e => { e.stopPropagation(); speakDutch(card?.dutch ?? ''); }}
-                  className="mt-1 inline-flex items-center gap-1.5 text-[12px] font-medium text-[#025dc7] hover:text-[#1D0084]"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 5.636a9 9 0 010 12.728" />
-                  </svg>
-                  Escuchar
-                </button>
-              )
-            )}
           </div>
         </div>
       </div>
@@ -1148,26 +1129,29 @@ function DialogueSection({
                 >
                   {line.speaker}
                 </span>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => playAudio(line.audio?.url, line.dutch)}
-                    className="w-7 h-7 rounded-full bg-[#F0F5FF] border border-[#DDE6F5] flex items-center justify-center text-[#025dc7] hover:bg-[#e0eaff] transition-colors duration-200"
-                    aria-label="Escuchar"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 5.636a9 9 0 010 12.728" />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={() => toggleLine(line.id)}
-                    className="text-[11px] font-semibold text-[#9CA3AF] hover:text-[#025dc7] transition-colors duration-200 px-2 py-0.5 rounded-md hover:bg-[#F0F5FF]"
-                  >
-                    {show ? 'Ocultar' : 'Ver traducción'}
-                  </button>
-                </div>
+                <button
+                  onClick={() => toggleLine(line.id)}
+                  className="text-[11px] font-semibold text-[#9CA3AF] hover:text-[#025dc7] transition-colors duration-200 px-2 py-0.5 rounded-md hover:bg-[#F0F5FF]"
+                >
+                  {show ? 'Ocultar' : 'Ver traducción'}
+                </button>
               </div>
+              {line.audio?.url ? (
+                <AudioPlayer src={line.audio.url} compact />
+              ) : (
+                <button
+                  onClick={() => speakDutch(line.dutch)}
+                  className="self-start inline-flex items-center gap-1.5 text-[12px] font-medium text-[#025dc7] hover:text-[#1D0084]"
+                  aria-label="Escuchar"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 5.636a9 9 0 010 12.728" />
+                  </svg>
+                  Escuchar
+                </button>
+              )}
               <p className="text-[15px] font-medium text-[#1D0084] leading-snug">{line.dutch}</p>
               {show && (
                 <p className="text-[13px] text-[#5A6480] leading-snug border-t border-[#DDE6F5] pt-2 mt-1">{line.spanish}</p>
