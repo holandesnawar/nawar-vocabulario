@@ -15,10 +15,13 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+  // Service role key bypasses RLS — never expose this to the client
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
 
   if (!supabaseUrl || !supabaseKey) {
-    return NextResponse.json({ error: 'Supabase env vars not set' }, { status: 500 });
+    return NextResponse.json({
+      error: 'Missing env var: SUPABASE_SERVICE_ROLE_KEY must be set in Vercel (not the anon key)',
+    }, { status: 500 });
   }
 
   const force = req.nextUrl.searchParams.get('force') === 'true';
