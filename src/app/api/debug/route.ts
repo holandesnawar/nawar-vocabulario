@@ -10,55 +10,55 @@ export async function GET() {
   const info: Record<string, unknown> = {
     supabase_url_set: Boolean(url),
     supabase_key_set: Boolean(key),
-    supabase_url_preview: url ? url.slice(0, 30) + '…' : null,
+    supabase_url_preview: url ? url.slice(0, 40) + '…' : null,
   };
 
   if (!url || !key) {
-    return NextResponse.json({ ...info, error: 'env vars missing' }, { status: 200 });
+    return NextResponse.json({ ...info, error: 'env vars missing — check Vercel settings' }, { status: 200 });
   }
 
   const db = createClient(url, key);
 
-  // 1. modules table — check columns and data
+  // modules: id, slug, title_nl, title_es, sort_order
   try {
-    const { data: modules, error } = await db
+    const { data, error } = await db
       .from('modules')
-      .select('id, slug, title')
+      .select('id, slug, title_nl, title_es, sort_order')
       .limit(5);
-    info.modules = error ? { error: error.message } : modules;
+    info.modules = error ? { error: error.message } : data;
   } catch (e) {
     info.modules = { exception: String(e) };
   }
 
-  // 2. lessons table — check columns and data
+  // lessons: id, module_id, slug, title_nl, title_es, sort_order, is_extra
   try {
-    const { data: lessons, error } = await db
+    const { data, error } = await db
       .from('lessons')
-      .select('id, module_id, slug, title')
+      .select('id, module_id, slug, title_nl, title_es, sort_order, is_extra')
       .limit(5);
-    info.lessons = error ? { error: error.message } : lessons;
+    info.lessons = error ? { error: error.message } : data;
   } catch (e) {
     info.lessons = { exception: String(e) };
   }
 
-  // 3. vocabulary_items — check audio_url column
+  // vocabulary_items: id, lesson_id, sort_order, article, word_nl, translation_es, audio_url
   try {
-    const { data: vocab, error } = await db
+    const { data, error } = await db
       .from('vocabulary_items')
-      .select('id, lesson_id, dutch, audio_url')
+      .select('id, lesson_id, sort_order, article, word_nl, translation_es, audio_url')
       .limit(5);
-    info.vocabulary_items = error ? { error: error.message } : vocab;
+    info.vocabulary_items = error ? { error: error.message } : data;
   } catch (e) {
     info.vocabulary_items = { exception: String(e) };
   }
 
-  // 4. phrases — check audio_url column
+  // phrases: id, lesson_id, sort_order, phrase_nl, translation_es, audio_url
   try {
-    const { data: phrases, error } = await db
+    const { data, error } = await db
       .from('phrases')
-      .select('id, lesson_id, dutch, audio_url')
+      .select('id, lesson_id, sort_order, phrase_nl, translation_es, audio_url')
       .limit(5);
-    info.phrases = error ? { error: error.message } : phrases;
+    info.phrases = error ? { error: error.message } : data;
   } catch (e) {
     info.phrases = { exception: String(e) };
   }
