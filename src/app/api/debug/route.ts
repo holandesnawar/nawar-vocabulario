@@ -5,19 +5,22 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
   const info: Record<string, unknown> = {
     supabase_url_set: Boolean(url),
-    supabase_key_set: Boolean(key),
+    service_key_set: Boolean(serviceKey),
+    anon_key_set: Boolean(anonKey),
     supabase_url_preview: url ? url.slice(0, 40) + '…' : null,
   };
 
-  if (!url || !key) {
-    return NextResponse.json({ ...info, error: 'env vars missing — check Vercel settings' }, { status: 200 });
+  if (!url || !serviceKey) {
+    return NextResponse.json({ ...info, error: 'Missing SUPABASE_SERVICE_ROLE_KEY' }, { status: 200 });
   }
 
-  const db = createClient(url, key);
+  // Use service role key so RLS doesn't hide data
+  const db = createClient(url, serviceKey);
 
   // modules: id, slug, title_nl, title_es, sort_order
   try {

@@ -24,7 +24,7 @@
  *   dialogue_lines   id, dialogue_id, sort_order, speaker, dutch, spanish, audio_url
  */
 
-import { supabase } from './supabase';
+import { supabaseAdmin as supabase } from './supabaseAdmin';
 import { MODULES, LESSONS } from './courseData';
 import type {
   CourseModule,
