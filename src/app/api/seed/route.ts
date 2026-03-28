@@ -2,9 +2,10 @@
  * GET /api/seed
  *
  * Populates Supabase tables from local courseData.ts.
- * Does NOT require UNIQUE constraints — checks for existing rows first.
- * Skips vocab/phrases for lessons that already have data (preserves audio_url).
- * Use ?force=true to delete all content rows and re-insert from scratch.
+ * Uses count checks — if a table already has rows, skips it (safe re-run).
+ * Use ?force=true to wipe and re-insert everything from scratch.
+ *
+ * Requires SUPABASE_SERVICE_ROLE_KEY env var (bypasses RLS).
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -15,12 +16,11 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
-  // Service role key bypasses RLS — never expose this to the client
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
 
   if (!supabaseUrl || !supabaseKey) {
     return NextResponse.json({
-      error: 'Missing env var: SUPABASE_SERVICE_ROLE_KEY must be set in Vercel (not the anon key)',
+      error: 'Missing SUPABASE_SERVICE_ROLE_KEY — add it in Vercel env vars',
     }, { status: 500 });
   }
 
@@ -28,61 +28,71 @@ export async function GET(req: NextRequest) {
   const db = createClient(supabaseUrl, supabaseKey);
   const report: Record<string, unknown> = { force };
 
-  // ── 1. Modules ──────────────────────────────────────────────────────────────
-  // Fetch existing modules so we can skip already-inserted ones
-  const { data: existingModules } = await db.from('modules').select('id, slug');
-  const existingModuleSlugs = new Set((existingModules ?? []).map((m: { slug: string }) => m.slug));
+  // ── helper ─────────────────────────────────────────────────────────────────
+  async function countRows(table: string): Promise<number> {
+    const { count } = await db.from(table).select('id', { count: 'exact', head: true });
+    return count ?? 0;
+  }
 
-  const newModuleRows = MODULES
-    .filter(m => !existingModuleSlugs.has(m.id))
-    .map(m => ({
+  // ── 1. Modules ──────────────────────────────────────────────────────────────
+  const moduleCount = await countRows('modules');
+
+  if (moduleCount > 0 && !force) {
+    report.modules = `skipped — ${moduleCount} rows already exist (use ?force=true to reset)`;
+  } else {
+    if (force) await db.from('modules').delete().neq('id', 0);
+
+    const rows = MODULES.map(m => ({
       slug: m.id,
       title_nl: m.title,
       title_es: m.subtitle ?? '',
       sort_order: m.order,
     }));
 
-  if (newModuleRows.length > 0) {
-    const { error } = await db.from('modules').insert(newModuleRows);
+    const { error } = await db.from('modules').insert(rows);
     if (error) return NextResponse.json({ step: 'modules insert', error: error.message }, { status: 500 });
+    report.modules = `inserted ${rows.length}`;
   }
 
-  // Fetch all modules (existing + just inserted) to build slug → id map
-  const { data: allModules, error: allModErr } = await db.from('modules').select('id, slug');
-  if (allModErr) return NextResponse.json({ step: 'modules select', error: allModErr.message }, { status: 500 });
+  // Fetch all modules to build slug → id map
+  const { data: allModules, error: modErr } = await db.from('modules').select('id, slug');
+  if (modErr) return NextResponse.json({ step: 'modules select', error: modErr.message }, { status: 500 });
 
   const moduleIdMap = new Map<string, number>(
     (allModules ?? []).map((m: { id: number; slug: string }) => [m.slug, m.id])
   );
-  report.modules = `total ${moduleIdMap.size} (inserted ${newModuleRows.length} new)`;
 
   // ── 2. Lessons ──────────────────────────────────────────────────────────────
-  const { data: existingLessons } = await db.from('lessons').select('id, slug');
-  const existingLessonSlugs = new Set((existingLessons ?? []).map((l: { slug: string }) => l.slug));
+  const lessonCount = await countRows('lessons');
 
-  const newLessonRows = LESSONS
-    .filter(l => !existingLessonSlugs.has(l.id) && moduleIdMap.has(l.moduleId))
-    .map(l => ({
-      slug: l.id,
-      module_id: moduleIdMap.get(l.moduleId),
-      title_nl: l.title,
-      title_es: l.subtitle,
-      sort_order: l.order,
-      is_extra: l.isExtra ?? false,
-    }));
+  if (lessonCount > 0 && !force) {
+    report.lessons = `skipped — ${lessonCount} rows already exist (use ?force=true to reset)`;
+  } else {
+    if (force) await db.from('lessons').delete().neq('id', 0);
 
-  if (newLessonRows.length > 0) {
-    const { error } = await db.from('lessons').insert(newLessonRows);
+    const rows = LESSONS
+      .filter(l => moduleIdMap.has(l.moduleId))
+      .map(l => ({
+        slug: l.id,
+        module_id: moduleIdMap.get(l.moduleId),
+        title_nl: l.title,
+        title_es: l.subtitle,
+        sort_order: l.order,
+        is_extra: l.isExtra ?? false,
+      }));
+
+    const { error } = await db.from('lessons').insert(rows);
     if (error) return NextResponse.json({ step: 'lessons insert', error: error.message }, { status: 500 });
+    report.lessons = `inserted ${rows.length}`;
   }
 
-  const { data: allLessons, error: allLesErr } = await db.from('lessons').select('id, slug');
-  if (allLesErr) return NextResponse.json({ step: 'lessons select', error: allLesErr.message }, { status: 500 });
+  // Fetch all lessons to build slug → id map
+  const { data: allLessons, error: lesErr } = await db.from('lessons').select('id, slug');
+  if (lesErr) return NextResponse.json({ step: 'lessons select', error: lesErr.message }, { status: 500 });
 
   const lessonIdMap = new Map<string, number>(
     (allLessons ?? []).map((l: { id: number; slug: string }) => [l.slug, l.id])
   );
-  report.lessons = `total ${lessonIdMap.size} (inserted ${newLessonRows.length} new)`;
 
   // ── 3. Vocabulary items ─────────────────────────────────────────────────────
   let vocabInserted = 0;
@@ -97,7 +107,6 @@ export async function GET(req: NextRequest) {
     );
     if (!vocabBlocks.length) continue;
 
-    // Check if rows already exist for this lesson
     if (!force) {
       const { count } = await db
         .from('vocabulary_items')
