@@ -2,11 +2,9 @@
  * GET /api/seed
  *
  * Populates Supabase tables from local courseData.ts.
- * - Modules and lessons: upsert on slug (safe to re-run)
- * - vocabulary_items / phrases: only inserts if the lesson has no rows yet
- *   (preserves any audio_url you've already set manually in Supabase)
- *
- * Add ?force=true to re-insert vocab/phrases even if rows exist.
+ * Does NOT require UNIQUE constraints — checks for existing rows first.
+ * Skips vocab/phrases for lessons that already have data (preserves audio_url).
+ * Use ?force=true to delete all content rows and re-insert from scratch.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -16,62 +14,72 @@ import { MODULES, LESSONS } from '@/lib/courseData';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
-  if (!url || !key) {
+  if (!supabaseUrl || !supabaseKey) {
     return NextResponse.json({ error: 'Supabase env vars not set' }, { status: 500 });
   }
 
   const force = req.nextUrl.searchParams.get('force') === 'true';
-  const db = createClient(url, key);
+  const db = createClient(supabaseUrl, supabaseKey);
   const report: Record<string, unknown> = { force };
 
   // ── 1. Modules ──────────────────────────────────────────────────────────────
-  const moduleRows = MODULES.map(m => ({
-    slug: m.id,
-    title_nl: m.title,
-    title_es: m.subtitle ?? '',
-    sort_order: m.order,
-  }));
+  // Fetch existing modules so we can skip already-inserted ones
+  const { data: existingModules } = await db.from('modules').select('id, slug');
+  const existingModuleSlugs = new Set((existingModules ?? []).map((m: { slug: string }) => m.slug));
 
-  const { data: insertedModules, error: modErr } = await db
-    .from('modules')
-    .upsert(moduleRows, { onConflict: 'slug' })
-    .select('id, slug');
+  const newModuleRows = MODULES
+    .filter(m => !existingModuleSlugs.has(m.id))
+    .map(m => ({
+      slug: m.id,
+      title_nl: m.title,
+      title_es: m.subtitle ?? '',
+      sort_order: m.order,
+    }));
 
-  if (modErr) {
-    return NextResponse.json({ step: 'modules', error: modErr.message }, { status: 500 });
+  if (newModuleRows.length > 0) {
+    const { error } = await db.from('modules').insert(newModuleRows);
+    if (error) return NextResponse.json({ step: 'modules insert', error: error.message }, { status: 500 });
   }
+
+  // Fetch all modules (existing + just inserted) to build slug → id map
+  const { data: allModules, error: allModErr } = await db.from('modules').select('id, slug');
+  if (allModErr) return NextResponse.json({ step: 'modules select', error: allModErr.message }, { status: 500 });
 
   const moduleIdMap = new Map<string, number>(
-    (insertedModules ?? []).map((m: { id: number; slug: string }) => [m.slug, m.id])
+    (allModules ?? []).map((m: { id: number; slug: string }) => [m.slug, m.id])
   );
-  report.modules = `upserted ${moduleIdMap.size}`;
+  report.modules = `total ${moduleIdMap.size} (inserted ${newModuleRows.length} new)`;
 
   // ── 2. Lessons ──────────────────────────────────────────────────────────────
-  const lessonRows = LESSONS.map(l => ({
-    slug: l.id,
-    module_id: moduleIdMap.get(l.moduleId),
-    title_nl: l.title,
-    title_es: l.subtitle,
-    sort_order: l.order,
-    is_extra: l.isExtra ?? false,
-  })).filter(r => r.module_id != null);
+  const { data: existingLessons } = await db.from('lessons').select('id, slug');
+  const existingLessonSlugs = new Set((existingLessons ?? []).map((l: { slug: string }) => l.slug));
 
-  const { data: insertedLessons, error: lesErr } = await db
-    .from('lessons')
-    .upsert(lessonRows, { onConflict: 'slug' })
-    .select('id, slug');
+  const newLessonRows = LESSONS
+    .filter(l => !existingLessonSlugs.has(l.id) && moduleIdMap.has(l.moduleId))
+    .map(l => ({
+      slug: l.id,
+      module_id: moduleIdMap.get(l.moduleId),
+      title_nl: l.title,
+      title_es: l.subtitle,
+      sort_order: l.order,
+      is_extra: l.isExtra ?? false,
+    }));
 
-  if (lesErr) {
-    return NextResponse.json({ step: 'lessons', error: lesErr.message }, { status: 500 });
+  if (newLessonRows.length > 0) {
+    const { error } = await db.from('lessons').insert(newLessonRows);
+    if (error) return NextResponse.json({ step: 'lessons insert', error: error.message }, { status: 500 });
   }
 
+  const { data: allLessons, error: allLesErr } = await db.from('lessons').select('id, slug');
+  if (allLesErr) return NextResponse.json({ step: 'lessons select', error: allLesErr.message }, { status: 500 });
+
   const lessonIdMap = new Map<string, number>(
-    (insertedLessons ?? []).map((l: { id: number; slug: string }) => [l.slug, l.id])
+    (allLessons ?? []).map((l: { id: number; slug: string }) => [l.slug, l.id])
   );
-  report.lessons = `upserted ${lessonIdMap.size}`;
+  report.lessons = `total ${lessonIdMap.size} (inserted ${newLessonRows.length} new)`;
 
   // ── 3. Vocabulary items ─────────────────────────────────────────────────────
   let vocabInserted = 0;
@@ -86,16 +94,18 @@ export async function GET(req: NextRequest) {
     );
     if (!vocabBlocks.length) continue;
 
-    // Skip if rows already exist (preserves existing audio_url values)
+    // Check if rows already exist for this lesson
     if (!force) {
       const { count } = await db
         .from('vocabulary_items')
         .select('id', { count: 'exact', head: true })
         .eq('lesson_id', lessonDbId);
       if ((count ?? 0) > 0) { vocabSkipped++; continue; }
+    } else {
+      await db.from('vocabulary_items').delete().eq('lesson_id', lessonDbId);
     }
 
-    const rows = vocabBlocks.flatMap((b, _bi) =>
+    const rows = vocabBlocks.flatMap(b =>
       b.items.map((item, idx) => ({
         lesson_id: lessonDbId,
         sort_order: idx + 1,
@@ -108,7 +118,7 @@ export async function GET(req: NextRequest) {
 
     const { error } = await db.from('vocabulary_items').insert(rows);
     if (error) {
-      report.vocab_error = `lesson ${lesson.id}: ${error.message}`;
+      report[`vocab_error_${lesson.id}`] = error.message;
     } else {
       vocabInserted += rows.length;
     }
@@ -135,6 +145,8 @@ export async function GET(req: NextRequest) {
         .select('id', { count: 'exact', head: true })
         .eq('lesson_id', lessonDbId);
       if ((count ?? 0) > 0) { phrasesSkipped++; continue; }
+    } else {
+      await db.from('phrases').delete().eq('lesson_id', lessonDbId);
     }
 
     const rows = phraseBlocks.flatMap(b =>
@@ -149,7 +161,7 @@ export async function GET(req: NextRequest) {
 
     const { error } = await db.from('phrases').insert(rows);
     if (error) {
-      report.phrases_error = `lesson ${lesson.id}: ${error.message}`;
+      report[`phrases_error_${lesson.id}`] = error.message;
     } else {
       phrasesInserted += rows.length;
     }
