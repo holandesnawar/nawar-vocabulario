@@ -302,6 +302,9 @@ async function assembleLessonBlocks(lessonRow: DbLesson, moduleSlug: string): Pr
       type: 'dialogue',
       dialogue: mapDialogue(dialogueRows[0] as DbDialogue, (lineRows ?? []) as DbDialogueLine[]),
     });
+  } else if (localLesson) {
+    const localDialogue = localLesson.blocks.find(b => b.type === 'dialogue');
+    if (localDialogue) blocks.push(localDialogue);
   }
   if (practiceRows?.length) {
     blocks.push({
@@ -310,6 +313,9 @@ async function assembleLessonBlocks(lessonRow: DbLesson, moduleSlug: string): Pr
         mapExercise(r, (optionRows ?? []) as DbPracticeOption[])
       ),
     });
+  } else if (localLesson) {
+    const localPractice = localLesson.blocks.find(b => b.type === 'practice');
+    if (localPractice) blocks.push(localPractice);
   }
   blocks.push({ type: 'review' });
 
