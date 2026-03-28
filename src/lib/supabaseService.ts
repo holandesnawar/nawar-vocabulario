@@ -5,35 +5,45 @@
  * All functions return null if Supabase is unavailable or the query fails,
  * so callers can fall back to local mock data transparently.
  *
+ * ID strategy
+ * ───────────
+ * Supabase uses numeric (or UUID) PKs internally.
+ * Every module and lesson MUST also have a `slug` column with the
+ * URL-friendly string identifier (e.g. 'over-jou', 'les-1-voorstellen').
+ * All public lookups use slug; internal FK joins use the numeric id.
+ *
  * Schema (tables & columns used):
  *
- *   modules            id TEXT PK, title TEXT, subtitle TEXT, description TEXT,
+ *   modules            id (PK, numeric/uuid), slug TEXT UNIQUE,
+ *                      title TEXT, subtitle TEXT, description TEXT,
  *                      sort_order INT, emoji TEXT, level TEXT, color TEXT
  *
- *   lessons            id TEXT PK, module_id TEXT, title TEXT, subtitle TEXT,
- *                      sort_order INT, is_extra BOOL, learning_objective TEXT,
- *                      estimated_minutes INT
+ *   lessons            id (PK, numeric/uuid), module_id → modules.id,
+ *                      slug TEXT UNIQUE, title TEXT, subtitle TEXT,
+ *                      sort_order INT, is_extra BOOL DEFAULT false,
+ *                      learning_objective TEXT, estimated_minutes INT
  *
- *   vocabulary_items   id TEXT PK, lesson_id TEXT, sort_order INT,
+ *   vocabulary_items   id (PK), lesson_id → lessons.id, sort_order INT,
  *                      dutch TEXT, spanish TEXT, article TEXT,
  *                      emoji TEXT, color TEXT, image TEXT,
  *                      audio_url TEXT, example_nl TEXT, example_es TEXT,
  *                      category TEXT, difficulty TEXT
  *
- *   phrases            id TEXT PK, lesson_id TEXT, sort_order INT,
+ *   phrases            id (PK), lesson_id → lessons.id, sort_order INT,
  *                      dutch TEXT, spanish TEXT, audio_url TEXT, context TEXT
  *
- *   practice_items     id TEXT PK, lesson_id TEXT, sort_order INT,
+ *   practice_items     id (PK), lesson_id → lessons.id, sort_order INT,
  *                      type TEXT, prompt TEXT, correct_answer TEXT,
  *                      audio_url TEXT, hint TEXT, explanation TEXT
  *
- *   practice_options   id TEXT PK, practice_item_id TEXT, sort_order INT,
- *                      option_text TEXT
+ *   practice_options   id (PK), practice_item_id → practice_items.id,
+ *                      sort_order INT, option_text TEXT
  *
- *   dialogues          id TEXT PK, lesson_id TEXT, title TEXT, context TEXT,
+ *   dialogues          id (PK), lesson_id → lessons.id,
+ *                      title TEXT, context TEXT,
  *                      audio_url TEXT, slow_audio_url TEXT
  *
- *   dialogue_lines     id TEXT PK, dialogue_id TEXT, sort_order INT,
+ *   dialogue_lines     id (PK), dialogue_id → dialogues.id, sort_order INT,
  *                      speaker TEXT, dutch TEXT, spanish TEXT, audio_url TEXT
  */
 
@@ -52,9 +62,14 @@ import type {
 } from './types';
 
 // ── DB Row Types ───────────────────────────────────────────────────────────────
+// `id` is the internal PK (numeric or uuid — we treat it as unknown / opaque).
+// `slug` is the public URL-friendly identifier the app routes use.
+
+type DbId = string | number;
 
 interface DbModule {
-  id: string;
+  id: DbId;
+  slug: string;
   title: string;
   subtitle: string | null;
   description: string;
@@ -65,8 +80,9 @@ interface DbModule {
 }
 
 interface DbLesson {
-  id: string;
-  module_id: string;
+  id: DbId;
+  module_id: DbId;
+  slug: string;
   title: string;
   subtitle: string;
   sort_order: number;
@@ -76,8 +92,8 @@ interface DbLesson {
 }
 
 interface DbVocabularyItem {
-  id: string;
-  lesson_id: string;
+  id: DbId;
+  lesson_id: DbId;
   sort_order: number;
   dutch: string;
   spanish: string;
@@ -93,8 +109,8 @@ interface DbVocabularyItem {
 }
 
 interface DbPhrase {
-  id: string;
-  lesson_id: string;
+  id: DbId;
+  lesson_id: DbId;
   sort_order: number;
   dutch: string;
   spanish: string;
@@ -103,8 +119,8 @@ interface DbPhrase {
 }
 
 interface DbPracticeItem {
-  id: string;
-  lesson_id: string;
+  id: DbId;
+  lesson_id: DbId;
   sort_order: number;
   type: string;
   prompt: string;
@@ -115,15 +131,15 @@ interface DbPracticeItem {
 }
 
 interface DbPracticeOption {
-  id: string;
-  practice_item_id: string;
+  id: DbId;
+  practice_item_id: DbId;
   sort_order: number;
   option_text: string;
 }
 
 interface DbDialogue {
-  id: string;
-  lesson_id: string;
+  id: DbId;
+  lesson_id: DbId;
   title: string;
   context: string;
   audio_url: string | null;
@@ -131,8 +147,8 @@ interface DbDialogue {
 }
 
 interface DbDialogueLine {
-  id: string;
-  dialogue_id: string;
+  id: DbId;
+  dialogue_id: DbId;
   sort_order: number;
   speaker: string;
   dutch: string;
@@ -144,7 +160,7 @@ interface DbDialogueLine {
 
 function mapModule(row: DbModule): CourseModule {
   return {
-    id: row.id,
+    id: row.slug,              // slug is the public identifier used in routes
     title: row.title,
     subtitle: row.subtitle ?? undefined,
     description: row.description,
@@ -155,23 +171,24 @@ function mapModule(row: DbModule): CourseModule {
   };
 }
 
-function mapLessonMeta(row: DbLesson): Lesson {
+// moduleSlug must be passed in because the lesson row only stores module_id (numeric FK)
+function mapLessonMeta(row: DbLesson, moduleSlug: string): Lesson {
   return {
-    id: row.id,
-    moduleId: row.module_id,
+    id: row.slug,              // slug is the public identifier used in routes
+    moduleId: moduleSlug,
     title: row.title,
     subtitle: row.subtitle,
     order: row.sort_order,
     isExtra: row.is_extra,
     learningObjective: row.learning_objective,
     estimatedMinutes: row.estimated_minutes,
-    blocks: [], // Not loaded for list views — only fetchLesson loads blocks
+    blocks: [],                // Not loaded for list views — fetchLesson loads blocks
   };
 }
 
 function mapVocabularyItem(row: DbVocabularyItem): VocabularyItem {
   return {
-    id: row.id,
+    id: String(row.id),
     dutch: row.dutch,
     spanish: row.spanish,
     article: row.article as Article,
@@ -188,7 +205,7 @@ function mapVocabularyItem(row: DbVocabularyItem): VocabularyItem {
 
 function mapPhrase(row: DbPhrase): PhraseItem {
   return {
-    id: row.id,
+    id: String(row.id),
     dutch: row.dutch,
     spanish: row.spanish,
     audio: row.audio_url ? { url: row.audio_url } : undefined,
@@ -203,7 +220,7 @@ function mapExercise(row: DbPracticeItem, options: DbPracticeOption[]): Exercise
     .map(o => o.option_text);
 
   return {
-    id: row.id,
+    id: String(row.id),
     type: row.type as ExerciseType,
     prompt: row.prompt,
     options: itemOptions.length > 0 ? itemOptions : undefined,
@@ -216,7 +233,7 @@ function mapExercise(row: DbPracticeItem, options: DbPracticeOption[]): Exercise
 
 function mapDialogue(row: DbDialogue, lines: DbDialogueLine[]): Dialogue {
   return {
-    id: row.id,
+    id: String(row.id),
     title: row.title,
     context: row.context,
     audio: row.audio_url ? { url: row.audio_url } : undefined,
@@ -225,7 +242,7 @@ function mapDialogue(row: DbDialogue, lines: DbDialogueLine[]): Dialogue {
       .filter(l => l.dialogue_id === row.id)
       .sort((a, b) => a.sort_order - b.sort_order)
       .map(l => ({
-        id: l.id,
+        id: String(l.id),
         speaker: l.speaker,
         dutch: l.dutch,
         spanish: l.spanish,
@@ -236,25 +253,25 @@ function mapDialogue(row: DbDialogue, lines: DbDialogueLine[]): Dialogue {
 
 // ── Internal: build a full Lesson with blocks from DB ─────────────────────────
 
-async function assembleLessonBlocks(lessonRow: DbLesson): Promise<Lesson> {
+async function assembleLessonBlocks(lessonRow: DbLesson, moduleSlug: string): Promise<Lesson> {
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   const db = supabase!;
-  const lessonId = lessonRow.id;
+  const lessonDbId = lessonRow.id; // numeric/uuid PK — used for FK joins
 
-  // Round 1: fetch all content tables in parallel
+  // Round 1: fetch all content tables in parallel (join via internal numeric id)
   const [
     { data: vocabRows },
     { data: phraseRows },
     { data: practiceRows },
     { data: dialogueRows },
   ] = await Promise.all([
-    db.from('vocabulary_items').select('*').eq('lesson_id', lessonId).order('sort_order'),
-    db.from('phrases').select('*').eq('lesson_id', lessonId).order('sort_order'),
-    db.from('practice_items').select('*').eq('lesson_id', lessonId).order('sort_order'),
-    db.from('dialogues').select('*').eq('lesson_id', lessonId),
+    db.from('vocabulary_items').select('*').eq('lesson_id', lessonDbId).order('sort_order'),
+    db.from('phrases').select('*').eq('lesson_id', lessonDbId).order('sort_order'),
+    db.from('practice_items').select('*').eq('lesson_id', lessonDbId).order('sort_order'),
+    db.from('dialogues').select('*').eq('lesson_id', lessonDbId),
   ]);
 
-  // Round 2: fetch dependent rows (options + lines), filtered by parent IDs
+  // Round 2: fetch dependent rows filtered by parent numeric IDs
   const practiceItemIds = (practiceRows ?? []).map((r: DbPracticeItem) => r.id);
   const dialogueIds = (dialogueRows ?? []).map((r: DbDialogue) => r.id);
 
@@ -267,7 +284,7 @@ async function assembleLessonBlocks(lessonRow: DbLesson): Promise<Lesson> {
       : Promise.resolve({ data: [] as DbDialogueLine[] }),
   ]);
 
-  // Assemble blocks in standard order: vocabulary → phrases → dialogue → practice → review
+  // Assemble blocks: vocabulary → phrases → dialogue → practice → review
   const blocks: LessonBlock[] = [];
 
   if (vocabRows?.length) {
@@ -293,7 +310,7 @@ async function assembleLessonBlocks(lessonRow: DbLesson): Promise<Lesson> {
   blocks.push({ type: 'review' });
 
   return {
-    ...mapLessonMeta(lessonRow),
+    ...mapLessonMeta(lessonRow, moduleSlug),
     blocks,
   };
 }
@@ -312,11 +329,15 @@ export async function fetchModules(): Promise<CourseModule[] | null> {
   }
 }
 
-/** Returns a single module by id, or null if not found / unavailable. */
-export async function fetchModule(id: string): Promise<CourseModule | null> {
+/** Looks up a module by its slug (e.g. 'over-jou'), not by numeric id. */
+export async function fetchModule(slug: string): Promise<CourseModule | null> {
   if (!supabase) return null;
   try {
-    const { data, error } = await supabase.from('modules').select('*').eq('id', id).single();
+    const { data, error } = await supabase
+      .from('modules')
+      .select('*')
+      .eq('slug', slug)
+      .single();
     if (error || !data) return null;
     return mapModule(data as DbModule);
   } catch {
@@ -326,42 +347,63 @@ export async function fetchModule(id: string): Promise<CourseModule | null> {
 
 /**
  * Returns lesson metadata (no blocks) for a module — suitable for list views.
+ * Looks up the module by slug first, then fetches lessons via the numeric FK.
  * Pass extrasOnly=true to get only extra lessons.
  */
 export async function fetchLessonsForModule(
-  moduleId: string,
+  moduleSlug: string,
   extrasOnly = false
 ): Promise<Lesson[] | null> {
   if (!supabase) return null;
   try {
+    // Step 1: resolve the module's internal numeric id
+    const { data: moduleRow, error: moduleErr } = await supabase
+      .from('modules')
+      .select('id')
+      .eq('slug', moduleSlug)
+      .single();
+    if (moduleErr || !moduleRow) return null;
+
+    // Step 2: fetch lessons by numeric FK
     const { data, error } = await supabase
       .from('lessons')
       .select('*')
-      .eq('module_id', moduleId)
+      .eq('module_id', (moduleRow as DbModule).id)
       .eq('is_extra', extrasOnly)
       .order('sort_order');
     if (error || !data?.length) return null;
-    return (data as DbLesson[]).map(mapLessonMeta);
+
+    return (data as DbLesson[]).map(row => mapLessonMeta(row, moduleSlug));
   } catch {
     return null;
   }
 }
 
 /**
- * Returns a fully assembled Lesson (with all blocks) by moduleId + lessonId,
- * or null if not found / unavailable.
+ * Returns a fully assembled Lesson (with all blocks).
+ * Looks up lesson by its slug and validates it belongs to the given module slug.
  */
-export async function fetchLesson(moduleId: string, lessonId: string): Promise<Lesson | null> {
+export async function fetchLesson(moduleSlug: string, lessonSlug: string): Promise<Lesson | null> {
   if (!supabase) return null;
   try {
+    // Step 1: resolve the module's internal id
+    const { data: moduleRow, error: moduleErr } = await supabase
+      .from('modules')
+      .select('id')
+      .eq('slug', moduleSlug)
+      .single();
+    if (moduleErr || !moduleRow) return null;
+
+    // Step 2: fetch lesson by slug + module FK
     const { data, error } = await supabase
       .from('lessons')
       .select('*')
-      .eq('id', lessonId)
-      .eq('module_id', moduleId)
+      .eq('slug', lessonSlug)
+      .eq('module_id', (moduleRow as DbModule).id)
       .single();
     if (error || !data) return null;
-    return assembleLessonBlocks(data as DbLesson);
+
+    return assembleLessonBlocks(data as DbLesson, moduleSlug);
   } catch {
     return null;
   }
