@@ -307,12 +307,16 @@ async function assembleLessonBlocks(lessonRow: DbLesson, moduleSlug: string): Pr
     if (localDialogue) blocks.push(localDialogue);
   }
   if (practiceRows?.length) {
-    blocks.push({
-      type: 'practice',
-      exercises: (practiceRows as DbPracticeItem[]).map(r =>
-        mapExercise(r, (optionRows ?? []) as DbPracticeOption[])
-      ),
-    });
+    const knownTypes = ['multiple_choice', 'write_answer', 'listen_and_choose', 'order_sentence', 'fill_blank'];
+    const exercises = (practiceRows as DbPracticeItem[])
+      .map(r => mapExercise(r, (optionRows ?? []) as DbPracticeOption[]))
+      .filter(e => e.prompt && knownTypes.includes(e.type));
+    if (exercises.length > 0) {
+      blocks.push({ type: 'practice', exercises });
+    } else if (localLesson) {
+      const localPractice = localLesson.blocks.find(b => b.type === 'practice');
+      if (localPractice) blocks.push(localPractice);
+    }
   } else if (localLesson) {
     const localPractice = localLesson.blocks.find(b => b.type === 'practice');
     if (localPractice) blocks.push(localPractice);

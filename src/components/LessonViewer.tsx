@@ -972,8 +972,6 @@ function PracticeSection({
 
   function handleNext() {
     if (index + 1 >= exercises.length) {
-      onComplete(score + (answered && exercises[index] && errorIds[errorIds.length - 1] !== exercise.id ? 0 : 0), errorIds);
-      // recalculate final score
       onComplete(score, errorIds);
     } else {
       setIndex(i => i + 1);
@@ -1122,20 +1120,15 @@ function DialogueSection({
           const show = lineVisible(line.id);
           return (
             <div key={line.id} className="bg-white rounded-2xl border border-[#DDE6F5] p-4 space-y-2">
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
                 <span
-                  className="text-[11px] font-bold px-2.5 py-1 rounded-full text-white"
+                  className="text-[11px] font-bold px-2.5 py-1 rounded-full text-white shrink-0"
                   style={{ background: color }}
                 >
                   {line.speaker}
                 </span>
-                <button
-                  onClick={() => toggleLine(line.id)}
-                  className="text-[11px] font-semibold text-[#9CA3AF] hover:text-[#025dc7] transition-colors duration-200 px-2 py-0.5 rounded-md hover:bg-[#F0F5FF]"
-                >
-                  {show ? 'Ocultar' : 'Ver traducción'}
-                </button>
               </div>
+              <p className="text-[15px] font-medium text-[#1D0084] leading-snug">{line.dutch}</p>
               {line.audio?.url ? (
                 <AudioPlayer src={line.audio.url} compact />
               ) : (
@@ -1152,7 +1145,12 @@ function DialogueSection({
                   Escuchar
                 </button>
               )}
-              <p className="text-[15px] font-medium text-[#1D0084] leading-snug">{line.dutch}</p>
+              <button
+                onClick={() => toggleLine(line.id)}
+                className="self-start text-[11px] font-semibold text-[#9CA3AF] hover:text-[#025dc7] transition-colors duration-200 px-2 py-0.5 rounded-md hover:bg-[#F0F5FF]"
+              >
+                {show ? 'Ocultar traducción' : 'Ver traducción'}
+              </button>
               {show && (
                 <p className="text-[13px] text-[#5A6480] leading-snug border-t border-[#DDE6F5] pt-2 mt-1">{line.spanish}</p>
               )}
