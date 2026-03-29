@@ -194,17 +194,6 @@ function VocabularySection({
                   <div className="pt-3 space-y-1">
                     <p className="text-[14px] font-medium text-[#1D0084] leading-snug">{word.exampleNl}</p>
                     <p className="text-[13px] text-[#5A6480] leading-snug">{word.exampleEs}</p>
-                    <button
-                      onClick={() => speakDutch(word.exampleNl)}
-                      className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[#025dc7] hover:text-[#1D0084] transition-colors duration-200 mt-1"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 5.636a9 9 0 010 12.728" />
-                      </svg>
-                      Escuchar ejemplo
-                    </button>
                   </div>
                 </div>
               )}
