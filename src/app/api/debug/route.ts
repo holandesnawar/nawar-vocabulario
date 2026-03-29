@@ -66,5 +66,20 @@ export async function GET() {
     info.phrases = { exception: String(e) };
   }
 
+  // dialogues + dialogue_lines: show actual column names
+  try {
+    const { data, error } = await db.from('dialogues').select('*').limit(2);
+    info.dialogues = error ? { error: error.message } : data;
+  } catch (e) {
+    info.dialogues = { exception: String(e) };
+  }
+
+  try {
+    const { data, error } = await db.from('dialogue_lines').select('*').limit(3);
+    info.dialogue_lines = error ? { error: error.message } : data;
+  } catch (e) {
+    info.dialogue_lines = { exception: String(e) };
+  }
+
   return NextResponse.json(info, { status: 200 });
 }
