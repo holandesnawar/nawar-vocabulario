@@ -533,11 +533,13 @@ function PhrasesSection({
 function MultipleChoiceExercise({
   exercise,
   onAnswer,
+  preAnswered,
 }: {
   exercise: ExerciseItem;
   onAnswer: (correct: boolean) => void;
+  preAnswered?: boolean;
 }) {
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(() => preAnswered ? exercise.correctAnswer : null);
   const isAnswered = selected !== null;
 
   function handleSelect(opt: string) {
@@ -603,12 +605,14 @@ function MultipleChoiceExercise({
 function WriteAnswerExercise({
   exercise,
   onAnswer,
+  preAnswered,
 }: {
   exercise: ExerciseItem;
   onAnswer: (correct: boolean) => void;
+  preAnswered?: boolean;
 }) {
-  const [value, setValue] = useState('');
-  const [submitted, setSubmitted] = useState(false);
+  const [value, setValue] = useState(() => preAnswered ? exercise.correctAnswer : '');
+  const [submitted, setSubmitted] = useState(preAnswered ?? false);
   const isCorrect = value.trim().toLowerCase() === exercise.correctAnswer.trim().toLowerCase();
 
   function handleSubmit() {
@@ -663,11 +667,13 @@ function WriteAnswerExercise({
 function ListenAndChooseExercise({
   exercise,
   onAnswer,
+  preAnswered,
 }: {
   exercise: ExerciseItem;
   onAnswer: (correct: boolean) => void;
+  preAnswered?: boolean;
 }) {
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(() => preAnswered ? exercise.correctAnswer : null);
   const isAnswered = selected !== null;
 
   // Extract the Dutch text from the prompt for TTS (text in quotes)
@@ -752,12 +758,14 @@ function ListenAndChooseExercise({
 function FillBlankExercise({
   exercise,
   onAnswer,
+  preAnswered,
 }: {
   exercise: ExerciseItem;
   onAnswer: (correct: boolean) => void;
+  preAnswered?: boolean;
 }) {
-  const [value, setValue] = useState('');
-  const [submitted, setSubmitted] = useState(false);
+  const [value, setValue] = useState(() => preAnswered ? exercise.correctAnswer : '');
+  const [submitted, setSubmitted] = useState(preAnswered ?? false);
   const isCorrect = value.trim().toLowerCase() === exercise.correctAnswer.trim().toLowerCase();
 
   // Split prompt on ___ to render the blank inline
@@ -827,15 +835,19 @@ function FillBlankExercise({
 function OrderSentenceExercise({
   exercise,
   onAnswer,
+  preAnswered,
 }: {
   exercise: ExerciseItem;
   onAnswer: (correct: boolean) => void;
+  preAnswered?: boolean;
 }) {
   const [available, setAvailable] = useState<string[]>(() =>
-    [...(exercise.options ?? [])].sort(() => Math.random() - 0.5)
+    preAnswered ? [] : [...(exercise.options ?? [])].sort(() => Math.random() - 0.5)
   );
-  const [sentence, setSentence] = useState<string[]>([]);
-  const [submitted, setSubmitted] = useState(false);
+  const [sentence, setSentence] = useState<string[]>(() =>
+    preAnswered ? exercise.correctAnswer.split(' ') : []
+  );
+  const [submitted, setSubmitted] = useState(preAnswered ?? false);
   const isCorrect = sentence.join(' ') === exercise.correctAnswer;
 
   function addWord(word: string, idx: number) {
@@ -936,20 +948,23 @@ function PracticeSection({
   exercises,
   onComplete,
   onError,
+  preAnswered,
 }: {
   exercises: ExerciseItem[];
   onComplete: (score: number, errorIds: string[]) => void;
   onError?: (id: string) => void;
+  preAnswered?: boolean;
 }) {
   const [index, setIndex] = useState(0);
   const [score, setScore] = useState(0);
-  const [answered, setAnswered] = useState(false);
+  const [answered, setAnswered] = useState(preAnswered ?? false);
   const [errorIds, setErrorIds] = useState<string[]>([]);
   const [key, setKey] = useState(0);
 
   const exercise = exercises[index];
 
   function handleAnswer(correct: boolean) {
+    if (preAnswered) return;
     setAnswered(true);
     if (correct) {
       setScore(s => s + 1);
@@ -964,7 +979,7 @@ function PracticeSection({
       onComplete(score, errorIds);
     } else {
       setIndex(i => i + 1);
-      setAnswered(false);
+      setAnswered(preAnswered ?? false);
       setKey(k => k + 1);
     }
   }
@@ -980,19 +995,19 @@ function PracticeSection({
 
       <div key={key} className="w-full max-w-sm mx-auto">
         {exercise.type === 'multiple_choice' && (
-          <MultipleChoiceExercise exercise={exercise} onAnswer={handleAnswer} />
+          <MultipleChoiceExercise exercise={exercise} onAnswer={handleAnswer} preAnswered={preAnswered} />
         )}
         {exercise.type === 'write_answer' && (
-          <WriteAnswerExercise exercise={exercise} onAnswer={handleAnswer} />
+          <WriteAnswerExercise exercise={exercise} onAnswer={handleAnswer} preAnswered={preAnswered} />
         )}
         {exercise.type === 'listen_and_choose' && (
-          <ListenAndChooseExercise exercise={exercise} onAnswer={handleAnswer} />
+          <ListenAndChooseExercise exercise={exercise} onAnswer={handleAnswer} preAnswered={preAnswered} />
         )}
         {exercise.type === 'order_sentence' && (
-          <OrderSentenceExercise exercise={exercise} onAnswer={handleAnswer} />
+          <OrderSentenceExercise exercise={exercise} onAnswer={handleAnswer} preAnswered={preAnswered} />
         )}
         {exercise.type === 'fill_blank' && (
-          <FillBlankExercise exercise={exercise} onAnswer={handleAnswer} />
+          <FillBlankExercise exercise={exercise} onAnswer={handleAnswer} preAnswered={preAnswered} />
         )}
       </div>
 
@@ -1172,6 +1187,7 @@ function ReviewSection({
   nextLesson,
   moduleId,
   onRetryPractice,
+  onReviewErrors,
 }: {
   lesson: Lesson;
   practiceScore: number;
@@ -1180,16 +1196,9 @@ function ReviewSection({
   nextLesson?: Lesson | null;
   moduleId: string;
   onRetryPractice: () => void;
+  onReviewErrors: () => void;
 }) {
   const pct = practiceTotal === 0 ? 100 : Math.round((practiceScore / practiceTotal) * 100);
-  const message =
-    pct >= 90
-      ? '¡Excelente! Dominas esta lección.'
-      : pct >= 70
-      ? '¡Muy bien! Sigue practicando.'
-      : pct >= 50
-      ? '¡Buen intento! Un poco más de práctica.'
-      : 'No te rindas, la práctica hace al maestro.';
 
   // Collect wrong exercises
   const practiceBlock = lesson.blocks.find(b => b.type === 'practice');
@@ -1225,10 +1234,13 @@ function ReviewSection({
             <p className="text-white/60 text-[14px]">¡Lección completada!</p>
           )}
           {practiceTotal > 0 && <Stars score={practiceScore} total={practiceTotal} />}
+          {wrongExercises.length > 0 && (
+            <p className="text-white text-[13px] font-medium pt-1">
+              💡 Apunta estos errores para volver a repasar en el ejercicio.
+            </p>
+          )}
         </div>
       </div>
-
-      <p className="text-[16px] text-[#374151] font-medium text-center">{message}</p>
 
       {/* Wrong exercises */}
       {wrongExercises.length > 0 && (
@@ -1246,22 +1258,19 @@ function ReviewSection({
           </div>
           {wrongExercises.map(ex => (
             <div key={ex.id} className="bg-[#FFF5F5] rounded-2xl border border-red-100 p-4 space-y-2">
-              <p className="text-[12px] font-semibold text-red-400 uppercase tracking-wide">
+              <p className="text-[12px] font-semibold text-red-500 uppercase tracking-wide">
                 {ex.type === 'fill_blank' ? 'Rellena el hueco' : ex.type === 'order_sentence' ? 'Ordena la frase' : ex.type === 'multiple_choice' ? 'Opción múltiple' : ex.type}
               </p>
-              <p className="text-[13px] text-[#5A6480] leading-snug">{ex.prompt.replace('___', '____')}</p>
-              <div className="flex items-center gap-2">
-                <span className="text-[12px] text-[#9CA3AF]">Respuesta correcta:</span>
+              <p className="text-[14px] font-medium text-[#1D0084] leading-snug">{ex.prompt.replace('___', '____')}</p>
+              <div className="flex items-center gap-2 pt-1">
+                <span className="text-[13px] font-medium text-[#374151]">Respuesta correcta:</span>
                 <span className="text-[14px] font-bold text-[#1D0084]">{ex.correctAnswer}</span>
               </div>
               {ex.explanation && (
-                <p className="text-[12px] text-[#9CA3AF] border-t border-red-100 pt-2">{ex.explanation}</p>
+                <p className="text-[13px] text-[#374151] border-t border-red-100 pt-2">{ex.explanation}</p>
               )}
             </div>
           ))}
-          <p className="text-[12px] text-[#9CA3AF] bg-[#F8FAFF] border border-[#DDE6F5] rounded-xl px-4 py-3 leading-snug">
-            💡 Apunta estos fallos en tus notas para volver a repasar esto en el ejercicio.
-          </p>
         </div>
       )}
 
@@ -1269,7 +1278,7 @@ function ReviewSection({
       <div className="space-y-3">
         {wrongExercises.length > 0 && (
           <button
-            onClick={onRetryPractice}
+            onClick={onReviewErrors}
             className="w-full py-3.5 rounded-xl bg-red-50 text-red-700 text-[15px] font-semibold hover:bg-red-100 transition-colors duration-200 border border-red-200"
           >
             Repasar solo mis errores ({wrongExercises.length})
@@ -1335,6 +1344,7 @@ export default function LessonViewer({ lesson, module, prevLesson: _prev, nextLe
   const [errorIds, setErrorIds] = useState<string[]>([]);
   const [practiceDone, setPracticeDone] = useState(false);
   const [practiceKey, setPracticeKey] = useState(0);
+  const [errorReviewMode, setErrorReviewMode] = useState(false);
   const reviewMarked = useRef(false);
 
   useEffect(() => {
@@ -1387,6 +1397,19 @@ export default function LessonViewer({ lesson, module, prevLesson: _prev, nextLe
     setPracticeScore(0);
     setPracticeTotal(0);
     setPracticeKey(k => k + 1);
+    setErrorReviewMode(false);
+    setActiveTab('practice');
+    setCompletedTabs(prev => {
+      const next = new Set(prev);
+      next.delete('practice');
+      next.delete('review');
+      return next;
+    });
+  }
+
+  function handleReviewErrors() {
+    setPracticeKey(k => k + 1);
+    setErrorReviewMode(true);
     setActiveTab('practice');
     setCompletedTabs(prev => {
       const next = new Set(prev);
@@ -1514,8 +1537,13 @@ export default function LessonViewer({ lesson, module, prevLesson: _prev, nextLe
           {activeTab === 'practice' && practiceBlock && practiceBlock.type === 'practice' && (
             <PracticeSection
               key={practiceKey}
-              exercises={practiceBlock.exercises}
+              exercises={
+                errorReviewMode
+                  ? practiceBlock.exercises.filter(e => errorIds.includes(e.id))
+                  : practiceBlock.exercises
+              }
               onComplete={handlePracticeComplete}
+              preAnswered={errorReviewMode}
             />
           )}
 
@@ -1537,6 +1565,7 @@ export default function LessonViewer({ lesson, module, prevLesson: _prev, nextLe
               nextLesson={nextLesson}
               moduleId={module.id}
               onRetryPractice={handleRetryPractice}
+              onReviewErrors={handleReviewErrors}
             />
           )}
         </div>
