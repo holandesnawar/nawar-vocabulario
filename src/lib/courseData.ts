@@ -25,6 +25,16 @@ export const MODULES: CourseModule[] = [
     level: 'Módulo 2',
     color: '#025dc7',
   },
+  {
+    id: 'boodschappen',
+    title: 'Boodschappen',
+    subtitle: 'Compras y comida',
+    description: 'Aprende a moverte en el supermercado, pedir en un restaurante y hablar de comida y bebida.',
+    order: 3,
+    emoji: '🛒',
+    level: 'Módulo 3',
+    color: '#0b7a4d',
+  },
 ];
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -1235,6 +1245,93 @@ const m2_extra3: Lesson = {
 };
 
 /* ─────────────────────────────────────────────────────────────────────────────
+   MODULE 3 — BOODSCHAPPEN
+───────────────────────────────────────────────────────────────────────────── */
+
+const m3_les1: Lesson = {
+  id: 'm3-les-1-eten-en-drinken',
+  moduleId: 'boodschappen',
+  title: 'Les 1 — Eten en drinken',
+  subtitle: 'Comida y bebida',
+  order: 1,
+  learningObjective: 'Nombrar alimentos y bebidas básicos y pedir en un café o restaurante',
+  estimatedMinutes: 20,
+  isExtra: false,
+  blocks: [
+    {
+      type: 'vocabulary',
+      items: [
+        { id: 'm3v-brood',     dutch: 'het brood',    spanish: 'el pan',          article: 'het', emoji: '🍞', color: '#0b7a4d', exampleNl: 'Ik koop brood in de bakkerij.', exampleEs: 'Compro pan en la panadería.',      category: 'eten', difficulty: 'A1' },
+        { id: 'm3v-melk',      dutch: 'de melk',      spanish: 'la leche',         article: 'de',  emoji: '🥛', color: '#1a7a40', exampleNl: 'Ik drink elke ochtend melk.', exampleEs: 'Bebo leche cada mañana.',          category: 'eten', difficulty: 'A1' },
+        { id: 'm3v-water',     dutch: 'het water',    spanish: 'el agua',          article: 'het', emoji: '💧', color: '#0d6e33', exampleNl: 'Mag ik een glas water?',      exampleEs: '¿Me pone un vaso de agua?',       category: 'eten', difficulty: 'A1' },
+        { id: 'm3v-koffie',    dutch: 'de koffie',    spanish: 'el café',          article: 'de',  emoji: '☕', color: '#2e7d52', exampleNl: 'Ik drink elke dag koffie.',   exampleEs: 'Tomo café todos los días.',        category: 'eten', difficulty: 'A1' },
+        { id: 'm3v-thee',      dutch: 'de thee',      spanish: 'el té',            article: 'de',  emoji: '🍵', color: '#0b7a4d', exampleNl: 'Wil je thee of koffie?',     exampleEs: '¿Quieres té o café?',             category: 'eten', difficulty: 'A1' },
+        { id: 'm3v-bier',      dutch: 'het bier',     spanish: 'la cerveza',       article: 'het', emoji: '🍺', color: '#1a7a40', exampleNl: 'Een biertje, alsjeblieft.',  exampleEs: 'Una cerveza, por favor.',         category: 'eten', difficulty: 'A1' },
+        { id: 'm3v-wijn',      dutch: 'de wijn',      spanish: 'el vino',          article: 'de',  emoji: '🍷', color: '#0d6e33', exampleNl: 'Welke wijn wil je?',         exampleEs: '¿Qué vino quieres?',              category: 'eten', difficulty: 'A1' },
+        { id: 'm3v-kaas',      dutch: 'de kaas',      spanish: 'el queso',         article: 'de',  emoji: '🧀', color: '#2e7d52', exampleNl: 'Gouda is een lekkere kaas.', exampleEs: 'El Gouda es un queso rico.',       category: 'eten', difficulty: 'A1' },
+        { id: 'm3v-vlees',     dutch: 'het vlees',    spanish: 'la carne',         article: 'het', emoji: '🥩', color: '#0b7a4d', exampleNl: 'Ik eet niet veel vlees.',    exampleEs: 'No como mucha carne.',            category: 'eten', difficulty: 'A1' },
+        { id: 'm3v-vis',       dutch: 'de vis',       spanish: 'el pescado',       article: 'de',  emoji: '🐟', color: '#1a7a40', exampleNl: 'Haring is een typisch vis.', exampleEs: 'El arenque es un pescado típico.', category: 'eten', difficulty: 'A1' },
+        { id: 'm3v-groente',   dutch: 'de groente',   spanish: 'la verdura',       article: 'de',  emoji: '🥦', color: '#0d6e33', exampleNl: 'Ik eet veel groente.',       exampleEs: 'Como muchas verduras.',           category: 'eten', difficulty: 'A1' },
+        { id: 'm3v-fruit',     dutch: 'het fruit',    spanish: 'la fruta',         article: 'het', emoji: '🍎', color: '#2e7d52', exampleNl: 'Vers fruit is gezond.',      exampleEs: 'La fruta fresca es sana.',        category: 'eten', difficulty: 'A1' },
+        { id: 'm3v-soep',      dutch: 'de soep',      spanish: 'la sopa',          article: 'de',  emoji: '🍲', color: '#0b7a4d', exampleNl: 'De soep is lekker warm.',    exampleEs: 'La sopa está bien caliente.',     category: 'eten', difficulty: 'A1' },
+        { id: 'm3v-eten',      dutch: 'eten',         spanish: 'comer',            article: null,  emoji: '🍽️', color: '#1a7a40', exampleNl: 'Wat eet jij het liefst?',   exampleEs: '¿Qué es lo que más te gusta comer?', category: 'eten', difficulty: 'A1' },
+        { id: 'm3v-drinken',   dutch: 'drinken',      spanish: 'beber',            article: null,  emoji: '🥤', color: '#0d6e33', exampleNl: 'Wat wil je drinken?',        exampleEs: '¿Qué quieres beber?',             category: 'eten', difficulty: 'A1' },
+        { id: 'm3v-lekker',    dutch: 'lekker',       spanish: 'rico / delicioso', article: null,  emoji: '😋', color: '#2e7d52', exampleNl: 'Dit is erg lekker!',         exampleEs: '¡Esto está muy rico!',            category: 'eten', difficulty: 'A1' },
+      ],
+    },
+    {
+      type: 'phrases',
+      items: [
+        { id: 'm3p-1',  dutch: 'Ik heb honger.',                  spanish: 'Tengo hambre.',                    context: 'Expresar necesidad' },
+        { id: 'm3p-2',  dutch: 'Ik heb dorst.',                   spanish: 'Tengo sed.',                       context: 'Expresar necesidad' },
+        { id: 'm3p-3',  dutch: 'Wat wil je drinken?',             spanish: '¿Qué quieres beber?',              context: 'Pedir en un café' },
+        { id: 'm3p-4',  dutch: 'Een koffie, alsjeblieft.',        spanish: 'Un café, por favor.',              context: 'Pedir en un café' },
+        { id: 'm3p-5',  dutch: 'Mag ik de rekening?',             spanish: '¿Me trae la cuenta?',              context: 'En el restaurante' },
+        { id: 'm3p-6',  dutch: 'Het is erg lekker!',              spanish: '¡Está muy rico!',                  context: 'Valorar la comida' },
+        { id: 'm3p-7',  dutch: 'Smaakt het?',                     spanish: '¿Está rico? / ¿Te gusta?',         context: 'Valorar la comida' },
+        { id: 'm3p-8',  dutch: 'Ik ben vegetariër.',              spanish: 'Soy vegetariano/a.',               context: 'Dieta' },
+        { id: 'm3p-9',  dutch: 'Hoeveel kost dit?',               spanish: '¿Cuánto cuesta esto?',             context: 'En el supermercado' },
+        { id: 'm3p-10', dutch: 'Heb je een tafel voor twee?',     spanish: '¿Tienes una mesa para dos?',       context: 'En el restaurante' },
+      ],
+    },
+    {
+      type: 'dialogue',
+      dialogue: {
+        id: 'm3d1',
+        title: 'In het café',
+        context: 'María gaat voor het eerst naar een Nederlands café en bestelt iets.',
+        lines: [
+          { id: 'm3d1-1', speaker: 'Ober',  dutch: 'Goedemiddag! Wat mag het zijn?',                        spanish: '¡Buenas tardes! ¿Qué va a ser?' },
+          { id: 'm3d1-2', speaker: 'María', dutch: 'Goedemiddag! Een koffie, alsjeblieft.',                  spanish: '¡Buenas tardes! Un café, por favor.' },
+          { id: 'm3d1-3', speaker: 'Ober',  dutch: 'Met melk of zwart?',                                    spanish: '¿Con leche o solo?' },
+          { id: 'm3d1-4', speaker: 'María', dutch: 'Met melk, graag. En heeft u ook iets te eten?',          spanish: 'Con leche, por favor. ¿Y tienen también algo para comer?' },
+          { id: 'm3d1-5', speaker: 'Ober',  dutch: 'Ja, we hebben broodjes, soep en een stuk taart.',        spanish: 'Sí, tenemos bocadillos, sopa y un trozo de tarta.' },
+          { id: 'm3d1-6', speaker: 'María', dutch: 'Een broodje kaas, alsjeblieft. Is het lekker?',          spanish: 'Un bocadillo de queso, por favor. ¿Está rico?' },
+          { id: 'm3d1-7', speaker: 'Ober',  dutch: 'Ja, heel lekker! De kaas is van een lokale boerderij.',  spanish: 'Sí, ¡muy rico! El queso es de una granja local.' },
+          { id: 'm3d1-8', speaker: 'María', dutch: 'Geweldig! En mag ik ook een glas water?',                spanish: '¡Genial! ¿Y me pone también un vaso de agua?' },
+          { id: 'm3d1-9', speaker: 'Ober',  dutch: 'Natuurlijk. Ik breng het zo.',                           spanish: 'Por supuesto. Ahora mismo lo traigo.' },
+          { id: 'm3d1-10', speaker: 'María', dutch: 'Dank u wel!',                                           spanish: '¡Muchas gracias!' },
+        ],
+      },
+    },
+    {
+      type: 'practice',
+      exercises: [
+        { id: 'm3e-1', type: 'multiple_choice', prompt: '¿Cómo se dice "la leche" en neerlandés?', options: ['het water', 'de melk', 'de thee', 'het bier'], correctAnswer: 'de melk', explanation: '"Melk" es leche. Lleva artículo "de".' },
+        { id: 'm3e-2', type: 'multiple_choice', prompt: '¿Qué significa "Ik heb honger"?', options: ['Tengo sed', 'Tengo hambre', 'Quiero comer', 'Estoy cansado'], correctAnswer: 'Tengo hambre', explanation: '"Honger" = hambre. "Dorst" = sed.' },
+        { id: 'm3e-3', type: 'fill_blank', prompt: 'Een koffie, ___! (por favor)', correctAnswer: 'alsjeblieft', hint: 'La forma informal de "por favor"' },
+        { id: 'm3e-4', type: 'fill_blank', prompt: 'Ik ___ elke dag koffie. (beber)', correctAnswer: 'drink', hint: 'drinken' },
+        { id: 'm3e-5', type: 'multiple_choice', prompt: '¿Cómo pides la cuenta en un restaurante?', options: ['Smaakt het?', 'Mag ik de rekening?', 'Heb je een tafel?', 'Wat wil je eten?'], correctAnswer: 'Mag ik de rekening?', explanation: '"Rekening" = cuenta. "Mag ik" = ¿puedo / me pone?' },
+        { id: 'm3e-6', type: 'order_sentence', prompt: 'Ordena: "Quiero un vaso de agua, por favor."', options: ['Ik', 'wil', 'een', 'glas', 'water,', 'alsjeblieft.'], correctAnswer: 'Ik wil een glas water, alsjeblieft.' },
+        { id: 'm3e-7', type: 'fill_blank', prompt: 'Dit broodje is erg ___! (delicioso)', correctAnswer: 'lekker', hint: 'rico / delicioso' },
+        { id: 'm3e-8', type: 'multiple_choice', prompt: '¿Qué artículo lleva "brood"?', options: ['de', 'het', 'een', 'geen'], correctAnswer: 'het', explanation: '"Het brood" — los sustantivos neutros llevan "het".' },
+      ],
+    },
+    { type: 'review' },
+  ],
+};
+
+/* ─────────────────────────────────────────────────────────────────────────────
    EXPORT
 ───────────────────────────────────────────────────────────────────────────── */
 
@@ -1245,4 +1342,6 @@ export const LESSONS: Lesson[] = [
   // Module 2
   m2_les1, m2_les2, m2_les3, m2_les4, m2_les5, m2_les6,
   m2_extra1, m2_extra2, m2_extra3,
+  // Module 3
+  m3_les1,
 ];
