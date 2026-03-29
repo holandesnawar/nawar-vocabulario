@@ -21,7 +21,7 @@
  *   practice_items   id, lesson_id, sort_order, type, prompt, correct_answer, audio_url, hint, explanation
  *   practice_options id, practice_item_id, sort_order, option_text
  *   dialogues        id, lesson_id, title, context, audio_url, slow_audio_url
- *   dialogue_lines   id, dialogue_id, sort_order, speaker, dutch, spanish, audio_url
+ *   dialogue_lines   id, dialogue_id, sort_order, speaker, text_nl, text_es, audio_url
  */
 
 import { supabaseAdmin as supabase } from './supabaseAdmin';
@@ -113,8 +113,8 @@ interface DbDialogueLine {
   dialogue_id: DbId;
   sort_order: number;
   speaker: string;
-  dutch: string;
-  spanish: string;
+  text_nl: string;
+  text_es: string;
   audio_url: string | null;
 }
 
@@ -233,8 +233,8 @@ function mapDialogue(row: DbDialogue, lines: DbDialogueLine[]): Dialogue {
       .map(l => ({
         id: String(l.id),
         speaker: l.speaker,
-        dutch: l.dutch,
-        spanish: l.spanish,
+        dutch: l.text_nl,
+        spanish: l.text_es,
         audio: l.audio_url ? { url: l.audio_url } : undefined,
       })),
   };
