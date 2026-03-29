@@ -61,7 +61,7 @@ export default function AudioPlayer({ src, title, compact = false }: AudioPlayer
   }, []);
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
-  const skipSecs = compact ? 5 : 10;
+  const skipSecs = 2;
 
   const sharedAudio = (
     <audio
