@@ -298,10 +298,15 @@ async function assembleLessonBlocks(lessonRow: DbLesson, moduleSlug: string): Pr
     });
   }
   if (dialogueRows?.length) {
-    blocks.push({
-      type: 'dialogue',
-      dialogue: mapDialogue(dialogueRows[0] as DbDialogue, (lineRows ?? []) as DbDialogueLine[]),
-    });
+    const dialogue = mapDialogue(dialogueRows[0] as DbDialogue, (lineRows ?? []) as DbDialogueLine[]);
+    const hasText = dialogue.lines.some(l => l.dutch?.trim());
+    if (hasText) {
+      blocks.push({ type: 'dialogue', dialogue });
+    } else if (localLesson) {
+      // Supabase has dialogue rows but lines have no Dutch text — use local
+      const localDialogue = localLesson.blocks.find(b => b.type === 'dialogue');
+      if (localDialogue) blocks.push(localDialogue);
+    }
   } else if (localLesson) {
     const localDialogue = localLesson.blocks.find(b => b.type === 'dialogue');
     if (localDialogue) blocks.push(localDialogue);
