@@ -11,7 +11,7 @@ export const MODULES: CourseModule[] = [
     subtitle: 'Sobre ti',
     description: 'Preséntate, habla de ti mismo y aprende el vocabulario esencial para las primeras conversaciones.',
     order: 1,
-    emoji: '👤',
+    emoji: '🙋',
     level: 'Módulo 1',
     color: '#1D0084',
   },

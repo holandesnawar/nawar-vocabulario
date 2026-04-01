@@ -73,17 +73,17 @@ const VOCAB_PER_PAGE = 8;
 type VPStepType = 'words' | 'phrases' | 'listen' | 'truefalse' | 'test' | 'complete' | 'order' | 'classify' | 'write' | 'scramble' | 'pairs';
 
 const VP_META: Record<VPStepType, { label: string; emoji: string }> = {
-  words:     { label: 'Diccionario',     emoji: '📖' },
-  phrases:   { label: 'Frases',          emoji: '💬' },
-  listen:    { label: 'Escuchar',        emoji: '🎧' },
-  truefalse: { label: 'Verdadero/Falso', emoji: '✅' },
-  test:      { label: 'Test',            emoji: '🧪' },
-  complete:  { label: 'Completar',       emoji: '✏️' },
-  order:     { label: 'Ordenar',         emoji: '🔤' },
-  classify:  { label: 'Clasificar',      emoji: '🗂️' },
-  write:     { label: 'Escribir',        emoji: '✍️' },
-  scramble:  { label: 'Deletrear',       emoji: '🔡' },
-  pairs:     { label: 'Emparejar',       emoji: '🔗' },
+  words:     { label: 'Diccionario',          emoji: '📖' },
+  phrases:   { label: 'Frases',               emoji: '💬' },
+  listen:    { label: 'Escucha y elige',       emoji: '🎧' },
+  truefalse: { label: 'Verdadero o falso',     emoji: '✅' },
+  test:      { label: 'Selecciona la correcta',emoji: '🧪' },
+  complete:  { label: 'Completa la frase',     emoji: '✏️' },
+  order:     { label: 'Ordena las palabras',   emoji: '🔤' },
+  classify:  { label: 'Clasifica',             emoji: '🗂️' },
+  write:     { label: 'Escribe en neerlandés', emoji: '✍️' },
+  scramble:  { label: 'Deletrea la palabra',   emoji: '🔡' },
+  pairs:     { label: 'Empareja',              emoji: '🔗' },
 };
 
 interface ClassifyGroup { id: string; label: string }
@@ -197,25 +197,17 @@ function StepBar({ steps, current, subProgress }: {
   return (
     <div className="mb-6 space-y-3">
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <span className="text-[18px] leading-none">{meta.emoji}</span>
-          <div>
-            <p className="text-[14px] font-bold text-[#1D0084] leading-tight">{meta.label}</p>
-            {subProgress && (
-              <p className="text-[11px] text-[#9CA3AF] font-medium leading-tight">
-                Ejercicio {subProgress.done} de {subProgress.total}
-              </p>
-            )}
-          </div>
+        <div>
+          <p className="text-[18px] font-bold text-[#1D0084] leading-tight">
+            Ejercicio {current + 1}
+          </p>
+          <p className="text-[12px] text-[#9CA3AF] font-medium leading-tight mt-0.5">
+            {meta.emoji} {meta.label}
+          </p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="text-[12px] font-semibold text-[#9CA3AF]">
-            Paso {current + 1}/{steps.length}
-          </span>
-          <span className="text-[12px] font-bold text-[#025dc7] bg-[#EEF4FF] px-2 py-0.5 rounded-full">
-            {pct}%
-          </span>
-        </div>
+        <span className="text-[14px] font-bold text-[#025dc7] bg-[#EEF4FF] px-3 py-1 rounded-full shrink-0">
+          {pct}%
+        </span>
       </div>
       <div className="h-2 w-full rounded-full bg-[#DDE6F5] overflow-hidden">
         <div
@@ -507,16 +499,20 @@ function ExerciseRunner({ exercises, onDone, onBack, onSubProgress }: {
     }
   }
 
+  function handlePrev() {
+    if (index > 0) {
+      setIndex(i => i - 1);
+      setAnswered(false);
+      setExKey(k => k + 1);
+    } else {
+      onBack();
+    }
+  }
+
   return (
     <div className="space-y-5">
-      {/* Top row: back + score */}
-      <div className="flex items-center justify-between">
-        <button onClick={onBack} className="flex items-center gap-1.5 text-[13px] font-semibold text-[#9CA3AF] hover:text-[#1D0084] transition-colors duration-200">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-          </svg>
-          Volver al paso anterior
-        </button>
+      {/* Score badge */}
+      <div className="flex justify-end">
         <div className="flex items-center gap-1.5 text-[13px] font-bold text-[#16a34a] bg-green-50 border border-green-200 px-3 py-1 rounded-full">
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -530,12 +526,23 @@ function ExerciseRunner({ exercises, onDone, onBack, onSubProgress }: {
       </div>
 
       {answered && (
-        <button onClick={handleNext} className="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200">
-          {index + 1 < exercises.length ? 'Siguiente ejercicio' : 'Siguiente paso'}
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
+        <div className="space-y-2">
+          <button
+            onClick={handlePrev}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white text-[#9CA3AF] text-[13px] font-semibold border border-[#DDE6F5] hover:text-[#1D0084] hover:border-[#1D0084]/30 transition-colors duration-200"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+            {index > 0 ? 'Ejercicio anterior' : 'Paso anterior'}
+          </button>
+          <button onClick={handleNext} className="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200">
+            {index + 1 < exercises.length ? 'Siguiente ejercicio' : 'Siguiente paso'}
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
       )}
     </div>
   );
@@ -565,14 +572,8 @@ function ClassifyStep({ groups, items, onDone, onBack }: { groups: ClassifyGroup
 
   return (
     <div className="space-y-5">
-      {/* Top row: back + score */}
-      <div className="flex items-center justify-between">
-        <button onClick={onBack} className="flex items-center gap-1.5 text-[13px] font-semibold text-[#9CA3AF] hover:text-[#1D0084] transition-colors duration-200">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-          </svg>
-          Volver al paso anterior
-        </button>
+      {/* Score badge */}
+      <div className="flex justify-end">
         <div className="flex items-center gap-1 text-[13px] font-bold text-[#16a34a] bg-green-50 border border-green-200 px-3 py-1 rounded-full">
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -618,14 +619,17 @@ function ClassifyStep({ groups, items, onDone, onBack }: { groups: ClassifyGroup
       )}
 
       {result && (
-        <div className="flex items-center gap-3">
-          <button onClick={onBack} className="flex items-center gap-1.5 px-4 py-3.5 rounded-xl bg-[#F0F5FF] text-[#1D0084] text-[14px] font-semibold border border-[#DDE6F5] hover:bg-[#e0eaff] transition-colors duration-200 shrink-0">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+        <div className="space-y-2">
+          <button
+            onClick={() => { if (index > 0) { setIndex(i => i - 1); setResult(null); } else { onBack(); } }}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white text-[#9CA3AF] text-[13px] font-semibold border border-[#DDE6F5] hover:text-[#1D0084] hover:border-[#1D0084]/30 transition-colors duration-200"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
-            Volver
+            {index > 0 ? 'Ejercicio anterior' : 'Paso anterior'}
           </button>
-          <button onClick={handleNext} className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200">
+          <button onClick={handleNext} className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200">
             {index + 1 < queue.length ? 'Siguiente' : 'Siguiente paso'}
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
