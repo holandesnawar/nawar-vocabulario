@@ -96,13 +96,16 @@ function isTrueFalse(e: ExerciseItem): boolean {
 }
 
 function buildClassifyData(items: VocabularyItem[]): { groups: ClassifyGroup[]; items: ClassifyItemData[] } | null {
-  const categories = [...new Set(items.map(i => i.category))];
-  if (categories.length >= 2) {
+  // Ignore blank/empty categories (happen when Supabase item has no local match)
+  const validCategories = [...new Set(items.map(i => i.category).filter(c => c && c.trim() !== ''))];
+  if (validCategories.length >= 2) {
+    const eligible = items.filter(i => i.category && i.category.trim() !== '');
     return {
-      groups: categories.map(c => ({ id: c, label: c })),
-      items: items.map(i => ({ dutch: i.dutch, groupId: i.category })),
+      groups: validCategories.map(c => ({ id: c, label: c })),
+      items: eligible.map(i => ({ dutch: i.dutch, groupId: i.category })),
     };
   }
+  // Article-based fallback (article comes directly from Supabase, always reliable)
   const hasDE   = items.some(i => i.article === 'de');
   const hasHET  = items.some(i => i.article === 'het');
   const hasNone = items.some(i => i.article === null);
@@ -162,26 +165,42 @@ function buildVPSteps(
 
 /* ── Step bar ── */
 
-function StepBar({ steps, current }: { steps: VPStep[]; current: number }) {
+function StepBar({ steps, current, subProgress }: {
+  steps: VPStep[];
+  current: number;
+  subProgress?: { done: number; total: number };
+}) {
+  const meta = VP_META[steps[current].type];
+  const pct = steps.length === 0 ? 0 : Math.round(((current + (subProgress ? subProgress.done / subProgress.total : 0)) / steps.length) * 100);
+
   return (
-    <div className="mb-6 space-y-2">
-      <div className="flex items-center justify-between">
-        <span className="text-[13px] font-bold text-[#1D0084]">
-          {VP_META[steps[current].type].emoji} {VP_META[steps[current].type].label}
-        </span>
-        <span className="text-[12px] font-semibold text-[#9CA3AF]">
-          Paso {current + 1} de {steps.length}
-        </span>
+    <div className="mb-6 space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-[18px] leading-none">{meta.emoji}</span>
+          <div>
+            <p className="text-[14px] font-bold text-[#1D0084] leading-tight">{meta.label}</p>
+            {subProgress && (
+              <p className="text-[11px] text-[#9CA3AF] font-medium leading-tight">
+                Ejercicio {subProgress.done} de {subProgress.total}
+              </p>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-[12px] font-semibold text-[#9CA3AF]">
+            Paso {current + 1}/{steps.length}
+          </span>
+          <span className="text-[12px] font-bold text-[#025dc7] bg-[#EEF4FF] px-2 py-0.5 rounded-full">
+            {pct}%
+          </span>
+        </div>
       </div>
-      <div className="flex gap-1">
-        {steps.map((_, i) => (
-          <div
-            key={i}
-            className={`flex-1 h-1.5 rounded-full transition-all duration-500 ${
-              i < current ? 'bg-[#4da3ff]' : i === current ? 'bg-[#1D0084]' : 'bg-[#DDE6F5]'
-            }`}
-          />
-        ))}
+      <div className="h-2 w-full rounded-full bg-[#DDE6F5] overflow-hidden">
+        <div
+          className="h-full rounded-full transition-all duration-500"
+          style={{ width: `${pct}%`, background: 'linear-gradient(90deg, #1D0084 0%, #4da3ff 100%)' }}
+        />
       </div>
     </div>
   );
@@ -441,16 +460,26 @@ function PhrasesStep({ items, onDone, onBack }: { items: PhraseItem[]; onDone: (
 
 /* ── Exercise runner (listen / complete / write steps) ── */
 
-function ExerciseRunner({ exercises, onDone, onBack }: { exercises: ExerciseItem[]; onDone: () => void; onBack: () => void }) {
+function ExerciseRunner({ exercises, onDone, onBack, onSubProgress }: {
+  exercises: ExerciseItem[];
+  onDone: () => void;
+  onBack: () => void;
+  onSubProgress?: (done: number, total: number) => void;
+}) {
   const [index, setIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [answered, setAnswered] = useState(false);
   const [exKey, setExKey] = useState(0);
   const scoreRef = useRef(0);
 
+  useEffect(() => {
+    onSubProgress?.(index, exercises.length);
+  }, [index]); // eslint-disable-line react-hooks/exhaustive-deps
+
   function handleAnswer(correct: boolean) {
     setAnswered(true);
     if (correct) { scoreRef.current += 1; setScore(scoreRef.current); }
+    onSubProgress?.(index + 1, exercises.length);
   }
 
   function handleNext() {
@@ -464,29 +493,34 @@ function ExerciseRunner({ exercises, onDone, onBack }: { exercises: ExerciseItem
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <ProgressBar current={index + 1} total={exercises.length} label="Ejercicios" />
-        <span className="shrink-0 text-[13px] font-semibold text-[#025dc7] bg-[#F0F5FF] px-3 py-1 rounded-full">{score} ✓</span>
+    <div className="space-y-5">
+      {/* Top row: back + score */}
+      <div className="flex items-center justify-between">
+        <button onClick={onBack} className="flex items-center gap-1.5 text-[13px] font-semibold text-[#9CA3AF] hover:text-[#1D0084] transition-colors duration-200">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+          Volver al paso anterior
+        </button>
+        <div className="flex items-center gap-1.5 text-[13px] font-bold text-[#16a34a] bg-green-50 border border-green-200 px-3 py-1 rounded-full">
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+          {score}
+        </div>
       </div>
-      <div key={exKey} className="w-full max-w-sm mx-auto">
+
+      <div key={exKey}>
         <ExerciseStep exercise={exercises[index]} onAnswer={handleAnswer} />
       </div>
+
       {answered && (
-        <div className="flex items-center gap-3 max-w-sm mx-auto">
-          <button onClick={onBack} className="flex items-center gap-1.5 px-4 py-3.5 rounded-xl bg-[#F0F5FF] text-[#1D0084] text-[14px] font-semibold border border-[#DDE6F5] hover:bg-[#e0eaff] transition-colors duration-200 shrink-0">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
-            Volver
-          </button>
-          <button onClick={handleNext} className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200">
-            {index + 1 < exercises.length ? 'Siguiente' : 'Siguiente paso'}
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        </div>
+        <button onClick={handleNext} className="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200">
+          {index + 1 < exercises.length ? 'Siguiente ejercicio' : 'Siguiente paso'}
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
       )}
     </div>
   );
@@ -515,11 +549,25 @@ function ClassifyStep({ groups, items, onDone, onBack }: { groups: ClassifyGroup
   }
 
   return (
-    <div className="space-y-6">
-      <ProgressBar current={index + 1} total={queue.length} label="Clasificar" />
+    <div className="space-y-5">
+      {/* Top row: back + score */}
+      <div className="flex items-center justify-between">
+        <button onClick={onBack} className="flex items-center gap-1.5 text-[13px] font-semibold text-[#9CA3AF] hover:text-[#1D0084] transition-colors duration-200">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+          Volver al paso anterior
+        </button>
+        <div className="flex items-center gap-1 text-[13px] font-bold text-[#16a34a] bg-green-50 border border-green-200 px-3 py-1 rounded-full">
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+          {score}
+        </div>
+      </div>
 
       <div className="flex flex-col items-center justify-center rounded-2xl border border-[#DDE6F5] bg-white py-10 px-6 gap-3 text-center">
-        <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-widest">¿A qué grupo pertenece?</p>
+        <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-widest">¿A qué grupo pertenece? · {index + 1}/{queue.length}</p>
         <p className="text-[30px] font-bold text-[#1D0084]" style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}>
           {current.dutch}
         </p>
@@ -594,10 +642,12 @@ function VocabPracticeSection({
   const [stepIndex, setStepIndex] = useState(0);
   const [allDone, setAllDone] = useState(false);
   const [runnerKey, setRunnerKey] = useState(0);
+  const [subProgress, setSubProgress] = useState<{ done: number; total: number } | undefined>();
 
   function handleStepBack() {
     if (stepIndex > 0) {
       setStepIndex(i => i - 1);
+      setSubProgress(undefined);
       setRunnerKey(k => k + 1);
     }
   }
@@ -633,7 +683,7 @@ function VocabPracticeSection({
 
   return (
     <div>
-      <StepBar steps={steps} current={stepIndex} />
+      <StepBar steps={steps} current={stepIndex} subProgress={subProgress} />
 
       {step.type === 'words' && (
         <WordsStep key={runnerKey} items={vocabItems} onDone={handleStepDone} />
@@ -642,7 +692,13 @@ function VocabPracticeSection({
         <PhrasesStep key={runnerKey} items={step.items} onDone={handleStepDone} onBack={handleStepBack} />
       )}
       {(step.type === 'listen' || step.type === 'truefalse' || step.type === 'test' || step.type === 'complete' || step.type === 'order' || step.type === 'write') && (
-        <ExerciseRunner key={runnerKey} exercises={step.exercises} onDone={handleStepDone} onBack={handleStepBack} />
+        <ExerciseRunner
+          key={runnerKey}
+          exercises={step.exercises}
+          onDone={handleStepDone}
+          onBack={handleStepBack}
+          onSubProgress={(done, total) => setSubProgress({ done, total })}
+        />
       )}
       {step.type === 'classify' && (
         <ClassifyStep key={runnerKey} groups={step.groups} items={step.items} onDone={handleStepDone} onBack={handleStepBack} />
@@ -878,16 +934,26 @@ function MultipleChoiceExercise({
     return base + 'bg-[#F8F9FA] border-[#DDE6F5] text-[#9CA3AF]';
   }
 
+  const letters = ['A', 'B', 'C', 'D', 'E'];
+
   return (
     <div className="space-y-4">
-      <div className="bg-[#F0F5FF] rounded-2xl p-5 border border-[#DDE6F5]">
-        <p className="text-[16px] font-semibold text-[#1D0084] leading-snug">{exercise.prompt}</p>
+      <div className="rounded-2xl p-5 border border-[#DDE6F5] bg-white">
+        <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-widest mb-2">Pregunta</p>
+        <p className="text-[17px] font-semibold text-[#1D0084] leading-snug">{exercise.prompt}</p>
       </div>
-      <div className="grid grid-cols-1 gap-2.5">
-        {exercise.options?.map(opt => (
+      <div className="grid grid-cols-1 gap-2">
+        {exercise.options?.map((opt, idx) => (
           <button key={opt} className={optionStyle(opt)} onClick={() => handleSelect(opt)}>
-            <span className="flex items-center justify-between gap-2">
-              {opt}
+            <span className="flex items-center gap-3">
+              <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-[12px] font-bold shrink-0 transition-all duration-200 ${
+                !isAnswered ? 'bg-white/70 text-[#1D0084]' :
+                opt === exercise.correctAnswer ? 'bg-green-500 text-white' :
+                opt === selected ? 'bg-red-400 text-white' : 'bg-[#E5E7EB] text-[#9CA3AF]'
+              }`}>
+                {letters[idx] ?? idx + 1}
+              </span>
+              <span className="flex-1 text-left">{opt}</span>
               {isAnswered && opt === exercise.correctAnswer && (
                 <svg className="w-4 h-4 text-green-600 shrink-0" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -1083,31 +1149,39 @@ function ListenAndChooseExercise({
     return base + 'bg-[#F8F9FA] border-[#DDE6F5] text-[#9CA3AF]';
   }
 
+  const letters = ['A', 'B', 'C', 'D', 'E'];
+
   return (
     <div className="space-y-4">
-      <div className="bg-[#F0F5FF] rounded-2xl p-5 border border-[#DDE6F5]">
-        <p className="text-[16px] font-semibold text-[#1D0084] leading-snug mb-3">{exercise.prompt}</p>
+      <div className="rounded-2xl p-5 border border-[#DDE6F5] bg-white space-y-4">
+        <div>
+          <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-widest mb-2">Escucha y elige</p>
+          <p className="text-[17px] font-semibold text-[#1D0084] leading-snug">{exercise.prompt}</p>
+        </div>
         {exercise.audio?.url ? (
           <AudioPlayer src={exercise.audio.url} compact />
         ) : (
           <button
             onClick={() => speakDutch(dutchText)}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#1D0084] text-white text-[13px] font-semibold hover:bg-[#025dc7] transition-colors duration-200"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#1D0084] text-white text-[13px] font-semibold hover:bg-[#025dc7] transition-colors duration-200"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 5.636a9 9 0 010 12.728" />
-            </svg>
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
             Escuchar
           </button>
         )}
       </div>
-      <div className="grid grid-cols-1 gap-2.5">
-        {exercise.options?.map(opt => (
+      <div className="grid grid-cols-1 gap-2">
+        {exercise.options?.map((opt, idx) => (
           <button key={opt} className={optionStyle(opt)} onClick={() => handleSelect(opt)}>
-            <span className="flex items-center justify-between gap-2">
-              {opt}
+            <span className="flex items-center gap-3">
+              <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-[12px] font-bold shrink-0 transition-all duration-200 ${
+                !isAnswered ? 'bg-white/70 text-[#1D0084]' :
+                opt === exercise.correctAnswer ? 'bg-green-500 text-white' :
+                opt === selected ? 'bg-red-400 text-white' : 'bg-[#E5E7EB] text-[#9CA3AF]'
+              }`}>
+                {letters[idx] ?? idx + 1}
+              </span>
+              <span className="flex-1 text-left">{opt}</span>
               {isAnswered && opt === exercise.correctAnswer && (
                 <svg className="w-4 h-4 text-green-600 shrink-0" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
