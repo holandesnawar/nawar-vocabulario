@@ -118,6 +118,32 @@ interface DbDialogueLine {
   audio_url: string | null;
 }
 
+interface DbLezenText {
+  id: DbId;
+  lesson_id: DbId;
+  sort_order: number;
+  text_nl: string;
+  text_es: string;
+}
+
+interface DbLezenExercise {
+  id: DbId;
+  lezen_text_id: DbId;
+  sort_order: number;
+  type: string;
+  prompt: string;
+  correct_answer: string;
+  hint: string | null;
+  explanation: string | null;
+}
+
+interface DbLezenExerciseOption {
+  id: DbId;
+  lezen_exercise_id: DbId;
+  sort_order: number;
+  option_text: string;
+}
+
 // ── Mapping Functions ──────────────────────────────────────────────────────────
 
 /**
@@ -240,6 +266,36 @@ function mapDialogue(row: DbDialogue, lines: DbDialogueLine[]): Dialogue {
   };
 }
 
+function mapLezenText(
+  row: DbLezenText,
+  exercises: DbLezenExercise[],
+  options: DbLezenExerciseOption[]
+): import('./types').LezenBlock {
+  return {
+    type: 'lezen',
+    textNl: row.text_nl,
+    textEs: row.text_es,
+    exercises: exercises
+      .filter(e => e.lezen_text_id === row.id)
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map(e => {
+        const itemOptions = options
+          .filter(o => o.lezen_exercise_id === e.id)
+          .sort((a, b) => a.sort_order - b.sort_order)
+          .map(o => o.option_text);
+        return {
+          id: String(e.id),
+          type: e.type as ExerciseType,
+          prompt: e.prompt,
+          correctAnswer: e.correct_answer,
+          options: itemOptions.length > 0 ? itemOptions : undefined,
+          hint: e.hint ?? undefined,
+          explanation: e.explanation ?? undefined,
+        };
+      }),
+  };
+}
+
 // ── Internal: assemble full Lesson with blocks ────────────────────────────────
 
 async function assembleLessonBlocks(lessonRow: DbLesson, moduleSlug: string): Promise<Lesson> {
@@ -262,24 +318,33 @@ async function assembleLessonBlocks(lessonRow: DbLesson, moduleSlug: string): Pr
     { data: phraseRows },
     { data: practiceRows },
     { data: dialogueRows },
+    { data: lezenRows },
   ] = await Promise.all([
     db.from('vocabulary_items').select('*').eq('lesson_id', lessonDbId).order('sort_order'),
     db.from('phrases').select('*').eq('lesson_id', lessonDbId).order('sort_order'),
     db.from('practice_items').select('*').eq('lesson_id', lessonDbId).order('sort_order'),
     db.from('dialogues').select('*').eq('lesson_id', lessonDbId),
+    db.from('lezen_texts').select('*').eq('lesson_id', lessonDbId).order('sort_order'),
   ]);
 
   // Round 2: dependent rows
   const practiceItemIds = (practiceRows ?? []).map((r: DbPracticeItem) => r.id);
   const dialogueIds = (dialogueRows ?? []).map((r: DbDialogue) => r.id);
+  const lezenIds = (lezenRows ?? []).map((r: DbLezenText) => r.id);
 
-  const [{ data: optionRows }, { data: lineRows }] = await Promise.all([
+  const [{ data: optionRows }, { data: lineRows }, { data: lezenExRows }, { data: lezenOptRows }] = await Promise.all([
     practiceItemIds.length
       ? db.from('practice_options').select('*').in('practice_item_id', practiceItemIds).order('sort_order')
       : Promise.resolve({ data: [] as DbPracticeOption[] }),
     dialogueIds.length
       ? db.from('dialogue_lines').select('*').in('dialogue_id', dialogueIds).order('sort_order')
       : Promise.resolve({ data: [] as DbDialogueLine[] }),
+    lezenIds.length
+      ? db.from('lezen_exercises').select('*').in('lezen_text_id', lezenIds).order('sort_order')
+      : Promise.resolve({ data: [] as DbLezenExercise[] }),
+    lezenIds.length
+      ? db.from('lezen_exercise_options').select('*').order('sort_order')
+      : Promise.resolve({ data: [] as DbLezenExerciseOption[] }),
   ]);
 
   // Assemble blocks
@@ -298,9 +363,19 @@ async function assembleLessonBlocks(lessonRow: DbLesson, moduleSlug: string): Pr
     });
   }
 
-  // lezen has no Supabase table — always inject from local data if present
-  const localLezen = localLesson?.blocks.find(b => b.type === 'lezen');
-  if (localLezen) blocks.push(localLezen);
+  // lezen — from Supabase, fallback to local
+  if (lezenRows?.length) {
+    for (const row of lezenRows as DbLezenText[]) {
+      blocks.push(mapLezenText(
+        row,
+        (lezenExRows ?? []) as DbLezenExercise[],
+        (lezenOptRows ?? []) as DbLezenExerciseOption[],
+      ));
+    }
+  } else {
+    const localLezen = localLesson?.blocks.find(b => b.type === 'lezen');
+    if (localLezen) blocks.push(localLezen);
+  }
 
   if (dialogueRows?.length) {
     const dialogue = mapDialogue(dialogueRows[0] as DbDialogue, (lineRows ?? []) as DbDialogueLine[]);
