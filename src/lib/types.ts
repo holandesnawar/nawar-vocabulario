@@ -85,11 +85,20 @@ export interface Dialogue {
    LESSON BLOCKS — discriminated union
 ───────────────────────────────────────────────────────────────────────────── */
 
+export interface LezenBlock {
+  type: 'lezen';
+  title?: string;
+  textNl: string;
+  textEs: string;
+  exercises: ExerciseItem[];
+}
+
 export type LessonBlock =
   | { type: 'vocabulary'; title?: string; items: VocabularyItem[] }
   | { type: 'phrases';    title?: string; items: PhraseItem[] }
   | { type: 'practice';   title?: string; exercises: ExerciseItem[] }
   | { type: 'dialogue';   title?: string; dialogue: Dialogue }
+  | LezenBlock
   | { type: 'review' };
 
 /* ─────────────────────────────────────────────────────────────────────────────

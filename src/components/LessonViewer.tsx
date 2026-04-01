@@ -1,13 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import type { Lesson, CourseModule, VocabularyItem, PhraseItem, ExerciseItem, Dialogue } from '@/lib/types';
 import {
   getLessonProgress,
   markLessonStarted,
   markLessonCompleted,
-  updateLessonProgress,
 } from '@/lib/progress';
 import AudioPlayer from './AudioPlayer';
 
@@ -25,37 +24,6 @@ function speakDutch(text: string) {
   window.speechSynthesis.speak(u);
 }
 
-/**
- * Play audio from a URL if available, otherwise fall back to browser TTS.
- * This lets Supabase audio_url fields take priority over Web Speech API.
- */
-function playAudio(url: string | undefined, fallbackText: string) {
-  if (url) {
-    const audio = new Audio(url);
-    audio.play().catch(() => speakDutch(fallbackText));
-  } else {
-    speakDutch(fallbackText);
-  }
-}
-
-function Stars({ score, total }: { score: number; total: number }) {
-  const pct = total === 0 ? 0 : score / total;
-  const stars = pct >= 0.9 ? 5 : pct >= 0.75 ? 4 : pct >= 0.55 ? 3 : pct >= 0.35 ? 2 : 1;
-  return (
-    <div className="flex gap-1 justify-center" aria-label={`${stars} de 5 estrellas`}>
-      {Array.from({ length: 5 }, (_, i) => (
-        <svg
-          key={i}
-          className={`w-7 h-7 ${i < stars ? 'text-[#4da3ff]' : 'text-[#DDE6F5]'}`}
-          fill="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-        </svg>
-      ))}
-    </div>
-  );
-}
 
 function ProgressBar({ current, total, label }: { current: number; total: number; label: string }) {
   const pct = total === 0 ? 0 : Math.round((current / total) * 100);
@@ -76,23 +44,76 @@ function ProgressBar({ current, total, label }: { current: number; total: number
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   TAB TYPE
+   SECTION TYPE
 ───────────────────────────────────────────────────────────────────────────── */
 
-type TabId = 'vocabulary' | 'flashcards' | 'phrases' | 'practice' | 'dialogue' | 'review';
+type SectionId = 'vocabulary' | 'flashcards' | 'phrases' | 'lezen' | 'luisteren';
 
-const TAB_LABELS: Record<TabId, string> = {
-  vocabulary: 'Vocabulario',
-  flashcards: 'Flashcards',
-  phrases: 'Frases',
-  practice: 'Práctica',
-  dialogue: 'Diálogo',
-  review: 'Resumen',
+const SECTION_META: Record<SectionId, { label: string; emoji: string; desc: string }> = {
+  vocabulary:  { label: 'Vocabulario', emoji: '📖', desc: 'Aprende las palabras nuevas' },
+  flashcards:  { label: 'Flashcards',  emoji: '🃏', desc: 'Practica con tarjetas' },
+  phrases:     { label: 'Frases',      emoji: '💬', desc: 'Frases del día a día' },
+  lezen:       { label: 'Lezen',       emoji: '📝', desc: 'Lee un texto y responde preguntas' },
+  luisteren:   { label: 'Luisteren',   emoji: '🎧', desc: 'Escucha el diálogo' },
 };
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   VOCABULARY SECTION
+   VOCABULARY SECTION — paginated grid
 ───────────────────────────────────────────────────────────────────────────── */
+
+const VOCAB_PER_PAGE = 8; // 4 cols × 2 rows desktop / 2 cols × 4 rows mobile
+
+function WordCard({ word }: { word: VocabularyItem }) {
+  return (
+    <div className="rounded-2xl border border-[#DDE6F5] bg-white overflow-hidden flex flex-col">
+      {/* Color header */}
+      <div
+        className="w-full flex items-center justify-center py-3"
+        style={{ background: word.color }}
+      >
+        <span className="text-[28px] leading-none">{word.emoji}</span>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 px-3 py-2.5 space-y-1">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {word.article && (
+            <span className="text-[10px] font-bold text-[#025dc7] bg-[#F0F5FF] px-1.5 py-0.5 rounded-md shrink-0">
+              {word.article}
+            </span>
+          )}
+          <span
+            className="text-[14px] font-bold text-[#1D0084] leading-tight"
+            style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}
+          >
+            {word.dutch}
+          </span>
+        </div>
+        <p className="text-[12px] text-[#5A6480] font-medium leading-snug">{word.spanish}</p>
+      </div>
+
+      {/* Audio */}
+      <div className="px-3 pb-2.5">
+        {word.audio?.url ? (
+          <AudioPlayer src={word.audio.url} compact />
+        ) : (
+          <button
+            onClick={() => speakDutch((word.article ? `${word.article} ` : '') + word.dutch)}
+            className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-xl bg-[#F0F5FF] border border-[#DDE6F5] text-[#025dc7] text-[11px] font-semibold hover:bg-[#e0eaff] transition-colors duration-200"
+            aria-label="Escuchar"
+          >
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 5.636a9 9 0 010 12.728" />
+            </svg>
+            Escuchar
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function VocabularySection({
   items,
@@ -101,113 +122,74 @@ function VocabularySection({
   items: VocabularyItem[];
   onComplete: () => void;
 }) {
-  const [expanded, setExpanded] = useState<string | null>(null);
-
-  function toggle(id: string) {
-    setExpanded(e => (e === id ? null : id));
-  }
+  const [page, setPage] = useState(0);
+  const totalPages = Math.ceil(items.length / VOCAB_PER_PAGE);
+  const pageItems = items.slice(page * VOCAB_PER_PAGE, (page + 1) * VOCAB_PER_PAGE);
+  const isLastPage = page + 1 >= totalPages;
 
   return (
-    <div className="space-y-6">
-      {/* Header count */}
-      <div className="flex items-center justify-between">
-        <p className="text-[13px] font-semibold text-[#9CA3AF] uppercase tracking-widest">
-          {items.length} palabras
-        </p>
+    <div className="flex flex-col h-full">
+      {/* Count */}
+      <p className="text-[12px] font-semibold text-[#9CA3AF] uppercase tracking-widest mb-4">
+        {items.length} palabras · página {page + 1} de {totalPages}
+      </p>
+
+      {/* Grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 flex-1">
+        {pageItems.map(word => (
+          <WordCard key={word.id} word={word} />
+        ))}
       </div>
 
-      {/* Word list */}
-      <div className="space-y-2">
-        {items.map(word => {
-          const isOpen = expanded === word.id;
-          return (
-            <div
-              key={word.id}
-              className="rounded-2xl border border-[#DDE6F5] bg-white overflow-hidden"
-            >
-              {/* Main row */}
-              <div className="flex items-center gap-3 px-4 py-3.5">
-                {/* Color stripe + emoji */}
-                <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center text-[20px] shrink-0"
-                  style={{ background: word.color }}
-                >
-                  {word.emoji}
-                </div>
+      {/* Pagination */}
+      <div className="flex items-center justify-between gap-3 mt-6">
+        <button
+          onClick={() => setPage(p => p - 1)}
+          disabled={page === 0}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#F0F5FF] text-[#1D0084] text-[14px] font-semibold border border-[#DDE6F5] hover:bg-[#e0eaff] transition-colors duration-200 disabled:opacity-30 disabled:pointer-events-none"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+          Anterior
+        </button>
 
-                {/* Dutch + article + Spanish */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-baseline gap-2 flex-wrap">
-                    <span
-                      className="text-[16px] font-bold text-[#1D0084] leading-tight"
-                      style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}
-                    >
-                      {word.dutch}
-                    </span>
-                  </div>
-                  <p className="text-[13px] text-[#1D0084] font-medium mt-0.5">{word.spanish}</p>
-                </div>
+        {/* Dots */}
+        <div className="flex items-center gap-1.5">
+          {Array.from({ length: totalPages }, (_, i) => (
+            <button
+              key={i}
+              onClick={() => setPage(i)}
+              className={`rounded-full transition-all duration-200 ${
+                i === page ? 'w-5 h-2 bg-[#1D0084]' : 'w-2 h-2 bg-[#DDE6F5]'
+              }`}
+              aria-label={`Página ${i + 1}`}
+            />
+          ))}
+        </div>
 
-                {/* Audio (TTS fallback) + expand */}
-                <div className="flex items-center gap-2 shrink-0">
-                  {!word.audio?.url && (
-                    <button
-                      onClick={() => speakDutch((word.article ? `${word.article} ` : '') + word.dutch)}
-                      className="w-8 h-8 rounded-full bg-[#F0F5FF] border border-[#DDE6F5] flex items-center justify-center text-[#025dc7] hover:bg-[#e0eaff] transition-colors duration-200"
-                      aria-label="Escuchar"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 5.636a9 9 0 010 12.728" />
-                      </svg>
-                    </button>
-                  )}
-                  <button
-                    onClick={() => toggle(word.id)}
-                    className="w-8 h-8 rounded-full bg-[#F0F5FF] border border-[#DDE6F5] flex items-center justify-center text-[#9CA3AF] hover:text-[#1D0084] hover:bg-[#e0eaff] transition-all duration-200"
-                    aria-label={isOpen ? 'Cerrar ejemplo' : 'Ver ejemplo'}
-                  >
-                    <svg
-                      className={`w-3.5 h-3.5 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth={2.5}
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-
-              {/* Compact audio player — only when a real URL exists */}
-              {word.audio?.url && (
-                <div className="px-4 pb-3">
-                  <AudioPlayer src={word.audio.url} compact />
-                </div>
-              )}
-
-              {/* Expanded example */}
-              {isOpen && (
-                <div className="px-4 pb-4 pt-0 border-t border-[#DDE6F5] bg-[#F8FAFF]">
-                  <div className="pt-3 space-y-1">
-                    <p className="text-[14px] font-medium text-[#1D0084] leading-snug">{word.exampleNl}</p>
-                    <p className="text-[13px] text-[#5A6480] leading-snug">{word.exampleEs}</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
+        {isLastPage ? (
+          <button
+            onClick={onComplete}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#1D0084] text-white text-[14px] font-semibold hover:bg-[#025dc7] transition-colors duration-200"
+          >
+            Continuar
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+            </svg>
+          </button>
+        ) : (
+          <button
+            onClick={() => setPage(p => p + 1)}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#1D0084] text-white text-[14px] font-semibold hover:bg-[#025dc7] transition-colors duration-200"
+          >
+            Siguiente
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        )}
       </div>
-
-      <button
-        onClick={onComplete}
-        className="w-full py-3.5 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200"
-      >
-        He repasado las palabras →
-      </button>
     </div>
   );
 }
@@ -244,7 +226,6 @@ function FlashcardSection({
   }
 
   function handleRepeat() {
-    // Send to back of queue
     setQueue(q => {
       const next = [...q];
       const [current] = next.splice(index, 1);
@@ -292,7 +273,7 @@ function FlashcardSection({
           Repetir flashcards 🔄
         </button>
         <button onClick={onComplete} className="w-full py-3.5 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200">
-          Continuar a Frases →
+          Continuar →
         </button>
       </div>
     );
@@ -440,7 +421,7 @@ function PhrasesSection({
 
       <div className="w-full max-w-sm mx-auto space-y-4">
         {phrase.context && (
-          <p className="eyebrow text-[#9CA3AF]">{phrase.context}</p>
+          <p className="text-[12px] font-semibold text-[#9CA3AF] uppercase tracking-widest">{phrase.context}</p>
         )}
 
         <div className="bg-white rounded-2xl border border-[#DDE6F5] p-6 space-y-4">
@@ -527,19 +508,17 @@ function PhrasesSection({
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   PRACTICE SECTION
+   EXERCISE COMPONENTS (shared between Practice and Lezen)
 ───────────────────────────────────────────────────────────────────────────── */
 
 function MultipleChoiceExercise({
   exercise,
   onAnswer,
-  preAnswered,
 }: {
   exercise: ExerciseItem;
   onAnswer: (correct: boolean) => void;
-  preAnswered?: boolean;
 }) {
-  const [selected, setSelected] = useState<string | null>(() => preAnswered ? exercise.correctAnswer : null);
+  const [selected, setSelected] = useState<string | null>(null);
   const isAnswered = selected !== null;
 
   function handleSelect(opt: string) {
@@ -605,14 +584,12 @@ function MultipleChoiceExercise({
 function WriteAnswerExercise({
   exercise,
   onAnswer,
-  preAnswered,
 }: {
   exercise: ExerciseItem;
   onAnswer: (correct: boolean) => void;
-  preAnswered?: boolean;
 }) {
-  const [value, setValue] = useState(() => preAnswered ? exercise.correctAnswer : '');
-  const [submitted, setSubmitted] = useState(preAnswered ?? false);
+  const [value, setValue] = useState('');
+  const [submitted, setSubmitted] = useState(false);
   const isCorrect = value.trim().toLowerCase() === exercise.correctAnswer.trim().toLowerCase();
 
   function handleSubmit() {
@@ -664,19 +641,88 @@ function WriteAnswerExercise({
   );
 }
 
-function ListenAndChooseExercise({
+function FillBlankExercise({
   exercise,
   onAnswer,
-  preAnswered,
 }: {
   exercise: ExerciseItem;
   onAnswer: (correct: boolean) => void;
-  preAnswered?: boolean;
 }) {
-  const [selected, setSelected] = useState<string | null>(() => preAnswered ? exercise.correctAnswer : null);
-  const isAnswered = selected !== null;
+  const [value, setValue] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+  const isCorrect = value.trim().toLowerCase() === exercise.correctAnswer.trim().toLowerCase();
+  const parts = exercise.prompt.split('___');
 
-  // Extract the Dutch text from the prompt for TTS (text in quotes)
+  function handleSubmit() {
+    if (!value.trim() || submitted) return;
+    setSubmitted(true);
+    onAnswer(isCorrect);
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-[#F0F5FF] rounded-2xl p-5 border border-[#DDE6F5]">
+        <p className="text-[16px] font-semibold text-[#1D0084] leading-snug flex flex-wrap items-center gap-1">
+          {parts[0]}
+          <input
+            type="text"
+            value={value}
+            onChange={e => setValue(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+            disabled={submitted}
+            placeholder="___"
+            className={`inline-block w-28 px-2 py-0.5 rounded-lg border text-[15px] font-semibold text-center focus:outline-none transition-colors duration-200 disabled:opacity-70 ${
+              submitted
+                ? isCorrect
+                  ? 'bg-green-50 border-green-400 text-green-800'
+                  : 'bg-red-50 border-red-400 text-red-700'
+                : 'bg-white border-[#025dc7] text-[#1D0084] focus:border-[#1D0084]'
+            }`}
+          />
+          {parts[1] ?? ''}
+        </p>
+        {exercise.hint && (
+          <p className="text-[13px] text-[#9CA3AF] mt-2">💡 {exercise.hint}</p>
+        )}
+      </div>
+      {!submitted && (
+        <button
+          onClick={handleSubmit}
+          disabled={!value.trim()}
+          className="w-full py-3.5 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200 disabled:opacity-40 disabled:pointer-events-none"
+        >
+          Comprobar
+        </button>
+      )}
+      {submitted && (
+        <div
+          className={`rounded-xl px-4 py-3 text-[14px] font-medium ${
+            isCorrect
+              ? 'bg-green-50 text-green-800 border border-green-200'
+              : 'bg-red-50 text-red-700 border border-red-200'
+          }`}
+        >
+          {isCorrect
+            ? '✓ ¡Correcto!'
+            : `✗ La respuesta era: "${exercise.correctAnswer}"`}
+          {exercise.explanation && (
+            <p className="mt-1 text-[13px] opacity-80">{exercise.explanation}</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ListenAndChooseExercise({
+  exercise,
+  onAnswer,
+}: {
+  exercise: ExerciseItem;
+  onAnswer: (correct: boolean) => void;
+}) {
+  const [selected, setSelected] = useState<string | null>(null);
+  const isAnswered = selected !== null;
   const match = exercise.prompt.match(/"([^"]+)"/);
   const dutchText = match ? match[1] : exercise.prompt;
 
@@ -755,99 +801,18 @@ function ListenAndChooseExercise({
   );
 }
 
-function FillBlankExercise({
-  exercise,
-  onAnswer,
-  preAnswered,
-}: {
-  exercise: ExerciseItem;
-  onAnswer: (correct: boolean) => void;
-  preAnswered?: boolean;
-}) {
-  const [value, setValue] = useState(() => preAnswered ? exercise.correctAnswer : '');
-  const [submitted, setSubmitted] = useState(preAnswered ?? false);
-  const isCorrect = value.trim().toLowerCase() === exercise.correctAnswer.trim().toLowerCase();
-
-  // Split prompt on ___ to render the blank inline
-  const parts = exercise.prompt.split('___');
-
-  function handleSubmit() {
-    if (!value.trim() || submitted) return;
-    setSubmitted(true);
-    onAnswer(isCorrect);
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="bg-[#F0F5FF] rounded-2xl p-5 border border-[#DDE6F5]">
-        <p className="text-[16px] font-semibold text-[#1D0084] leading-snug flex flex-wrap items-center gap-1">
-          {parts[0]}
-          <input
-            type="text"
-            value={value}
-            onChange={e => setValue(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-            disabled={submitted}
-            placeholder="___"
-            className={`inline-block w-28 px-2 py-0.5 rounded-lg border text-[15px] font-semibold text-center focus:outline-none transition-colors duration-200 disabled:opacity-70 ${
-              submitted
-                ? isCorrect
-                  ? 'bg-green-50 border-green-400 text-green-800'
-                  : 'bg-red-50 border-red-400 text-red-700'
-                : 'bg-white border-[#025dc7] text-[#1D0084] focus:border-[#1D0084]'
-            }`}
-          />
-          {parts[1] ?? ''}
-        </p>
-        {exercise.hint && (
-          <p className="text-[13px] text-[#9CA3AF] mt-2">💡 {exercise.hint}</p>
-        )}
-      </div>
-      {!submitted && (
-        <button
-          onClick={handleSubmit}
-          disabled={!value.trim()}
-          className="w-full py-3.5 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200 disabled:opacity-40 disabled:pointer-events-none"
-        >
-          Comprobar
-        </button>
-      )}
-      {submitted && (
-        <div
-          className={`rounded-xl px-4 py-3 text-[14px] font-medium ${
-            isCorrect
-              ? 'bg-green-50 text-green-800 border border-green-200'
-              : 'bg-red-50 text-red-700 border border-red-200'
-          }`}
-        >
-          {isCorrect
-            ? '✓ ¡Correcto!'
-            : `✗ La respuesta era: "${exercise.correctAnswer}"`}
-          {exercise.explanation && (
-            <p className="mt-1 text-[13px] opacity-80">{exercise.explanation}</p>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function OrderSentenceExercise({
   exercise,
   onAnswer,
-  preAnswered,
 }: {
   exercise: ExerciseItem;
   onAnswer: (correct: boolean) => void;
-  preAnswered?: boolean;
 }) {
   const [available, setAvailable] = useState<string[]>(() =>
-    preAnswered ? [] : [...(exercise.options ?? [])].sort(() => Math.random() - 0.5)
+    [...(exercise.options ?? [])].sort(() => Math.random() - 0.5)
   );
-  const [sentence, setSentence] = useState<string[]>(() =>
-    preAnswered ? exercise.correctAnswer.split(' ') : []
-  );
-  const [submitted, setSubmitted] = useState(preAnswered ?? false);
+  const [sentence, setSentence] = useState<string[]>([]);
+  const [submitted, setSubmitted] = useState(false);
   const isCorrect = sentence.join(' ') === exercise.correctAnswer;
 
   function addWord(word: string, idx: number) {
@@ -880,7 +845,6 @@ function OrderSentenceExercise({
         <p className="text-[16px] font-semibold text-[#1D0084] leading-snug">{exercise.prompt}</p>
       </div>
 
-      {/* Sentence area */}
       <div className="min-h-[52px] rounded-xl border-2 border-dashed border-[#DDE6F5] bg-white p-3 flex flex-wrap gap-2 items-center">
         {sentence.length === 0 && (
           <span className="text-[14px] text-[#9CA3AF]">Toca las palabras para ordenarlas...</span>
@@ -897,7 +861,6 @@ function OrderSentenceExercise({
         ))}
       </div>
 
-      {/* Available words */}
       <div className="flex flex-wrap gap-2">
         {available.map((word, i) => (
           <button
@@ -944,104 +907,171 @@ function OrderSentenceExercise({
   );
 }
 
-function PracticeSection({
+function ExerciseStep({
+  exercise,
+  onAnswer,
+}: {
+  exercise: ExerciseItem;
+  onAnswer: (correct: boolean) => void;
+}) {
+  if (exercise.type === 'multiple_choice') return <MultipleChoiceExercise exercise={exercise} onAnswer={onAnswer} />;
+  if (exercise.type === 'write_answer') return <WriteAnswerExercise exercise={exercise} onAnswer={onAnswer} />;
+  if (exercise.type === 'listen_and_choose') return <ListenAndChooseExercise exercise={exercise} onAnswer={onAnswer} />;
+  if (exercise.type === 'order_sentence') return <OrderSentenceExercise exercise={exercise} onAnswer={onAnswer} />;
+  if (exercise.type === 'fill_blank') return <FillBlankExercise exercise={exercise} onAnswer={onAnswer} />;
+  return null;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   LEZEN SECTION
+───────────────────────────────────────────────────────────────────────────── */
+
+function LezenSection({
+  textNl,
+  textEs,
   exercises,
   onComplete,
-  onError,
-  preAnswered,
 }: {
+  textNl: string;
+  textEs: string;
   exercises: ExerciseItem[];
-  onComplete: (score: number, errorIds: string[]) => void;
-  onError?: (id: string) => void;
-  preAnswered?: boolean;
+  onComplete: () => void;
 }) {
-  const [index, setIndex] = useState(0);
+  const [step, setStep] = useState<'text' | 'exercises' | 'translation'>('text');
+  const [exerciseIndex, setExerciseIndex] = useState(0);
   const [score, setScore] = useState(0);
-  const [answered, setAnswered] = useState(preAnswered ?? false);
-  const [errorIds, setErrorIds] = useState<string[]>([]);
-  const [key, setKey] = useState(0);
+  const [answered, setAnswered] = useState(false);
+  const [exKey, setExKey] = useState(0);
 
-  const exercise = exercises[index];
+  const exercise = exercises[exerciseIndex];
 
   function handleAnswer(correct: boolean) {
-    if (preAnswered) return;
     setAnswered(true);
-    if (correct) {
-      setScore(s => s + 1);
-    } else {
-      setErrorIds(e => [...e, exercise.id]);
-      onError?.(exercise.id);
-    }
+    if (correct) setScore(s => s + 1);
   }
 
   function handleNext() {
-    if (index + 1 >= exercises.length) {
-      onComplete(score, errorIds);
+    if (exerciseIndex + 1 >= exercises.length) {
+      setStep('translation');
     } else {
-      setIndex(i => i + 1);
-      setAnswered(preAnswered ?? false);
-      setKey(k => k + 1);
+      setExerciseIndex(i => i + 1);
+      setAnswered(false);
+      setExKey(k => k + 1);
     }
   }
 
+  if (step === 'text') {
+    return (
+      <div className="space-y-6">
+        <div className="rounded-2xl border border-[#DDE6F5] bg-white p-6">
+          <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-widest mb-4">Texto en neerlandés</p>
+          <div
+            className="text-[16px] text-[#1D0084] leading-relaxed whitespace-pre-wrap font-medium"
+            style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}
+          >
+            {textNl}
+          </div>
+        </div>
+
+        {exercises.length > 0 && (
+          <button
+            onClick={() => setStep('exercises')}
+            className="w-full py-3.5 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200"
+          >
+            Ir a los ejercicios →
+          </button>
+        )}
+        {exercises.length === 0 && (
+          <button
+            onClick={() => setStep('translation')}
+            className="w-full py-3.5 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200"
+          >
+            Ver traducción →
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  if (step === 'exercises' && exercise) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between gap-4">
+          <ProgressBar current={exerciseIndex + 1} total={exercises.length} label="Ejercicios" />
+          <span className="shrink-0 text-[13px] font-semibold text-[#025dc7] bg-[#F0F5FF] px-3 py-1 rounded-full">
+            {score} ✓
+          </span>
+        </div>
+
+        <div key={exKey} className="w-full max-w-sm mx-auto">
+          <ExerciseStep exercise={exercise} onAnswer={handleAnswer} />
+        </div>
+
+        {answered && (
+          <button
+            onClick={handleNext}
+            className="w-full max-w-sm mx-auto flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200"
+          >
+            {exerciseIndex + 1 < exercises.length ? (
+              <>
+                Siguiente
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </>
+            ) : (
+              <>
+                Ver traducción del texto
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </>
+            )}
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  // translation step
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <ProgressBar current={index + 1} total={exercises.length} label="Ejercicios" />
-        <span className="shrink-0 text-[13px] font-semibold text-[#025dc7] bg-[#F0F5FF] px-3 py-1 rounded-full">
-          {score} ✓
-        </span>
-      </div>
-
-      <div key={key} className="w-full max-w-sm mx-auto">
-        {exercise.type === 'multiple_choice' && (
-          <MultipleChoiceExercise exercise={exercise} onAnswer={handleAnswer} preAnswered={preAnswered} />
-        )}
-        {exercise.type === 'write_answer' && (
-          <WriteAnswerExercise exercise={exercise} onAnswer={handleAnswer} preAnswered={preAnswered} />
-        )}
-        {exercise.type === 'listen_and_choose' && (
-          <ListenAndChooseExercise exercise={exercise} onAnswer={handleAnswer} preAnswered={preAnswered} />
-        )}
-        {exercise.type === 'order_sentence' && (
-          <OrderSentenceExercise exercise={exercise} onAnswer={handleAnswer} preAnswered={preAnswered} />
-        )}
-        {exercise.type === 'fill_blank' && (
-          <FillBlankExercise exercise={exercise} onAnswer={handleAnswer} preAnswered={preAnswered} />
-        )}
-      </div>
-
-      {answered && (
-        <button
-          onClick={handleNext}
-          className="w-full max-w-sm mx-auto flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200"
-        >
-          {index + 1 < exercises.length ? (
-            <>
-              Siguiente
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-              </svg>
-            </>
-          ) : (
-            <>
-              Ver resumen
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-            </>
-          )}
-        </button>
+      {exercises.length > 0 && (
+        <div className="flex items-center gap-3 rounded-2xl bg-[#1D0084] px-5 py-4">
+          <span className="text-2xl">🎉</span>
+          <div>
+            <p className="text-white font-bold text-[15px]">¡Ejercicios completados!</p>
+            <p className="text-white/60 text-[13px]">{score} de {exercises.length} respuestas correctas</p>
+          </div>
+        </div>
       )}
+
+      <div className="rounded-2xl border border-[#DDE6F5] bg-white p-6 space-y-4">
+        <div>
+          <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-widest mb-3">Texto original</p>
+          <p className="text-[14px] text-[#5A6480] leading-relaxed whitespace-pre-wrap">{textNl}</p>
+        </div>
+        <div className="border-t border-[#DDE6F5] pt-4">
+          <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-widest mb-3">Traducción al español</p>
+          <p className="text-[15px] text-[#1D0084] font-medium leading-relaxed whitespace-pre-wrap">{textEs}</p>
+        </div>
+      </div>
+
+      <button
+        onClick={onComplete}
+        className="w-full py-3.5 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200"
+      >
+        Continuar →
+      </button>
     </div>
   );
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   DIALOGUE SECTION
+   LUISTEREN (DIALOGUE) SECTION
 ───────────────────────────────────────────────────────────────────────────── */
 
-function DialogueSection({
+function LuisterenSection({
   dialogue,
   onComplete,
 }: {
@@ -1049,11 +1079,8 @@ function DialogueSection({
   onComplete: () => void;
 }) {
   const [showAll, setShowAll] = useState(false);
-  // When showAll=true, hiddenLines tracks individually hidden lines.
-  // When showAll=false, shownLines tracks individually shown lines.
   const [shownLines, setShownLines] = useState<Set<string>>(new Set());
   const [hiddenLines, setHiddenLines] = useState<Set<string>>(new Set());
-  const bottomRef = useRef<HTMLDivElement>(null);
 
   function toggleLine(id: string) {
     if (showAll) {
@@ -1163,8 +1190,6 @@ function DialogueSection({
         })}
       </div>
 
-      <div ref={bottomRef} />
-
       <button
         onClick={onComplete}
         className="w-full py-3.5 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200"
@@ -1176,137 +1201,73 @@ function DialogueSection({
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   REVIEW SECTION
+   SECTION LANDING — list of sections
 ───────────────────────────────────────────────────────────────────────────── */
 
-function ReviewSection({
-  lesson,
-  practiceScore,
-  practiceTotal,
-  errorIds,
-  nextLesson,
-  moduleId,
-  onRetryPractice,
-  onReviewErrors,
+function SectionLanding({
+  sections,
+  completedSections,
+  onEnter,
 }: {
-  lesson: Lesson;
-  practiceScore: number;
-  practiceTotal: number;
-  errorIds: string[];
-  nextLesson?: Lesson | null;
-  moduleId: string;
-  onRetryPractice: () => void;
-  onReviewErrors: () => void;
+  sections: SectionId[];
+  completedSections: Set<SectionId>;
+  onEnter: (s: SectionId) => void;
 }) {
-  const pct = practiceTotal === 0 ? 100 : Math.round((practiceScore / practiceTotal) * 100);
-
-  // Collect wrong exercises
-  const practiceBlock = lesson.blocks.find(b => b.type === 'practice');
-  const wrongExercises =
-    practiceBlock && practiceBlock.type === 'practice'
-      ? practiceBlock.exercises.filter(e => errorIds.includes(e.id))
-      : [];
-
   return (
-    <div className="space-y-8">
-      {/* Score card */}
-      <div
-        className="relative flex flex-col items-center justify-center rounded-2xl py-10 px-6 gap-4 overflow-hidden"
-        style={{ background: '#1D0084' }}
-      >
-        <div aria-hidden className="absolute inset-0 dots-dark pointer-events-none" />
-        <div className="relative text-center space-y-3">
-          <span className="text-6xl">
-            {pct >= 90 ? '🏆' : pct >= 70 ? '🌟' : pct >= 50 ? '💪' : '📚'}
-          </span>
-          {practiceTotal > 0 ? (
-            <div>
-              <p className="text-white/60 text-[13px] font-medium mb-1">Tu resultado en práctica</p>
-              <p
-                className="text-[48px] font-bold text-white leading-none"
-                style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}
-              >
-                {practiceScore}
-                <span className="text-[#4da3ff]">/{practiceTotal}</span>
-              </p>
-            </div>
-          ) : (
-            <p className="text-white/60 text-[14px]">¡Lección completada!</p>
-          )}
-          {practiceTotal > 0 && <Stars score={practiceScore} total={practiceTotal} />}
-          {wrongExercises.length > 0 && (
-            <p className="text-white text-[13px] font-medium pt-1">
-              💡 Apunta estos errores para volver a repasar en el ejercicio.
-            </p>
-          )}
-        </div>
-      </div>
-
-      {/* Wrong exercises */}
-      {wrongExercises.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <h3
-              className="text-[15px] font-bold text-[#1D0084]"
-              style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}
+    <div className="space-y-3">
+      {sections.map((id, idx) => {
+        const meta = SECTION_META[id];
+        const done = completedSections.has(id);
+        return (
+          <button
+            key={id}
+            onClick={() => onEnter(id)}
+            className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl bg-white border border-[#DDE6F5] hover:border-[#025dc7]/40 hover:bg-[#F8FAFF] transition-all duration-200 text-left group"
+          >
+            {/* Number / Done badge */}
+            <div
+              className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-[18px] transition-colors duration-200 ${
+                done ? 'bg-[#1D0084]' : 'bg-[#F0F5FF]'
+              }`}
             >
-              Repaso de errores
-            </h3>
-            <span className="text-[12px] font-semibold text-red-500 bg-red-50 border border-red-100 px-2 py-0.5 rounded-full">
-              {wrongExercises.length} fallado{wrongExercises.length !== 1 ? 's' : ''}
-            </span>
-          </div>
-          {wrongExercises.map(ex => (
-            <div key={ex.id} className="bg-[#FFF5F5] rounded-2xl border border-red-100 p-4 space-y-2">
-              <p className="text-[12px] font-semibold text-red-500 uppercase tracking-wide">
-                {ex.type === 'fill_blank' ? 'Rellena el hueco' : ex.type === 'order_sentence' ? 'Ordena la frase' : ex.type === 'multiple_choice' ? 'Opción múltiple' : ex.type}
-              </p>
-              <p className="text-[14px] font-medium text-[#1D0084] leading-snug">{ex.prompt.replace('___', '____')}</p>
-              <div className="flex items-center gap-2 pt-1">
-                <span className="text-[13px] font-medium text-[#374151]">Respuesta correcta:</span>
-                <span className="text-[14px] font-bold text-[#1D0084]">{ex.correctAnswer}</span>
-              </div>
-              {ex.explanation && (
-                <p className="text-[13px] text-[#374151] border-t border-red-100 pt-2">{ex.explanation}</p>
+              {done ? (
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              ) : (
+                meta.emoji
               )}
             </div>
-          ))}
-        </div>
-      )}
 
-      {/* Actions */}
-      <div className="space-y-3">
-        {wrongExercises.length > 0 && (
-          <button
-            onClick={onReviewErrors}
-            className="w-full py-3.5 rounded-xl bg-red-50 text-red-700 text-[15px] font-semibold hover:bg-red-100 transition-colors duration-200 border border-red-200"
-          >
-            Repasar solo mis errores ({wrongExercises.length})
+            {/* Labels */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-semibold text-[#9CA3AF] uppercase tracking-widest">
+                  {idx + 1}
+                </span>
+                <p
+                  className="text-[16px] font-bold text-[#1D0084] leading-tight"
+                  style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}
+                >
+                  {meta.label}
+                </p>
+              </div>
+              <p className="text-[13px] text-[#5A6480] mt-0.5">{meta.desc}</p>
+            </div>
+
+            {/* Arrow */}
+            <svg
+              className="w-4 h-4 text-[#9CA3AF] group-hover:text-[#1D0084] transition-colors duration-200 shrink-0"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2.5}
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
           </button>
-        )}
-        {practiceTotal > 0 && (
-          <button
-            onClick={onRetryPractice}
-            className="w-full py-3.5 rounded-xl bg-[#F0F5FF] text-[#1D0084] text-[15px] font-semibold hover:bg-[#e0eaff] transition-colors duration-200 border border-[#DDE6F5]"
-          >
-            Repetir práctica
-          </button>
-        )}
-        {nextLesson && (
-          <Link
-            href={`/modulo/${nextLesson.moduleId}/leccion/${nextLesson.id}`}
-            className="block w-full py-3.5 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold text-center hover:bg-[#025dc7] transition-colors duration-200"
-          >
-            Siguiente lección →
-          </Link>
-        )}
-        <Link
-          href={`/modulo/${moduleId}`}
-          className="block w-full py-3.5 rounded-xl text-[#025dc7] text-[15px] font-semibold text-center hover:bg-[#F0F5FF] transition-colors duration-200"
-        >
-          ← Volver al módulo
-        </Link>
-      </div>
+        );
+      })}
     </div>
   );
 }
@@ -1323,119 +1284,61 @@ interface LessonViewerProps {
 }
 
 export default function LessonViewer({ lesson, module, prevLesson: _prev, nextLesson }: LessonViewerProps) {
-  // Derive available tabs from block types, injecting 'flashcards' after 'vocabulary'
-  const availableTabs = useCallback((): TabId[] => {
-    const tabs: TabId[] = [];
-    for (const block of lesson.blocks) {
-      const id = block.type as TabId;
-      if (!tabs.includes(id)) {
-        tabs.push(id);
-        if (id === 'vocabulary') tabs.push('flashcards');
-      }
-    }
-    return tabs;
-  }, [lesson.blocks]);
-
-  const tabs = availableTabs();
-  const [activeTab, setActiveTab] = useState<TabId>(tabs[0] ?? 'vocabulary');
-  const [completedTabs, setCompletedTabs] = useState<Set<TabId>>(new Set());
-  const [practiceScore, setPracticeScore] = useState(0);
-  const [practiceTotal, setPracticeTotal] = useState(0);
-  const [errorIds, setErrorIds] = useState<string[]>([]);
-  const [practiceDone, setPracticeDone] = useState(false);
-  const [practiceKey, setPracticeKey] = useState(0);
-  const [errorReviewMode, setErrorReviewMode] = useState(false);
-  const reviewMarked = useRef(false);
+  const [activeSection, setActiveSection] = useState<SectionId | null>(null);
+  const [completedSections, setCompletedSections] = useState<Set<SectionId>>(new Set());
 
   useEffect(() => {
     markLessonStarted(lesson.id, lesson.moduleId);
     const existing = getLessonProgress(lesson.id);
-    if (existing) {
-      setPracticeScore(existing.score ?? 0);
-      setPracticeTotal(existing.total ?? 0);
-      setErrorIds(existing.errorIds ?? []);
+    if (existing?.status === 'completed') {
+      // Pre-mark all sections as done for returning students
     }
   }, [lesson.id, lesson.moduleId]);
 
-  function completeTab(tab: TabId) {
-    setCompletedTabs(prev => {
+  // Build available sections from blocks
+  const availableSections: SectionId[] = (() => {
+    const result: SectionId[] = [];
+    for (const block of lesson.blocks) {
+      if (block.type === 'vocabulary') {
+        result.push('vocabulary');
+        result.push('flashcards');
+      } else if (block.type === 'phrases') {
+        result.push('phrases');
+      } else if (block.type === 'lezen') {
+        result.push('lezen');
+      } else if (block.type === 'dialogue') {
+        result.push('luisteren');
+      }
+    }
+    return result;
+  })();
+
+  function completeSection(id: SectionId) {
+    setCompletedSections(prev => {
       const next = new Set(prev);
-      next.add(tab);
+      next.add(id);
       return next;
     });
-    // Advance to next tab
-    const idx = tabs.indexOf(tab);
-    if (idx >= 0 && idx < tabs.length - 1) {
-      setActiveTab(tabs[idx + 1]);
+    // If all sections done, mark lesson completed
+    const allDone = availableSections.every(s => s === id || completedSections.has(s));
+    if (allDone) {
+      markLessonCompleted(lesson.id, lesson.moduleId, 0, 0, []);
+    }
+    // Advance to next section or back to landing
+    const idx = availableSections.indexOf(id);
+    if (idx >= 0 && idx < availableSections.length - 1) {
+      setActiveSection(availableSections[idx + 1]);
+    } else {
+      setActiveSection(null);
     }
   }
-
-  function handlePracticeComplete(score: number, errors: string[]) {
-    setPracticeScore(score);
-    const practiceBlock = lesson.blocks.find(b => b.type === 'practice');
-    const total =
-      practiceBlock && practiceBlock.type === 'practice'
-        ? practiceBlock.exercises.length
-        : 0;
-    setPracticeTotal(total);
-    setErrorIds(errors);
-    setPracticeDone(true);
-    updateLessonProgress({
-      lessonId: lesson.id,
-      moduleId: lesson.moduleId,
-      status: 'in_progress',
-      score,
-      total,
-      errorIds: errors,
-    });
-    completeTab('practice');
-  }
-
-  function handleRetryPractice() {
-    setPracticeDone(false);
-    setErrorIds([]);
-    setPracticeScore(0);
-    setPracticeTotal(0);
-    setPracticeKey(k => k + 1);
-    setErrorReviewMode(false);
-    setActiveTab('practice');
-    setCompletedTabs(prev => {
-      const next = new Set(prev);
-      next.delete('practice');
-      next.delete('review');
-      return next;
-    });
-  }
-
-  function handleReviewErrors() {
-    setPracticeKey(k => k + 1);
-    setErrorReviewMode(true);
-    setActiveTab('practice');
-    setCompletedTabs(prev => {
-      const next = new Set(prev);
-      next.delete('practice');
-      next.delete('review');
-      return next;
-    });
-  }
-
-  // Mark lesson completed when review tab is visited
-  useEffect(() => {
-    if (activeTab === 'review' && !reviewMarked.current) {
-      reviewMarked.current = true;
-      markLessonCompleted(lesson.id, lesson.moduleId, practiceScore, practiceTotal, errorIds);
-      setCompletedTabs(prev => {
-        const next = new Set(prev);
-        next.add('review');
-        return next;
-      });
-    }
-  }, [activeTab, lesson.id, lesson.moduleId, practiceScore, practiceTotal, errorIds]);
 
   const vocabBlock = lesson.blocks.find(b => b.type === 'vocabulary');
   const phraseBlock = lesson.blocks.find(b => b.type === 'phrases');
-  const practiceBlock = lesson.blocks.find(b => b.type === 'practice');
+  const lezenBlock = lesson.blocks.find(b => b.type === 'lezen');
   const dialogueBlock = lesson.blocks.find(b => b.type === 'dialogue');
+
+  const activeMeta = activeSection ? SECTION_META[activeSection] : null;
 
   return (
     <>
@@ -1450,15 +1353,28 @@ export default function LessonViewer({ lesson, module, prevLesson: _prev, nextLe
         <div aria-hidden className="absolute inset-0 dots-dark pointer-events-none" />
 
         <div className="relative max-w-2xl mx-auto px-6 pt-8 pb-8">
-          <Link
-            href={`/modulo/${module.id}`}
-            className="inline-flex items-center gap-2 text-[13px] text-white/50 hover:text-white/80 transition-colors duration-200 mb-5"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M7 16l-4-4m0 0l4-4m-4 4h18" />
-            </svg>
-            {module.title}
-          </Link>
+          {/* Back link: to module if on landing, to lesson landing if inside section */}
+          {activeSection === null ? (
+            <Link
+              href={`/modulo/${module.id}`}
+              className="inline-flex items-center gap-2 text-[13px] text-white/50 hover:text-white/80 transition-colors duration-200 mb-5"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M7 16l-4-4m0 0l4-4m-4 4h18" />
+              </svg>
+              {module.title}
+            </Link>
+          ) : (
+            <button
+              onClick={() => setActiveSection(null)}
+              className="inline-flex items-center gap-2 text-[13px] text-white/50 hover:text-white/80 transition-colors duration-200 mb-5"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M7 16l-4-4m0 0l4-4m-4 4h18" />
+              </svg>
+              {lesson.title}
+            </button>
+          )}
 
           <div className="flex items-start gap-3">
             <span className="text-4xl">{module.emoji}</span>
@@ -1467,106 +1383,81 @@ export default function LessonViewer({ lesson, module, prevLesson: _prev, nextLe
                 className="text-[24px] font-bold text-white leading-tight"
                 style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}
               >
-                {lesson.title}
+                {activeSection ? activeMeta!.label : lesson.title}
               </h1>
               <p className="text-[13px] text-white/50 mt-0.5">
-                {lesson.subtitle} · {lesson.estimatedMinutes} min
+                {activeSection ? activeMeta!.desc : `${lesson.subtitle} · ${lesson.estimatedMinutes} min`}
               </p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* ── Tab bar ── */}
-      <div className="bg-white border-b border-[#DDE6F5] sticky top-0 z-40">
-        <div className="max-w-2xl mx-auto px-6 flex overflow-x-auto">
-          {tabs.map(tab => {
-            const isDone = completedTabs.has(tab);
-            return (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`relative py-4 px-4 text-[13px] font-semibold transition-colors duration-200 whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
-                  activeTab === tab ? 'text-[#1D0084]' : 'text-[#9CA3AF] hover:text-[#5A6480]'
-                }`}
-              >
-                {isDone && (
-                  <svg className="w-3.5 h-3.5 text-[#4da3ff] shrink-0" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.59L5.41 12 6.83 10.58 10 13.75l7.17-7.17 1.41 1.42L10 16.59z" />
-                  </svg>
-                )}
-                {TAB_LABELS[tab]}
-                {activeTab === tab && (
-                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#1D0084] rounded-t-full" />
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
       {/* ── Content ── */}
-      <div className="bg-white min-h-[70vh] py-10 pb-20">
+      <div className="bg-white min-h-[70vh] py-8 pb-20">
         <div className="max-w-2xl mx-auto px-6">
 
+          {/* LANDING */}
+          {activeSection === null && (
+            <SectionLanding
+              sections={availableSections}
+              completedSections={completedSections}
+              onEnter={setActiveSection}
+            />
+          )}
+
           {/* VOCABULARY */}
-          {activeTab === 'vocabulary' && vocabBlock && vocabBlock.type === 'vocabulary' && (
+          {activeSection === 'vocabulary' && vocabBlock && vocabBlock.type === 'vocabulary' && (
             <VocabularySection
               items={vocabBlock.items}
-              onComplete={() => completeTab('vocabulary')}
+              onComplete={() => completeSection('vocabulary')}
             />
           )}
 
           {/* FLASHCARDS */}
-          {activeTab === 'flashcards' && vocabBlock && vocabBlock.type === 'vocabulary' && (
+          {activeSection === 'flashcards' && vocabBlock && vocabBlock.type === 'vocabulary' && (
             <FlashcardSection
               items={vocabBlock.items}
-              onComplete={() => completeTab('flashcards')}
+              onComplete={() => completeSection('flashcards')}
             />
           )}
 
           {/* PHRASES */}
-          {activeTab === 'phrases' && phraseBlock && phraseBlock.type === 'phrases' && (
+          {activeSection === 'phrases' && phraseBlock && phraseBlock.type === 'phrases' && (
             <PhrasesSection
               items={phraseBlock.items}
-              onComplete={() => completeTab('phrases')}
+              onComplete={() => completeSection('phrases')}
             />
           )}
 
-          {/* PRACTICE */}
-          {activeTab === 'practice' && practiceBlock && practiceBlock.type === 'practice' && (
-            <PracticeSection
-              key={practiceKey}
-              exercises={
-                errorReviewMode
-                  ? practiceBlock.exercises.filter(e => errorIds.includes(e.id))
-                  : practiceBlock.exercises
-              }
-              onComplete={handlePracticeComplete}
-              preAnswered={errorReviewMode}
+          {/* LEZEN */}
+          {activeSection === 'lezen' && lezenBlock && lezenBlock.type === 'lezen' && (
+            <LezenSection
+              textNl={lezenBlock.textNl}
+              textEs={lezenBlock.textEs}
+              exercises={lezenBlock.exercises}
+              onComplete={() => completeSection('lezen')}
             />
           )}
 
-          {/* DIALOGUE */}
-          {activeTab === 'dialogue' && dialogueBlock && dialogueBlock.type === 'dialogue' && (
-            <DialogueSection
+          {/* LUISTEREN */}
+          {activeSection === 'luisteren' && dialogueBlock && dialogueBlock.type === 'dialogue' && (
+            <LuisterenSection
               dialogue={dialogueBlock.dialogue}
-              onComplete={() => completeTab('dialogue')}
+              onComplete={() => completeSection('luisteren')}
             />
           )}
 
-          {/* REVIEW */}
-          {activeTab === 'review' && (
-            <ReviewSection
-              lesson={lesson}
-              practiceScore={practiceScore}
-              practiceTotal={practiceTotal}
-              errorIds={errorIds}
-              nextLesson={nextLesson}
-              moduleId={module.id}
-              onRetryPractice={handleRetryPractice}
-              onReviewErrors={handleReviewErrors}
-            />
+          {/* Next lesson link — shown on landing after all sections done */}
+          {activeSection === null && availableSections.every(s => completedSections.has(s)) && nextLesson && (
+            <div className="mt-6 pt-6 border-t border-[#DDE6F5]">
+              <Link
+                href={`/modulo/${nextLesson.moduleId}/leccion/${nextLesson.id}`}
+                className="block w-full py-3.5 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold text-center hover:bg-[#025dc7] transition-colors duration-200"
+              >
+                Siguiente lección →
+              </Link>
+            </div>
           )}
         </div>
       </div>
