@@ -61,15 +61,18 @@ const SECTION_META: Record<SectionId, { label: string; emoji: string; desc: stri
 
 const VOCAB_PER_PAGE = 8;
 
-type VPStepType = 'words' | 'phrases' | 'listen' | 'complete' | 'classify' | 'write';
+type VPStepType = 'words' | 'phrases' | 'listen' | 'truefalse' | 'test' | 'complete' | 'order' | 'classify' | 'write';
 
 const VP_META: Record<VPStepType, { label: string; emoji: string }> = {
-  words:    { label: 'Palabras',   emoji: '📖' },
-  phrases:  { label: 'Frases',     emoji: '💬' },
-  listen:   { label: 'Escuchar',   emoji: '🎧' },
-  complete: { label: 'Completar',  emoji: '✏️' },
-  classify: { label: 'Clasificar', emoji: '🗂️' },
-  write:    { label: 'Escribir',   emoji: '✍️' },
+  words:     { label: 'Diccionario',     emoji: '📖' },
+  phrases:   { label: 'Frases',          emoji: '💬' },
+  listen:    { label: 'Escuchar',        emoji: '🎧' },
+  truefalse: { label: 'Verdadero/Falso', emoji: '✅' },
+  test:      { label: 'Test',            emoji: '🧪' },
+  complete:  { label: 'Completar',       emoji: '✏️' },
+  order:     { label: 'Ordenar',         emoji: '🔤' },
+  classify:  { label: 'Clasificar',      emoji: '🗂️' },
+  write:     { label: 'Escribir',        emoji: '✍️' },
 };
 
 interface ClassifyGroup { id: string; label: string }
@@ -77,11 +80,20 @@ interface ClassifyItemData { dutch: string; groupId: string }
 
 type VPStep =
   | { type: 'words' }
-  | { type: 'phrases'; items: PhraseItem[] }
-  | { type: 'listen'; exercises: ExerciseItem[] }
-  | { type: 'complete'; exercises: ExerciseItem[] }
-  | { type: 'classify'; groups: ClassifyGroup[]; items: ClassifyItemData[] }
-  | { type: 'write'; exercises: ExerciseItem[] };
+  | { type: 'phrases';   items: PhraseItem[] }
+  | { type: 'listen';    exercises: ExerciseItem[] }
+  | { type: 'truefalse'; exercises: ExerciseItem[] }
+  | { type: 'test';      exercises: ExerciseItem[] }
+  | { type: 'complete';  exercises: ExerciseItem[] }
+  | { type: 'order';     exercises: ExerciseItem[] }
+  | { type: 'classify';  groups: ClassifyGroup[]; items: ClassifyItemData[] }
+  | { type: 'write';     exercises: ExerciseItem[] };
+
+function isTrueFalse(e: ExerciseItem): boolean {
+  if (e.type !== 'multiple_choice') return false;
+  const opts = (e.options ?? []).map(o => o.toLowerCase().trim());
+  return opts.length === 2 && (opts.includes('verdadero') || opts.includes('true')) && (opts.includes('falso') || opts.includes('false'));
+}
 
 function buildClassifyData(items: VocabularyItem[]): { groups: ClassifyGroup[]; items: ClassifyItemData[] } | null {
   const categories = [...new Set(items.map(i => i.category))];
@@ -113,22 +125,38 @@ function buildVPSteps(
   exercises: ExerciseItem[],
 ): VPStep[] {
   const steps: VPStep[] = [{ type: 'words' }];
+
   if (phraseItems.length > 0)
     steps.push({ type: 'phrases', items: phraseItems });
+
   const listenEx = exercises.filter(e => e.type === 'listen_and_choose');
   if (listenEx.length > 0)
     steps.push({ type: 'listen', exercises: listenEx });
-  const completeEx = exercises.filter(e =>
-    e.type === 'fill_blank' || e.type === 'multiple_choice' || e.type === 'order_sentence'
-  );
-  if (completeEx.length > 0)
-    steps.push({ type: 'complete', exercises: completeEx });
+
+  const tfEx = exercises.filter(isTrueFalse);
+  if (tfEx.length > 0)
+    steps.push({ type: 'truefalse', exercises: tfEx });
+
+  const testEx = exercises.filter(e => e.type === 'multiple_choice' && !isTrueFalse(e));
+  if (testEx.length > 0)
+    steps.push({ type: 'test', exercises: testEx });
+
+  const fillEx = exercises.filter(e => e.type === 'fill_blank');
+  if (fillEx.length > 0)
+    steps.push({ type: 'complete', exercises: fillEx });
+
+  const orderEx = exercises.filter(e => e.type === 'order_sentence');
+  if (orderEx.length > 0)
+    steps.push({ type: 'order', exercises: orderEx });
+
   const classifyData = buildClassifyData(vocabItems);
   if (classifyData)
     steps.push({ type: 'classify', ...classifyData });
+
   const writeEx = exercises.filter(e => e.type === 'write_answer');
   if (writeEx.length > 0)
     steps.push({ type: 'write', exercises: writeEx });
+
   return steps;
 }
 
@@ -162,12 +190,33 @@ function StepBar({ steps, current }: { steps: VPStep[]; current: number }) {
 /* ── Word card (simple play button) ── */
 
 function WordCard({ word }: { word: VocabularyItem }) {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
   function handlePlay() {
+    if (isPlaying) {
+      audioRef.current?.pause();
+      if (audioRef.current) audioRef.current.currentTime = 0;
+      window.speechSynthesis?.cancel();
+      setIsPlaying(false);
+      return;
+    }
     const text = (word.article ? `${word.article} ` : '') + word.dutch;
+    setIsPlaying(true);
     if (word.audio?.url) {
-      new Audio(word.audio.url).play().catch(() => speakDutch(text));
+      const audio = new Audio(word.audio.url);
+      audioRef.current = audio;
+      audio.onended = () => setIsPlaying(false);
+      audio.onerror = () => { speakDutch(text); };
+      audio.play().catch(() => { speakDutch(text); setIsPlaying(false); });
     } else {
-      speakDutch(text);
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'nl-NL'; u.rate = 0.78; u.pitch = 1;
+        u.onend = () => setIsPlaying(false);
+        window.speechSynthesis.speak(u);
+      }
     }
   }
 
@@ -192,12 +241,27 @@ function WordCard({ word }: { word: VocabularyItem }) {
       <div className="px-3 pb-2.5">
         <button
           onClick={handlePlay}
-          className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-xl bg-[#F0F5FF] border border-[#DDE6F5] text-[#025dc7] text-[11px] font-semibold hover:bg-[#e0eaff] transition-colors duration-200"
+          className={`w-full flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-[11px] font-semibold transition-all duration-200 border ${
+            isPlaying
+              ? 'bg-[#1D0084] border-[#1D0084] text-white'
+              : 'bg-[#F0F5FF] border-[#DDE6F5] text-[#025dc7] hover:bg-[#e0eaff]'
+          }`}
         >
-          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M8 5v14l11-7z" />
-          </svg>
-          Escuchar
+          {isPlaying ? (
+            <>
+              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+              </svg>
+              Parar
+            </>
+          ) : (
+            <>
+              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+              Escuchar
+            </>
+          )}
         </button>
       </div>
     </div>
@@ -261,10 +325,44 @@ function WordsStep({ items, onDone }: { items: VocabularyItem[]; onDone: () => v
 
 /* ── Phrases step ── */
 
-function PhrasesStep({ items, onDone }: { items: PhraseItem[]; onDone: () => void }) {
+function PhrasesStep({ items, onDone, onBack }: { items: PhraseItem[]; onDone: () => void; onBack: () => void }) {
   const [index, setIndex] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const phrase = items[index];
   const isLast = index + 1 >= items.length;
+
+  function stopAudio() {
+    audioRef.current?.pause();
+    if (audioRef.current) audioRef.current.currentTime = 0;
+    window.speechSynthesis?.cancel();
+    setIsPlaying(false);
+  }
+
+  function handlePlay() {
+    if (isPlaying) { stopAudio(); return; }
+    setIsPlaying(true);
+    if (phrase.audio?.url) {
+      const audio = new Audio(phrase.audio.url);
+      audioRef.current = audio;
+      audio.onended = () => setIsPlaying(false);
+      audio.onerror = () => { speakDutch(phrase.dutch); };
+      audio.play().catch(() => { speakDutch(phrase.dutch); setIsPlaying(false); });
+    } else {
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(phrase.dutch);
+        u.lang = 'nl-NL'; u.rate = 0.78; u.pitch = 1;
+        u.onend = () => setIsPlaying(false);
+        window.speechSynthesis.speak(u);
+      }
+    }
+  }
+
+  function navigate(newIndex: number) {
+    stopAudio();
+    setIndex(newIndex);
+  }
 
   return (
     <div className="space-y-6">
@@ -279,13 +377,18 @@ function PhrasesStep({ items, onDone }: { items: PhraseItem[]; onDone: () => voi
             {phrase.dutch}
           </h2>
           <button
-            onClick={() => {
-              if (phrase.audio?.url) new Audio(phrase.audio.url).play().catch(() => speakDutch(phrase.dutch));
-              else speakDutch(phrase.dutch);
-            }}
-            className="w-9 h-9 rounded-full bg-[#F0F5FF] border border-[#DDE6F5] flex items-center justify-center text-[#025dc7] hover:bg-[#e0eaff] transition-colors duration-200 shrink-0"
+            onClick={handlePlay}
+            className={`w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 shrink-0 border ${
+              isPlaying
+                ? 'bg-[#1D0084] border-[#1D0084] text-white'
+                : 'bg-[#F0F5FF] border-[#DDE6F5] text-[#025dc7] hover:bg-[#e0eaff]'
+            }`}
           >
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+            {isPlaying ? (
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>
+            ) : (
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+            )}
           </button>
         </div>
         <div className="rounded-xl bg-[#F0F5FF] px-4 py-3 border border-[#DDE6F5]">
@@ -295,24 +398,35 @@ function PhrasesStep({ items, onDone }: { items: PhraseItem[]; onDone: () => voi
       </div>
 
       <div className="flex items-center justify-between gap-4">
-        <button onClick={() => setIndex(i => Math.max(0, i - 1))} disabled={index === 0}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#F0F5FF] text-[#1D0084] text-[14px] font-semibold border border-[#DDE6F5] hover:bg-[#e0eaff] transition-colors duration-200 disabled:opacity-30 disabled:pointer-events-none"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-          </svg>
-          Anterior
-        </button>
+        {index === 0 ? (
+          <button onClick={onBack}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#F0F5FF] text-[#1D0084] text-[14px] font-semibold border border-[#DDE6F5] hover:bg-[#e0eaff] transition-colors duration-200"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+            Volver
+          </button>
+        ) : (
+          <button onClick={() => navigate(index - 1)}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#F0F5FF] text-[#1D0084] text-[14px] font-semibold border border-[#DDE6F5] hover:bg-[#e0eaff] transition-colors duration-200"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+            Anterior
+          </button>
+        )}
         <div className="flex items-center gap-1.5 flex-wrap justify-center max-w-[120px]">
           {items.map((_, i) => (
-            <button key={i} onClick={() => setIndex(i)}
+            <button key={i} onClick={() => navigate(i)}
               className={`rounded-full transition-all duration-200 ${i === index ? 'w-5 h-2 bg-[#1D0084]' : i < index ? 'w-2 h-2 bg-[#4da3ff]' : 'w-2 h-2 bg-[#DDE6F5]'}`}
               aria-label={`Frase ${i + 1}`}
             />
           ))}
         </div>
         <button
-          onClick={() => { if (isLast) onDone(); else setIndex(i => i + 1); }}
+          onClick={() => { stopAudio(); if (isLast) onDone(); else navigate(index + 1); }}
           className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#1D0084] text-white text-[14px] font-semibold hover:bg-[#025dc7] transition-colors duration-200"
         >
           {isLast ? 'Siguiente paso' : 'Siguiente'}
@@ -327,7 +441,7 @@ function PhrasesStep({ items, onDone }: { items: PhraseItem[]; onDone: () => voi
 
 /* ── Exercise runner (listen / complete / write steps) ── */
 
-function ExerciseRunner({ exercises, onDone }: { exercises: ExerciseItem[]; onDone: () => void }) {
+function ExerciseRunner({ exercises, onDone, onBack }: { exercises: ExerciseItem[]; onDone: () => void; onBack: () => void }) {
   const [index, setIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [answered, setAnswered] = useState(false);
@@ -359,12 +473,20 @@ function ExerciseRunner({ exercises, onDone }: { exercises: ExerciseItem[]; onDo
         <ExerciseStep exercise={exercises[index]} onAnswer={handleAnswer} />
       </div>
       {answered && (
-        <button onClick={handleNext} className="w-full max-w-sm mx-auto flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200">
-          {index + 1 < exercises.length ? 'Siguiente' : 'Siguiente paso'}
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
+        <div className="flex items-center gap-3 max-w-sm mx-auto">
+          <button onClick={onBack} className="flex items-center gap-1.5 px-4 py-3.5 rounded-xl bg-[#F0F5FF] text-[#1D0084] text-[14px] font-semibold border border-[#DDE6F5] hover:bg-[#e0eaff] transition-colors duration-200 shrink-0">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+            Volver
+          </button>
+          <button onClick={handleNext} className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200">
+            {index + 1 < exercises.length ? 'Siguiente' : 'Siguiente paso'}
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
       )}
     </div>
   );
@@ -372,7 +494,7 @@ function ExerciseRunner({ exercises, onDone }: { exercises: ExerciseItem[]; onDo
 
 /* ── Classify step ── */
 
-function ClassifyStep({ groups, items, onDone }: { groups: ClassifyGroup[]; items: ClassifyItemData[]; onDone: () => void }) {
+function ClassifyStep({ groups, items, onDone, onBack }: { groups: ClassifyGroup[]; items: ClassifyItemData[]; onDone: () => void; onBack: () => void }) {
   const queue = useMemo(() => [...items].sort(() => Math.random() - 0.5).slice(0, Math.min(10, items.length)), [items]);
   const [index, setIndex] = useState(0);
   const [result, setResult] = useState<{ correct: boolean; correctId: string } | null>(null);
@@ -433,12 +555,20 @@ function ClassifyStep({ groups, items, onDone }: { groups: ClassifyGroup[]; item
       )}
 
       {result && (
-        <button onClick={handleNext} className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200">
-          {index + 1 < queue.length ? 'Siguiente' : 'Siguiente paso'}
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
+        <div className="flex items-center gap-3">
+          <button onClick={onBack} className="flex items-center gap-1.5 px-4 py-3.5 rounded-xl bg-[#F0F5FF] text-[#1D0084] text-[14px] font-semibold border border-[#DDE6F5] hover:bg-[#e0eaff] transition-colors duration-200 shrink-0">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+            Volver
+          </button>
+          <button onClick={handleNext} className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200">
+            {index + 1 < queue.length ? 'Siguiente' : 'Siguiente paso'}
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
       )}
     </div>
   );
@@ -464,6 +594,13 @@ function VocabPracticeSection({
   const [stepIndex, setStepIndex] = useState(0);
   const [allDone, setAllDone] = useState(false);
   const [runnerKey, setRunnerKey] = useState(0);
+
+  function handleStepBack() {
+    if (stepIndex > 0) {
+      setStepIndex(i => i - 1);
+      setRunnerKey(k => k + 1);
+    }
+  }
 
   function handleStepDone() {
     if (stepIndex + 1 >= steps.length) {
@@ -502,19 +639,13 @@ function VocabPracticeSection({
         <WordsStep key={runnerKey} items={vocabItems} onDone={handleStepDone} />
       )}
       {step.type === 'phrases' && (
-        <PhrasesStep key={runnerKey} items={step.items} onDone={handleStepDone} />
+        <PhrasesStep key={runnerKey} items={step.items} onDone={handleStepDone} onBack={handleStepBack} />
       )}
-      {step.type === 'listen' && (
-        <ExerciseRunner key={runnerKey} exercises={step.exercises} onDone={handleStepDone} />
-      )}
-      {step.type === 'complete' && (
-        <ExerciseRunner key={runnerKey} exercises={step.exercises} onDone={handleStepDone} />
+      {(step.type === 'listen' || step.type === 'truefalse' || step.type === 'test' || step.type === 'complete' || step.type === 'order' || step.type === 'write') && (
+        <ExerciseRunner key={runnerKey} exercises={step.exercises} onDone={handleStepDone} onBack={handleStepBack} />
       )}
       {step.type === 'classify' && (
-        <ClassifyStep key={runnerKey} groups={step.groups} items={step.items} onDone={handleStepDone} />
-      )}
-      {step.type === 'write' && (
-        <ExerciseRunner key={runnerKey} exercises={step.exercises} onDone={handleStepDone} />
+        <ClassifyStep key={runnerKey} groups={step.groups} items={step.items} onDone={handleStepDone} onBack={handleStepBack} />
       )}
     </div>
   );
