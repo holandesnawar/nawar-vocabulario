@@ -47,7 +47,9 @@ export type ExerciseType =
   | 'listen_and_choose'
   | 'order_sentence'
   | 'write_answer'
-  | 'fill_blank';
+  | 'fill_blank'
+  | 'word_scramble'
+  | 'match_pairs';
 
 export interface ExerciseItem {
   id: string;
@@ -58,6 +60,7 @@ export interface ExerciseItem {
   audio?: AudioTrack;
   hint?: string;
   explanation?: string;
+  pairs?: { left: string; right: string }[];  // for match_pairs
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
