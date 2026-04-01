@@ -6,7 +6,6 @@ import type { Lesson, CourseModule, VocabularyItem, PhraseItem, ExerciseItem, Di
 import {
   getLessonProgress,
   markLessonStarted,
-  markLessonCompleted,
 } from '@/lib/progress';
 import AudioPlayer from './AudioPlayer';
 
@@ -171,12 +170,12 @@ function VocabularySection({
         {isLastPage ? (
           <button
             onClick={onComplete}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#1D0084] text-white text-[14px] font-semibold hover:bg-[#025dc7] transition-colors duration-200"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#F0F5FF] text-[#1D0084] text-[14px] font-semibold border border-[#DDE6F5] hover:bg-[#e0eaff] transition-colors duration-200"
           >
-            Continuar
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M7 16l-4-4m0 0l4-4m-4 4h18" />
             </svg>
+            Volver a la lección
           </button>
         ) : (
           <button
@@ -272,8 +271,11 @@ function FlashcardSection({
         <button onClick={handleRestart} className="w-full py-3.5 rounded-xl bg-[#F0F5FF] text-[#1D0084] text-[15px] font-semibold border border-[#DDE6F5] hover:bg-[#e0eaff] transition-colors duration-200">
           Repetir flashcards 🔄
         </button>
-        <button onClick={onComplete} className="w-full py-3.5 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200">
-          Continuar →
+        <button onClick={onComplete} className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#F0F5FF] text-[#1D0084] text-[15px] font-semibold border border-[#DDE6F5] hover:bg-[#e0eaff] transition-colors duration-200">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M7 16l-4-4m0 0l4-4m-4 4h18" />
+          </svg>
+          Volver a la lección
         </button>
       </div>
     );
@@ -494,12 +496,12 @@ function PhrasesSection({
         ) : (
           <button
             onClick={onComplete}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#4da3ff] text-[#0a1a4a] text-[14px] font-semibold hover:bg-[#3391f0] transition-colors duration-200"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#F0F5FF] text-[#1D0084] text-[14px] font-semibold border border-[#DDE6F5] hover:bg-[#e0eaff] transition-colors duration-200"
           >
-            Continuar
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M7 16l-4-4m0 0l4-4m-4 4h18" />
             </svg>
+            Volver a la lección
           </button>
         )}
       </div>
@@ -1057,12 +1059,23 @@ function LezenSection({
         </div>
       </div>
 
-      <button
-        onClick={onComplete}
-        className="w-full py-3.5 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200"
-      >
-        Continuar →
-      </button>
+      <div className="flex gap-3">
+        <button
+          onClick={() => { setStep('exercises'); setExerciseIndex(0); setScore(0); setAnswered(false); setExKey(k => k + 1); }}
+          className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#F0F5FF] text-[#1D0084] text-[15px] font-semibold border border-[#DDE6F5] hover:bg-[#e0eaff] transition-colors duration-200"
+        >
+          🔄 Repetir ejercicios
+        </button>
+        <button
+          onClick={onComplete}
+          className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#F0F5FF] text-[#1D0084] text-[15px] font-semibold border border-[#DDE6F5] hover:bg-[#e0eaff] transition-colors duration-200"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M7 16l-4-4m0 0l4-4m-4 4h18" />
+          </svg>
+          Volver a la lección
+        </button>
+      </div>
     </div>
   );
 }
@@ -1192,9 +1205,12 @@ function LuisterenSection({
 
       <button
         onClick={onComplete}
-        className="w-full py-3.5 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200"
+        className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#F0F5FF] text-[#1D0084] text-[15px] font-semibold border border-[#DDE6F5] hover:bg-[#e0eaff] transition-colors duration-200"
       >
-        He leído el diálogo →
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M7 16l-4-4m0 0l4-4m-4 4h18" />
+        </svg>
+        Volver a la lección
       </button>
     </div>
   );
@@ -1283,7 +1299,7 @@ interface LessonViewerProps {
   nextLesson?: Lesson | null;
 }
 
-export default function LessonViewer({ lesson, module, prevLesson: _prev, nextLesson }: LessonViewerProps) {
+export default function LessonViewer({ lesson, module, prevLesson: _prev, nextLesson: _next }: LessonViewerProps) {
   const [activeSection, setActiveSection] = useState<SectionId | null>(null);
   const [completedSections, setCompletedSections] = useState<Set<SectionId>>(new Set());
 
@@ -1314,23 +1330,8 @@ export default function LessonViewer({ lesson, module, prevLesson: _prev, nextLe
   })();
 
   function completeSection(id: SectionId) {
-    setCompletedSections(prev => {
-      const next = new Set(prev);
-      next.add(id);
-      return next;
-    });
-    // If all sections done, mark lesson completed
-    const allDone = availableSections.every(s => s === id || completedSections.has(s));
-    if (allDone) {
-      markLessonCompleted(lesson.id, lesson.moduleId, 0, 0, []);
-    }
-    // Advance to next section or back to landing
-    const idx = availableSections.indexOf(id);
-    if (idx >= 0 && idx < availableSections.length - 1) {
-      setActiveSection(availableSections[idx + 1]);
-    } else {
-      setActiveSection(null);
-    }
+    setCompletedSections(prev => new Set([...prev, id]));
+    setActiveSection(null);
   }
 
   const vocabBlock = lesson.blocks.find(b => b.type === 'vocabulary');
@@ -1448,17 +1449,6 @@ export default function LessonViewer({ lesson, module, prevLesson: _prev, nextLe
             />
           )}
 
-          {/* Next lesson link — shown on landing after all sections done */}
-          {activeSection === null && availableSections.every(s => completedSections.has(s)) && nextLesson && (
-            <div className="mt-6 pt-6 border-t border-[#DDE6F5]">
-              <Link
-                href={`/modulo/${nextLesson.moduleId}/leccion/${nextLesson.id}`}
-                className="block w-full py-3.5 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold text-center hover:bg-[#025dc7] transition-colors duration-200"
-              >
-                Siguiente lección →
-              </Link>
-            </div>
-          )}
         </div>
       </div>
     </>
