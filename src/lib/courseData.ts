@@ -100,6 +100,64 @@ const m1_les1: Lesson = {
       ],
     },
     {
+      type: 'lezen',
+      textNl: `Hallo! Ik heet Anna. Ik kom uit Spanje, uit Barcelona. Ik ben 28 jaar oud.
+
+Ik woon nu in Amsterdam. Ik werk als grafisch ontwerper bij een klein bedrijf. Ik spreek Spaans en Engels, en ik leer nu ook Nederlands.
+
+Mijn collega heet Marco. Hij komt uit Italië. Hij werkt bij een hotel en hij studeert Nederlands voor zijn werk. Marco is 31 jaar oud.
+
+Wij volgen samen een taalcursus. De les is elke dinsdag en donderdag. We begrijpen al veel woorden!`,
+      textEs: `¡Hola! Me llamo Anna. Soy de España, de Barcelona. Tengo 28 años.
+
+Ahora vivo en Ámsterdam. Trabajo como diseñadora gráfica en una empresa pequeña. Hablo español e inglés, y ahora también estoy aprendiendo neerlandés.
+
+Mi compañero se llama Marco. Es de Italia. Trabaja en un hotel y estudia neerlandés para su trabajo. Marco tiene 31 años.
+
+Seguimos juntos un curso de idiomas. La clase es cada martes y jueves. ¡Ya entendemos muchas palabras!`,
+      exercises: [
+        {
+          id: 'lz1-1',
+          type: 'multiple_choice',
+          prompt: '¿De dónde es Anna?',
+          options: ['De Italia', 'De España', 'De Países Bajos', 'De Bélgica'],
+          correctAnswer: 'De España',
+          explanation: 'Anna komt uit Spanje, uit Barcelona.',
+        },
+        {
+          id: 'lz1-2',
+          type: 'multiple_choice',
+          prompt: '¿Cuántos años tiene Marco?',
+          options: ['28', '30', '31', '35'],
+          correctAnswer: '31',
+          explanation: 'Marco is 31 jaar oud.',
+        },
+        {
+          id: 'lz1-3',
+          type: 'fill_blank',
+          prompt: 'Anna ___ als grafisch ontwerper. (trabajar)',
+          correctAnswer: 'werkt',
+          hint: 'werken → hij/zij werkt',
+          explanation: 'De werkwoordsvorm van "werken" voor zij is "werkt".',
+        },
+        {
+          id: 'lz1-4',
+          type: 'multiple_choice',
+          prompt: '¿Qué estudia Marco?',
+          options: ['Inglés', 'Español', 'Neerlandés', 'Francés'],
+          correctAnswer: 'Neerlandés',
+          explanation: 'Marco studeert Nederlands voor zijn werk.',
+        },
+        {
+          id: 'lz1-5',
+          type: 'fill_blank',
+          prompt: 'De les is elke dinsdag en ___.',
+          correctAnswer: 'donderdag',
+          hint: 'Un día de la semana que empieza por "d"',
+        },
+      ],
+    },
+    {
       type: 'dialogue',
       dialogue: {
         id: 'd1',

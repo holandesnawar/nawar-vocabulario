@@ -1395,7 +1395,7 @@ export default function LessonViewer({ lesson, module, prevLesson: _prev, nextLe
 
       {/* ── Content ── */}
       <div className="bg-white min-h-[70vh] py-8 pb-20">
-        <div className="max-w-2xl mx-auto px-6">
+        <div className={`mx-auto px-6 ${activeSection === 'vocabulary' ? 'max-w-4xl' : 'max-w-2xl'}`}>
 
           {/* LANDING */}
           {activeSection === null && (
