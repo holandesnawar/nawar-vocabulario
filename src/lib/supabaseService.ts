@@ -297,6 +297,11 @@ async function assembleLessonBlocks(lessonRow: DbLesson, moduleSlug: string): Pr
       items: (phraseRows as DbPhrase[]).map(r => mapPhrase(r, localPhrases)),
     });
   }
+
+  // lezen has no Supabase table — always inject from local data if present
+  const localLezen = localLesson?.blocks.find(b => b.type === 'lezen');
+  if (localLezen) blocks.push(localLezen);
+
   if (dialogueRows?.length) {
     const dialogue = mapDialogue(dialogueRows[0] as DbDialogue, (lineRows ?? []) as DbDialogueLine[]);
     const hasText = dialogue.lines.some(l => l.dutch?.trim());
