@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import type { Lesson, CourseModule, VocabularyItem, PhraseItem, ExerciseItem, Dialogue } from '@/lib/types';
 import {
@@ -46,34 +46,136 @@ function ProgressBar({ current, total, label }: { current: number; total: number
    SECTION TYPE
 ───────────────────────────────────────────────────────────────────────────── */
 
-type SectionId = 'vocabulary' | 'flashcards' | 'phrases' | 'lezen' | 'luisteren';
+type SectionId = 'vocabulary' | 'flashcards' | 'lezen' | 'luisteren';
 
 const SECTION_META: Record<SectionId, { label: string; emoji: string; desc: string }> = {
-  vocabulary:  { label: 'Vocabulario', emoji: '📖', desc: 'Aprende las palabras nuevas' },
+  vocabulary:  { label: 'Vocabulario', emoji: '📖', desc: 'Palabras, frases y ejercicios de práctica' },
   flashcards:  { label: 'Flashcards',  emoji: '🃏', desc: 'Practica con tarjetas' },
-  phrases:     { label: 'Frases',      emoji: '💬', desc: 'Frases del día a día' },
   lezen:       { label: 'Lezen',       emoji: '📝', desc: 'Lee un texto y responde preguntas' },
   luisteren:   { label: 'Luisteren',   emoji: '🎧', desc: 'Escucha el diálogo' },
 };
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   VOCABULARY SECTION — paginated grid
+   VOCAB PRACTICE — types & helpers
 ───────────────────────────────────────────────────────────────────────────── */
 
-const VOCAB_PER_PAGE = 8; // 4 cols × 2 rows desktop / 2 cols × 4 rows mobile
+const VOCAB_PER_PAGE = 8;
+
+type VPStepType = 'words' | 'phrases' | 'listen' | 'complete' | 'classify' | 'write';
+
+const VP_META: Record<VPStepType, { label: string; emoji: string }> = {
+  words:    { label: 'Palabras',   emoji: '📖' },
+  phrases:  { label: 'Frases',     emoji: '💬' },
+  listen:   { label: 'Escuchar',   emoji: '🎧' },
+  complete: { label: 'Completar',  emoji: '✏️' },
+  classify: { label: 'Clasificar', emoji: '🗂️' },
+  write:    { label: 'Escribir',   emoji: '✍️' },
+};
+
+interface ClassifyGroup { id: string; label: string }
+interface ClassifyItemData { dutch: string; groupId: string }
+
+type VPStep =
+  | { type: 'words' }
+  | { type: 'phrases'; items: PhraseItem[] }
+  | { type: 'listen'; exercises: ExerciseItem[] }
+  | { type: 'complete'; exercises: ExerciseItem[] }
+  | { type: 'classify'; groups: ClassifyGroup[]; items: ClassifyItemData[] }
+  | { type: 'write'; exercises: ExerciseItem[] };
+
+function buildClassifyData(items: VocabularyItem[]): { groups: ClassifyGroup[]; items: ClassifyItemData[] } | null {
+  const categories = [...new Set(items.map(i => i.category))];
+  if (categories.length >= 2) {
+    return {
+      groups: categories.map(c => ({ id: c, label: c })),
+      items: items.map(i => ({ dutch: i.dutch, groupId: i.category })),
+    };
+  }
+  const hasDE   = items.some(i => i.article === 'de');
+  const hasHET  = items.some(i => i.article === 'het');
+  const hasNone = items.some(i => i.article === null);
+  const groups: ClassifyGroup[] = [];
+  if (hasDE)   groups.push({ id: 'de',   label: 'de ...' });
+  if (hasHET)  groups.push({ id: 'het',  label: 'het ...' });
+  if (hasNone) groups.push({ id: 'geen', label: 'Werkwoord' });
+  if (groups.length >= 2) {
+    return {
+      groups,
+      items: items.map(i => ({ dutch: i.dutch, groupId: i.article ?? 'geen' })),
+    };
+  }
+  return null;
+}
+
+function buildVPSteps(
+  vocabItems: VocabularyItem[],
+  phraseItems: PhraseItem[],
+  exercises: ExerciseItem[],
+): VPStep[] {
+  const steps: VPStep[] = [{ type: 'words' }];
+  if (phraseItems.length > 0)
+    steps.push({ type: 'phrases', items: phraseItems });
+  const listenEx = exercises.filter(e => e.type === 'listen_and_choose');
+  if (listenEx.length > 0)
+    steps.push({ type: 'listen', exercises: listenEx });
+  const completeEx = exercises.filter(e =>
+    e.type === 'fill_blank' || e.type === 'multiple_choice' || e.type === 'order_sentence'
+  );
+  if (completeEx.length > 0)
+    steps.push({ type: 'complete', exercises: completeEx });
+  const classifyData = buildClassifyData(vocabItems);
+  if (classifyData)
+    steps.push({ type: 'classify', ...classifyData });
+  const writeEx = exercises.filter(e => e.type === 'write_answer');
+  if (writeEx.length > 0)
+    steps.push({ type: 'write', exercises: writeEx });
+  return steps;
+}
+
+/* ── Step bar ── */
+
+function StepBar({ steps, current }: { steps: VPStep[]; current: number }) {
+  return (
+    <div className="mb-6 space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-[13px] font-bold text-[#1D0084]">
+          {VP_META[steps[current].type].emoji} {VP_META[steps[current].type].label}
+        </span>
+        <span className="text-[12px] font-semibold text-[#9CA3AF]">
+          Paso {current + 1} de {steps.length}
+        </span>
+      </div>
+      <div className="flex gap-1">
+        {steps.map((_, i) => (
+          <div
+            key={i}
+            className={`flex-1 h-1.5 rounded-full transition-all duration-500 ${
+              i < current ? 'bg-[#4da3ff]' : i === current ? 'bg-[#1D0084]' : 'bg-[#DDE6F5]'
+            }`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── Word card (simple play button) ── */
 
 function WordCard({ word }: { word: VocabularyItem }) {
+  function handlePlay() {
+    const text = (word.article ? `${word.article} ` : '') + word.dutch;
+    if (word.audio?.url) {
+      new Audio(word.audio.url).play().catch(() => speakDutch(text));
+    } else {
+      speakDutch(text);
+    }
+  }
+
   return (
     <div className="rounded-2xl border border-[#DDE6F5] bg-white overflow-hidden flex flex-col">
-      {/* Color header */}
-      <div
-        className="w-full flex items-center justify-center py-3"
-        style={{ background: word.color }}
-      >
+      <div className="w-full flex items-center justify-center py-3" style={{ background: word.color }}>
         <span className="text-[28px] leading-none">{word.emoji}</span>
       </div>
-
-      {/* Content */}
       <div className="flex-1 px-3 py-2.5 space-y-1">
         <div className="flex items-center gap-1.5 flex-wrap">
           {word.article && (
@@ -81,66 +183,43 @@ function WordCard({ word }: { word: VocabularyItem }) {
               {word.article}
             </span>
           )}
-          <span
-            className="text-[14px] font-bold text-[#1D0084] leading-tight"
-            style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}
-          >
+          <span className="text-[14px] font-bold text-[#1D0084] leading-tight" style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}>
             {word.dutch}
           </span>
         </div>
         <p className="text-[12px] text-[#5A6480] font-medium leading-snug">{word.spanish}</p>
       </div>
-
-      {/* Audio */}
       <div className="px-3 pb-2.5">
-        {word.audio?.url ? (
-          <AudioPlayer src={word.audio.url} compact />
-        ) : (
-          <button
-            onClick={() => speakDutch((word.article ? `${word.article} ` : '') + word.dutch)}
-            className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-xl bg-[#F0F5FF] border border-[#DDE6F5] text-[#025dc7] text-[11px] font-semibold hover:bg-[#e0eaff] transition-colors duration-200"
-            aria-label="Escuchar"
-          >
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 5.636a9 9 0 010 12.728" />
-            </svg>
-            Escuchar
-          </button>
-        )}
+        <button
+          onClick={handlePlay}
+          className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-xl bg-[#F0F5FF] border border-[#DDE6F5] text-[#025dc7] text-[11px] font-semibold hover:bg-[#e0eaff] transition-colors duration-200"
+        >
+          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M8 5v14l11-7z" />
+          </svg>
+          Escuchar
+        </button>
       </div>
     </div>
   );
 }
 
-function VocabularySection({
-  items,
-  onComplete,
-}: {
-  items: VocabularyItem[];
-  onComplete: () => void;
-}) {
+/* ── Words step (paginated grid) ── */
+
+function WordsStep({ items, onDone }: { items: VocabularyItem[]; onDone: () => void }) {
   const [page, setPage] = useState(0);
   const totalPages = Math.ceil(items.length / VOCAB_PER_PAGE);
   const pageItems = items.slice(page * VOCAB_PER_PAGE, (page + 1) * VOCAB_PER_PAGE);
   const isLastPage = page + 1 >= totalPages;
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Count */}
+    <div className="flex flex-col">
       <p className="text-[12px] font-semibold text-[#9CA3AF] uppercase tracking-widest mb-4">
         {items.length} palabras · página {page + 1} de {totalPages}
       </p>
-
-      {/* Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 flex-1">
-        {pageItems.map(word => (
-          <WordCard key={word.id} word={word} />
-        ))}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {pageItems.map(word => <WordCard key={word.id} word={word} />)}
       </div>
-
-      {/* Pagination */}
       <div className="flex items-center justify-between gap-3 mt-6">
         <button
           onClick={() => setPage(p => p - 1)}
@@ -152,36 +231,23 @@ function VocabularySection({
           </svg>
           Anterior
         </button>
-
-        {/* Dots */}
         <div className="flex items-center gap-1.5">
           {Array.from({ length: totalPages }, (_, i) => (
-            <button
-              key={i}
-              onClick={() => setPage(i)}
-              className={`rounded-full transition-all duration-200 ${
-                i === page ? 'w-5 h-2 bg-[#1D0084]' : 'w-2 h-2 bg-[#DDE6F5]'
-              }`}
+            <button key={i} onClick={() => setPage(i)}
+              className={`rounded-full transition-all duration-200 ${i === page ? 'w-5 h-2 bg-[#1D0084]' : 'w-2 h-2 bg-[#DDE6F5]'}`}
               aria-label={`Página ${i + 1}`}
             />
           ))}
         </div>
-
         {isLastPage ? (
-          <button
-            onClick={onComplete}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#F0F5FF] text-[#1D0084] text-[14px] font-semibold border border-[#DDE6F5] hover:bg-[#e0eaff] transition-colors duration-200"
-          >
+          <button onClick={onDone} className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#1D0084] text-white text-[14px] font-semibold hover:bg-[#025dc7] transition-colors duration-200">
+            Siguiente paso
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M7 16l-4-4m0 0l4-4m-4 4h18" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
             </svg>
-            Volver a la lección
           </button>
         ) : (
-          <button
-            onClick={() => setPage(p => p + 1)}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#1D0084] text-white text-[14px] font-semibold hover:bg-[#025dc7] transition-colors duration-200"
-          >
+          <button onClick={() => setPage(p => p + 1)} className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#1D0084] text-white text-[14px] font-semibold hover:bg-[#025dc7] transition-colors duration-200">
             Siguiente
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
@@ -189,6 +255,267 @@ function VocabularySection({
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+/* ── Phrases step ── */
+
+function PhrasesStep({ items, onDone }: { items: PhraseItem[]; onDone: () => void }) {
+  const [index, setIndex] = useState(0);
+  const phrase = items[index];
+  const isLast = index + 1 >= items.length;
+
+  return (
+    <div className="space-y-6">
+      <ProgressBar current={index + 1} total={items.length} label="Frases" />
+
+      <div className="bg-white rounded-2xl border border-[#DDE6F5] p-6 space-y-4">
+        {phrase.context && (
+          <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-widest">{phrase.context}</p>
+        )}
+        <div className="flex items-start justify-between gap-3">
+          <h2 className="text-[22px] font-bold text-[#1D0084] leading-tight flex-1" style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}>
+            {phrase.dutch}
+          </h2>
+          <button
+            onClick={() => {
+              if (phrase.audio?.url) new Audio(phrase.audio.url).play().catch(() => speakDutch(phrase.dutch));
+              else speakDutch(phrase.dutch);
+            }}
+            className="w-9 h-9 rounded-full bg-[#F0F5FF] border border-[#DDE6F5] flex items-center justify-center text-[#025dc7] hover:bg-[#e0eaff] transition-colors duration-200 shrink-0"
+          >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+          </button>
+        </div>
+        <div className="rounded-xl bg-[#F0F5FF] px-4 py-3 border border-[#DDE6F5]">
+          <p className="text-[11px] font-semibold text-[#9CA3AF] mb-1 uppercase tracking-widest">Traducción</p>
+          <p className="text-[15px] text-[#1D0084] font-medium leading-snug">{phrase.spanish}</p>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-4">
+        <button onClick={() => setIndex(i => Math.max(0, i - 1))} disabled={index === 0}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#F0F5FF] text-[#1D0084] text-[14px] font-semibold border border-[#DDE6F5] hover:bg-[#e0eaff] transition-colors duration-200 disabled:opacity-30 disabled:pointer-events-none"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+          Anterior
+        </button>
+        <div className="flex items-center gap-1.5 flex-wrap justify-center max-w-[120px]">
+          {items.map((_, i) => (
+            <button key={i} onClick={() => setIndex(i)}
+              className={`rounded-full transition-all duration-200 ${i === index ? 'w-5 h-2 bg-[#1D0084]' : i < index ? 'w-2 h-2 bg-[#4da3ff]' : 'w-2 h-2 bg-[#DDE6F5]'}`}
+              aria-label={`Frase ${i + 1}`}
+            />
+          ))}
+        </div>
+        <button
+          onClick={() => { if (isLast) onDone(); else setIndex(i => i + 1); }}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#1D0084] text-white text-[14px] font-semibold hover:bg-[#025dc7] transition-colors duration-200"
+        >
+          {isLast ? 'Siguiente paso' : 'Siguiente'}
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── Exercise runner (listen / complete / write steps) ── */
+
+function ExerciseRunner({ exercises, onDone }: { exercises: ExerciseItem[]; onDone: () => void }) {
+  const [index, setIndex] = useState(0);
+  const [score, setScore] = useState(0);
+  const [answered, setAnswered] = useState(false);
+  const [exKey, setExKey] = useState(0);
+  const scoreRef = useRef(0);
+
+  function handleAnswer(correct: boolean) {
+    setAnswered(true);
+    if (correct) { scoreRef.current += 1; setScore(scoreRef.current); }
+  }
+
+  function handleNext() {
+    if (index + 1 >= exercises.length) {
+      onDone();
+    } else {
+      setIndex(i => i + 1);
+      setAnswered(false);
+      setExKey(k => k + 1);
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-4">
+        <ProgressBar current={index + 1} total={exercises.length} label="Ejercicios" />
+        <span className="shrink-0 text-[13px] font-semibold text-[#025dc7] bg-[#F0F5FF] px-3 py-1 rounded-full">{score} ✓</span>
+      </div>
+      <div key={exKey} className="w-full max-w-sm mx-auto">
+        <ExerciseStep exercise={exercises[index]} onAnswer={handleAnswer} />
+      </div>
+      {answered && (
+        <button onClick={handleNext} className="w-full max-w-sm mx-auto flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200">
+          {index + 1 < exercises.length ? 'Siguiente' : 'Siguiente paso'}
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      )}
+    </div>
+  );
+}
+
+/* ── Classify step ── */
+
+function ClassifyStep({ groups, items, onDone }: { groups: ClassifyGroup[]; items: ClassifyItemData[]; onDone: () => void }) {
+  const queue = useMemo(() => [...items].sort(() => Math.random() - 0.5).slice(0, Math.min(10, items.length)), [items]);
+  const [index, setIndex] = useState(0);
+  const [result, setResult] = useState<{ correct: boolean; correctId: string } | null>(null);
+  const [score, setScore] = useState(0);
+  const current = queue[index];
+
+  function handleGuess(groupId: string) {
+    if (result) return;
+    const correct = groupId === current.groupId;
+    setResult({ correct, correctId: current.groupId });
+    if (correct) setScore(s => s + 1);
+  }
+
+  function handleNext() {
+    if (index + 1 >= queue.length) { onDone(); return; }
+    setIndex(i => i + 1);
+    setResult(null);
+  }
+
+  return (
+    <div className="space-y-6">
+      <ProgressBar current={index + 1} total={queue.length} label="Clasificar" />
+
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-[#DDE6F5] bg-white py-10 px-6 gap-3 text-center">
+        <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-widest">¿A qué grupo pertenece?</p>
+        <p className="text-[30px] font-bold text-[#1D0084]" style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}>
+          {current.dutch}
+        </p>
+        <button onClick={() => speakDutch(current.dutch)} className="flex items-center gap-1.5 text-[12px] font-medium text-[#025dc7] hover:text-[#1D0084] transition-colors duration-200">
+          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+          Escuchar
+        </button>
+      </div>
+
+      <div className={`grid gap-3 ${groups.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+        {groups.map(group => (
+          <button
+            key={group.id}
+            onClick={() => handleGuess(group.id)}
+            disabled={!!result}
+            className={`py-5 rounded-xl text-[15px] font-bold border transition-all duration-200 ${
+              result
+                ? result.correctId === group.id
+                  ? 'bg-green-50 border-green-400 text-green-800'
+                  : 'bg-[#F8F9FA] border-[#DDE6F5] text-[#9CA3AF]'
+                : 'bg-[#F0F5FF] border-[#DDE6F5] text-[#1D0084] hover:border-[#025dc7]/40 hover:bg-[#e8f0ff]'
+            }`}
+          >
+            {group.label}
+          </button>
+        ))}
+      </div>
+
+      {result && (
+        <div className={`rounded-xl px-4 py-3 text-[14px] font-medium ${result.correct ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+          {result.correct ? '✓ ¡Correcto!' : `✗ Era: "${groups.find(g => g.id === result!.correctId)?.label}"`}
+        </div>
+      )}
+
+      {result && (
+        <button onClick={handleNext} className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200">
+          {index + 1 < queue.length ? 'Siguiente' : 'Siguiente paso'}
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      )}
+    </div>
+  );
+}
+
+/* ── Main vocab practice section ── */
+
+function VocabPracticeSection({
+  vocabItems,
+  phraseItems,
+  practiceExercises,
+  onComplete,
+}: {
+  vocabItems: VocabularyItem[];
+  phraseItems: PhraseItem[];
+  practiceExercises: ExerciseItem[];
+  onComplete: () => void;
+}) {
+  const steps = useMemo(
+    () => buildVPSteps(vocabItems, phraseItems, practiceExercises),
+    [vocabItems, phraseItems, practiceExercises]
+  );
+  const [stepIndex, setStepIndex] = useState(0);
+  const [allDone, setAllDone] = useState(false);
+  const [runnerKey, setRunnerKey] = useState(0);
+
+  function handleStepDone() {
+    if (stepIndex + 1 >= steps.length) {
+      setAllDone(true);
+    } else {
+      setStepIndex(i => i + 1);
+      setRunnerKey(k => k + 1);
+    }
+  }
+
+  if (allDone) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col items-center text-center rounded-2xl bg-[#1D0084] py-10 px-6 gap-3" style={{ background: 'linear-gradient(135deg, #1D0084 0%, #025dc7 100%)' }}>
+          <span className="text-5xl">⭐</span>
+          <p className="text-white font-bold text-[20px]" style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}>¡Práctica completada!</p>
+          <p className="text-white/60 text-[14px]">Has repasado todas las secciones</p>
+        </div>
+        <button onClick={onComplete} className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#F0F5FF] text-[#1D0084] text-[15px] font-semibold border border-[#DDE6F5] hover:bg-[#e0eaff] transition-colors duration-200">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M7 16l-4-4m0 0l4-4m-4 4h18" />
+          </svg>
+          Volver a la lección
+        </button>
+      </div>
+    );
+  }
+
+  const step = steps[stepIndex];
+
+  return (
+    <div>
+      <StepBar steps={steps} current={stepIndex} />
+
+      {step.type === 'words' && (
+        <WordsStep key={runnerKey} items={vocabItems} onDone={handleStepDone} />
+      )}
+      {step.type === 'phrases' && (
+        <PhrasesStep key={runnerKey} items={step.items} onDone={handleStepDone} />
+      )}
+      {step.type === 'listen' && (
+        <ExerciseRunner key={runnerKey} exercises={step.exercises} onDone={handleStepDone} />
+      )}
+      {step.type === 'complete' && (
+        <ExerciseRunner key={runnerKey} exercises={step.exercises} onDone={handleStepDone} />
+      )}
+      {step.type === 'classify' && (
+        <ClassifyStep key={runnerKey} groups={step.groups} items={step.items} onDone={handleStepDone} />
+      )}
+      {step.type === 'write' && (
+        <ExerciseRunner key={runnerKey} exercises={step.exercises} onDone={handleStepDone} />
+      )}
     </div>
   );
 }
@@ -385,125 +712,6 @@ function FlashcardSection({
           className="h-full rounded-full bg-[#4da3ff] transition-all duration-300"
           style={{ width: `${((index) / queue.length) * 100}%` }}
         />
-      </div>
-    </div>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────────────────────
-   PHRASES SECTION
-───────────────────────────────────────────────────────────────────────────── */
-
-function PhrasesSection({
-  items,
-  onComplete,
-}: {
-  items: PhraseItem[];
-  onComplete: () => void;
-}) {
-  const [index, setIndex] = useState(0);
-  const [done, setDone] = useState(false);
-  const phrase = items[index];
-
-  function goNext() {
-    if (index + 1 >= items.length) {
-      setDone(true);
-    } else {
-      setIndex(i => i + 1);
-    }
-  }
-
-  function goPrev() {
-    setIndex(i => Math.max(0, i - 1));
-  }
-
-  return (
-    <div className="space-y-8">
-      <ProgressBar current={index + 1} total={items.length} label="Frases" />
-
-      <div className="w-full max-w-sm mx-auto space-y-4">
-        {phrase.context && (
-          <p className="text-[12px] font-semibold text-[#9CA3AF] uppercase tracking-widest">{phrase.context}</p>
-        )}
-
-        <div className="bg-white rounded-2xl border border-[#DDE6F5] p-6 space-y-4">
-          <div className="flex items-start justify-between gap-3">
-            <h2
-              className="text-[24px] font-bold text-[#1D0084] leading-tight flex-1"
-              style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}
-            >
-              {phrase.dutch}
-            </h2>
-            {!phrase.audio?.url && (
-              <button
-                onClick={() => speakDutch(phrase.dutch)}
-                className="w-9 h-9 rounded-full bg-[#F0F5FF] border border-[#DDE6F5] flex items-center justify-center text-[#025dc7] hover:bg-[#e0eaff] transition-colors duration-200 shrink-0"
-                aria-label="Escuchar frase"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 5.636a9 9 0 010 12.728" />
-                </svg>
-              </button>
-            )}
-          </div>
-
-          {phrase.audio?.url && <AudioPlayer src={phrase.audio.url} compact />}
-
-          <div className="rounded-xl bg-[#F0F5FF] px-4 py-3 border border-[#DDE6F5]">
-            <p className="text-[11px] font-semibold text-[#9CA3AF] mb-1 uppercase tracking-widest">Traducción</p>
-            <p className="text-[15px] text-[#1D0084] font-medium leading-snug">{phrase.spanish}</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between gap-4">
-        <button
-          onClick={goPrev}
-          disabled={index === 0}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#F0F5FF] text-[#1D0084] text-[14px] font-semibold border border-[#DDE6F5] hover:bg-[#e0eaff] transition-colors duration-200 disabled:opacity-30 disabled:pointer-events-none"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-          </svg>
-          Anterior
-        </button>
-
-        <div className="flex items-center gap-1.5 flex-wrap justify-center max-w-[120px]">
-          {items.map((_, i) => (
-            <button
-              key={i}
-              onClick={() => setIndex(i)}
-              className={`rounded-full transition-all duration-200 ${
-                i === index ? 'w-5 h-2 bg-[#1D0084]' : i < index ? 'w-2 h-2 bg-[#4da3ff]' : 'w-2 h-2 bg-[#DDE6F5]'
-              }`}
-              aria-label={`Ir a frase ${i + 1}`}
-            />
-          ))}
-        </div>
-
-        {!done ? (
-          <button
-            onClick={goNext}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#1D0084] text-white text-[14px] font-semibold hover:bg-[#025dc7] transition-colors duration-200"
-          >
-            Siguiente
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        ) : (
-          <button
-            onClick={onComplete}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#F0F5FF] text-[#1D0084] text-[14px] font-semibold border border-[#DDE6F5] hover:bg-[#e0eaff] transition-colors duration-200"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M7 16l-4-4m0 0l4-4m-4 4h18" />
-            </svg>
-            Volver a la lección
-          </button>
-        )}
       </div>
     </div>
   );
@@ -1318,8 +1526,6 @@ export default function LessonViewer({ lesson, module, prevLesson: _prev, nextLe
       if (block.type === 'vocabulary') {
         result.push('vocabulary');
         result.push('flashcards');
-      } else if (block.type === 'phrases') {
-        result.push('phrases');
       } else if (block.type === 'lezen') {
         result.push('lezen');
       } else if (block.type === 'dialogue') {
@@ -1334,10 +1540,14 @@ export default function LessonViewer({ lesson, module, prevLesson: _prev, nextLe
     setActiveSection(null);
   }
 
-  const vocabBlock = lesson.blocks.find(b => b.type === 'vocabulary');
-  const phraseBlock = lesson.blocks.find(b => b.type === 'phrases');
-  const lezenBlock = lesson.blocks.find(b => b.type === 'lezen');
+  const vocabBlock    = lesson.blocks.find(b => b.type === 'vocabulary');
+  const phraseBlock   = lesson.blocks.find(b => b.type === 'phrases');
+  const practiceBlock = lesson.blocks.find(b => b.type === 'practice');
+  const lezenBlock    = lesson.blocks.find(b => b.type === 'lezen');
   const dialogueBlock = lesson.blocks.find(b => b.type === 'dialogue');
+
+  const phraseItems    = phraseBlock   && phraseBlock.type   === 'phrases'  ? phraseBlock.items        : [];
+  const practiceItems  = practiceBlock && practiceBlock.type === 'practice' ? practiceBlock.exercises  : [];
 
   const activeMeta = activeSection ? SECTION_META[activeSection] : null;
 
@@ -1407,10 +1617,12 @@ export default function LessonViewer({ lesson, module, prevLesson: _prev, nextLe
             />
           )}
 
-          {/* VOCABULARY */}
+          {/* VOCABULARY — full practice centre */}
           {activeSection === 'vocabulary' && vocabBlock && vocabBlock.type === 'vocabulary' && (
-            <VocabularySection
-              items={vocabBlock.items}
+            <VocabPracticeSection
+              vocabItems={vocabBlock.items}
+              phraseItems={phraseItems}
+              practiceExercises={practiceItems}
               onComplete={() => completeSection('vocabulary')}
             />
           )}
@@ -1420,14 +1632,6 @@ export default function LessonViewer({ lesson, module, prevLesson: _prev, nextLe
             <FlashcardSection
               items={vocabBlock.items}
               onComplete={() => completeSection('flashcards')}
-            />
-          )}
-
-          {/* PHRASES */}
-          {activeSection === 'phrases' && phraseBlock && phraseBlock.type === 'phrases' && (
-            <PhrasesSection
-              items={phraseBlock.items}
-              onComplete={() => completeSection('phrases')}
             />
           )}
 
