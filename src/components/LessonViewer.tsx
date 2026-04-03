@@ -74,7 +74,7 @@ type VPStepType = 'words' | 'phrases' | 'listen' | 'truefalse' | 'test' | 'compl
 
 const VP_META: Record<VPStepType, { label: string; emoji: string }> = {
   words:     { label: 'Diccionario',          emoji: '📖' },
-  phrases:   { label: 'Frases',               emoji: '💬' },
+  phrases:   { label: 'Repaso de frases',      emoji: '💬' },
   listen:    { label: 'Escucha y elige',       emoji: '🎧' },
   truefalse: { label: 'Verdadero o falso',     emoji: '✅' },
   test:      { label: 'Selecciona la correcta',emoji: '🧪' },
@@ -193,17 +193,21 @@ function StepBar({ steps, current, subProgress }: {
 }) {
   const meta = VP_META[steps[current].type];
   const pct = steps.length === 0 ? 0 : Math.round(((current + (subProgress ? subProgress.done / subProgress.total : 0)) / steps.length) * 100);
+  const isContentStep = steps[current].type === 'words' || steps[current].type === 'phrases';
+  const exerciseNum = isContentStep ? null : steps.slice(0, current + 1).filter(s => s.type !== 'words' && s.type !== 'phrases').length;
 
   return (
     <div className="mb-6 space-y-3">
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-[18px] font-bold text-[#1D0084] leading-tight">
-            Ejercicio {current + 1}
+            {isContentStep ? `${meta.emoji} ${meta.label}` : `Ejercicio ${exerciseNum}`}
           </p>
-          <p className="text-[12px] text-[#9CA3AF] font-medium leading-tight mt-0.5">
-            {meta.emoji} {meta.label}
-          </p>
+          {!isContentStep && (
+            <p className="text-[12px] text-[#9CA3AF] font-medium leading-tight mt-0.5">
+              {meta.emoji} {meta.label}
+            </p>
+          )}
         </div>
         <span className="text-[14px] font-bold text-[#025dc7] bg-[#EEF4FF] px-3 py-1 rounded-full shrink-0">
           {pct}%
