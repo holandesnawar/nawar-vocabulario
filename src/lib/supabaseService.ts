@@ -18,8 +18,8 @@
  *   lessons          id, module_id, slug, title_nl, title_es, sort_order, is_extra
  *   vocabulary_items id, lesson_id, sort_order, article, word_nl, translation_es, audio_url
  *   phrases          id, lesson_id, sort_order, phrase_nl, translation_es, audio_url
- *   practice_items   id, lesson_id, sort_order, type, prompt, correct_answer, audio_url, hint, explanation
- *   practice_options id, practice_item_id, sort_order, option_text
+ *   practice_items   id, lesson_id, sort_order, type, question_text, correct_answer, audio_url, hint, explanation
+ *   practice_options id, practice_item_id, sort_order, option_text, is_correct
  *   dialogues        id, lesson_id, title, context, audio_url, slow_audio_url
  *   dialogue_lines   id, dialogue_id, sort_order, speaker, text_nl, text_es, audio_url
  */
@@ -85,9 +85,8 @@ interface DbPracticeItem {
   lesson_id: DbId;
   sort_order: number;
   type: string;
-  prompt: string;
+  question_text: string;
   correct_answer: string;
-  audio_url: string | null;
   hint: string | null;
   explanation: string | null;
 }
@@ -97,6 +96,7 @@ interface DbPracticeOption {
   practice_item_id: DbId;
   sort_order: number;
   option_text: string;
+  is_correct: boolean;
 }
 
 interface DbDialogue {
@@ -116,6 +116,14 @@ interface DbDialogueLine {
   text_nl: string;
   text_es: string;
   audio_url: string | null;
+}
+
+interface DbMatchPairItem {
+  id: DbId;
+  practice_item_id: DbId;
+  sort_order: number;
+  left_text: string;
+  right_text: string;
 }
 
 interface DbLezenText {
@@ -200,7 +208,7 @@ function mapVocabularyItem(
     id: local?.id ?? String(row.id),
     dutch: row.word_nl,
     spanish: row.translation_es,
-    article: row.article as Article,
+    article: (row.article && row.article.trim() !== '' ? row.article : null) as Article,
     emoji: local?.emoji ?? '',
     color: local?.color ?? '#1D0084',
     image: local?.image,
@@ -229,20 +237,33 @@ function mapPhrase(row: DbPhrase, localItems: PhraseItem[]): PhraseItem {
   };
 }
 
-function mapExercise(row: DbPracticeItem, options: DbPracticeOption[]): ExerciseItem {
+function mapExercise(
+  row: DbPracticeItem,
+  options: DbPracticeOption[],
+  matchPairs: DbMatchPairItem[],
+): ExerciseItem {
   const itemOptions = options
     .filter(o => o.practice_item_id === row.id)
+    .sort((a, b) => a.sort_order - b.sort_order);
+
+  // Prefer the option marked is_correct; fall back to correct_answer column (for fill_blank / write_answer)
+  const correctOption = itemOptions.find(o => o.is_correct);
+  const correctAnswer = correctOption?.option_text ?? row.correct_answer;
+
+  const itemPairs = matchPairs
+    .filter(p => p.practice_item_id === row.id)
     .sort((a, b) => a.sort_order - b.sort_order)
-    .map(o => o.option_text);
+    .map(p => ({ left: p.left_text, right: p.right_text }));
+
   return {
     id: String(row.id),
     type: row.type as ExerciseType,
-    prompt: row.prompt,
-    options: itemOptions.length > 0 ? itemOptions : undefined,
-    correctAnswer: row.correct_answer,
-    audio: row.audio_url ? { url: row.audio_url } : undefined,
+    prompt: row.question_text,
+    options: itemOptions.length > 0 ? itemOptions.map(o => o.option_text) : undefined,
+    correctAnswer,
     hint: row.hint ?? undefined,
     explanation: row.explanation ?? undefined,
+    pairs: itemPairs.length > 0 ? itemPairs : undefined,
   };
 }
 
@@ -332,10 +353,13 @@ async function assembleLessonBlocks(lessonRow: DbLesson, moduleSlug: string): Pr
   const dialogueIds = (dialogueRows ?? []).map((r: DbDialogue) => r.id);
   const lezenIds = (lezenRows ?? []).map((r: DbLezenText) => r.id);
 
-  const [{ data: optionRows }, { data: lineRows }, { data: lezenExRows }, { data: lezenOptRows }] = await Promise.all([
+  const [{ data: optionRows }, { data: matchPairRows }, { data: lineRows }, { data: lezenExRows }, { data: lezenOptRows }] = await Promise.all([
     practiceItemIds.length
       ? db.from('practice_options').select('*').in('practice_item_id', practiceItemIds).order('sort_order')
       : Promise.resolve({ data: [] as DbPracticeOption[] }),
+    practiceItemIds.length
+      ? (async () => { try { const r = await db.from('match_pair_items').select('*').in('practice_item_id', practiceItemIds).order('sort_order'); return { data: (r.data ?? []) as DbMatchPairItem[] }; } catch { return { data: [] as DbMatchPairItem[] }; } })()
+      : Promise.resolve({ data: [] as DbMatchPairItem[] }),
     dialogueIds.length
       ? db.from('dialogue_lines').select('*').in('dialogue_id', dialogueIds).order('sort_order')
       : Promise.resolve({ data: [] as DbDialogueLine[] }),
@@ -392,9 +416,9 @@ async function assembleLessonBlocks(lessonRow: DbLesson, moduleSlug: string): Pr
     if (localDialogue) blocks.push(localDialogue);
   }
   if (practiceRows?.length) {
-    const knownTypes = ['multiple_choice', 'write_answer', 'listen_and_choose', 'order_sentence', 'fill_blank'];
+    const knownTypes = ['multiple_choice', 'write_answer', 'listen_and_choose', 'order_sentence', 'fill_blank', 'word_scramble', 'match_pairs'];
     const exercises = (practiceRows as DbPracticeItem[])
-      .map(r => mapExercise(r, (optionRows ?? []) as DbPracticeOption[]))
+      .map(r => mapExercise(r, (optionRows ?? []) as DbPracticeOption[], (matchPairRows ?? []) as DbMatchPairItem[]))
       .filter(e => e.prompt && knownTypes.includes(e.type));
     if (exercises.length > 0) {
       blocks.push({ type: 'practice', exercises });
