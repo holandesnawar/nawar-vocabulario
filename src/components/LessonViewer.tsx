@@ -513,10 +513,15 @@ function ExerciseRunner({ exercises, onDone, onBack, onSubProgress }: {
     }
   }
 
+  const isLast = index + 1 >= exercises.length;
+
   return (
-    <div className="space-y-5">
-      {/* Score badge */}
-      <div className="flex justify-end">
+    <div className="space-y-4">
+      {/* Score + counter */}
+      <div className="flex justify-between items-center">
+        <span className="text-[12px] text-[#9CA3AF] font-medium tabular-nums">
+          {index + 1} / {exercises.length}
+        </span>
         <div className="flex items-center gap-1.5 text-[13px] font-bold text-[#16a34a] bg-green-50 border border-green-200 px-3 py-1 rounded-full">
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -525,12 +530,49 @@ function ExerciseRunner({ exercises, onDone, onBack, onSubProgress }: {
         </div>
       </div>
 
-      <div key={exKey}>
-        <ExerciseStep exercise={exercises[index]} onAnswer={handleAnswer} />
+      {/* Desktop: side-nav grid | Mobile: plain stack */}
+      <div className="md:grid md:grid-cols-[68px_1fr_68px] md:items-center md:gap-3">
+
+        {/* ← Left arrow (desktop only) */}
+        <div className="hidden md:flex justify-center">
+          <button
+            onClick={handlePrev}
+            title={index > 0 ? 'Ejercicio anterior' : 'Paso anterior'}
+            className="w-12 h-12 flex items-center justify-center rounded-full border-2 border-[#DDE6F5] bg-white text-[#C4CDDC] hover:border-[#1D0084]/25 hover:text-[#1D0084] transition-all duration-200 shadow-sm hover:shadow"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Exercise content */}
+        <div key={exKey}>
+          <ExerciseStep exercise={exercises[index]} onAnswer={handleAnswer} />
+        </div>
+
+        {/* → Right arrow (desktop only) — lights up when answered */}
+        <div className="hidden md:flex justify-center">
+          <button
+            onClick={answered ? handleNext : undefined}
+            disabled={!answered}
+            title={answered ? (isLast ? 'Siguiente paso' : 'Siguiente ejercicio') : 'Responde primero'}
+            className={`w-12 h-12 flex items-center justify-center rounded-full border-2 transition-all duration-300 ${
+              answered
+                ? 'bg-[#1D0084] border-[#1D0084] text-white shadow-lg shadow-[#1D0084]/30 hover:bg-[#025dc7] hover:border-[#025dc7] scale-110 cursor-pointer'
+                : 'bg-white border-[#DDE6F5] text-[#DDE6F5] cursor-default'
+            }`}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
       </div>
 
+      {/* Mobile bottom buttons (hidden on desktop) */}
       {answered && (
-        <div className="space-y-2">
+        <div className="space-y-2 md:hidden">
           <button
             onClick={handlePrev}
             className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white text-[#9CA3AF] text-[13px] font-semibold border border-[#DDE6F5] hover:text-[#1D0084] hover:border-[#1D0084]/30 transition-colors duration-200"
@@ -541,7 +583,7 @@ function ExerciseRunner({ exercises, onDone, onBack, onSubProgress }: {
             {index > 0 ? 'Ejercicio anterior' : 'Paso anterior'}
           </button>
           <button onClick={handleNext} className="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200">
-            {index + 1 < exercises.length ? 'Siguiente ejercicio' : 'Siguiente paso'}
+            {isLast ? 'Siguiente paso' : 'Siguiente ejercicio'}
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
             </svg>
@@ -2084,7 +2126,7 @@ export default function LessonViewer({ lesson, module, prevLesson: _prev, nextLe
 
       {/* ── Content ── */}
       <div className="bg-white min-h-[70vh] py-8 pb-20">
-        <div className={`mx-auto px-6 ${activeSection === 'vocabulary' || activeSection === 'luisteren' ? 'max-w-4xl' : 'max-w-2xl'}`}>
+        <div className={`mx-auto px-6 ${activeSection === 'vocabulary' || activeSection === 'luisteren' ? 'max-w-5xl' : 'max-w-2xl'}`}>
 
           {/* LANDING */}
           {activeSection === null && (
