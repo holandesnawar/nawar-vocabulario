@@ -471,19 +471,29 @@ function PhrasesStep({ items, onDone, onBack, onSubProgress }: {
 
 /* ── Exercise runner (listen / complete / write steps) ── */
 
-function ExerciseRunner({ exercises, onDone, onBack, onSubProgress }: {
+function ExerciseRunner({ exercises, onDone, onBack: _onBack, onSubProgress, cacheKey }: {
   exercises: ExerciseItem[];
   onDone: () => void;
   onBack: () => void;
   onSubProgress?: (done: number, total: number) => void;
+  cacheKey?: string;
 }) {
-  const [index, setIndex] = useState(0);
+  const storageKey = cacheKey ? `vp-ex-${cacheKey}` : null;
+
+  const [index, setIndex] = useState(() => {
+    if (!storageKey) return 0;
+    try {
+      const n = parseInt(sessionStorage.getItem(storageKey) ?? '0', 10);
+      return Number.isFinite(n) && n < exercises.length ? n : 0;
+    } catch { return 0; }
+  });
   const [score, setScore] = useState(0);
   const [answered, setAnswered] = useState(false);
   const [exKey, setExKey] = useState(0);
   const scoreRef = useRef(0);
 
   useEffect(() => {
+    if (storageKey) try { sessionStorage.setItem(storageKey, String(index)); } catch {}
     onSubProgress?.(index, exercises.length);
   }, [index]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -495,6 +505,7 @@ function ExerciseRunner({ exercises, onDone, onBack, onSubProgress }: {
 
   function handleNext() {
     if (index + 1 >= exercises.length) {
+      if (storageKey) try { sessionStorage.removeItem(storageKey); } catch {}
       onDone();
     } else {
       setIndex(i => i + 1);
@@ -508,16 +519,16 @@ function ExerciseRunner({ exercises, onDone, onBack, onSubProgress }: {
       setIndex(i => i - 1);
       setAnswered(false);
       setExKey(k => k + 1);
-    } else {
-      onBack();
     }
+    // At question 1: do nothing — don't exit the step
   }
 
   const isLast = index + 1 >= exercises.length;
+  const canGoBack = index > 0;
 
   return (
     <div className="space-y-4">
-      {/* Score + counter */}
+      {/* Counter + score */}
       <div className="flex justify-between items-center">
         <span className="text-[12px] text-[#9CA3AF] font-medium tabular-nums">
           {index + 1} / {exercises.length}
@@ -530,60 +541,61 @@ function ExerciseRunner({ exercises, onDone, onBack, onSubProgress }: {
         </div>
       </div>
 
-      {/* Desktop: side-nav grid | Mobile: plain stack */}
-      <div className="md:grid md:grid-cols-[68px_1fr_68px] md:items-center md:gap-3">
+      {/* Absolute side-nav on desktop — fixed position, never shifts layout */}
+      <div className="relative md:px-[84px]">
 
-        {/* ← Left arrow (desktop only) */}
-        <div className="hidden md:flex justify-center">
-          <button
-            onClick={handlePrev}
-            title={index > 0 ? 'Ejercicio anterior' : 'Paso anterior'}
-            className="w-12 h-12 flex items-center justify-center rounded-full border-2 border-[#DDE6F5] bg-white text-[#C4CDDC] hover:border-[#1D0084]/25 hover:text-[#1D0084] transition-all duration-200 shadow-sm hover:shadow"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-        </div>
+        {/* ← Left (desktop) — ghost when disabled */}
+        <button
+          onClick={canGoBack ? handlePrev : undefined}
+          aria-label="Pregunta anterior"
+          className={`hidden md:flex absolute left-0 top-5 w-11 h-11 items-center justify-center rounded-2xl transition-all duration-200 ${
+            canGoBack
+              ? 'text-[#9CA3AF] hover:bg-[#F0F5FF] hover:text-[#1D0084] cursor-pointer'
+              : 'text-[#E8ECF4] pointer-events-none'
+          }`}
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
 
         {/* Exercise content */}
         <div key={exKey}>
           <ExerciseStep exercise={exercises[index]} onAnswer={handleAnswer} />
         </div>
 
-        {/* → Right arrow (desktop only) — lights up when answered */}
-        <div className="hidden md:flex justify-center">
-          <button
-            onClick={answered ? handleNext : undefined}
-            disabled={!answered}
-            title={answered ? (isLast ? 'Siguiente paso' : 'Siguiente ejercicio') : 'Responde primero'}
-            className={`w-12 h-12 flex items-center justify-center rounded-full border-2 transition-all duration-300 ${
-              answered
-                ? 'bg-[#1D0084] border-[#1D0084] text-white shadow-lg shadow-[#1D0084]/30 hover:bg-[#025dc7] hover:border-[#025dc7] scale-110 cursor-pointer'
-                : 'bg-white border-[#DDE6F5] text-[#DDE6F5] cursor-default'
-            }`}
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        </div>
+        {/* → Right (desktop) — invisible until answered, then glows */}
+        <button
+          onClick={answered ? handleNext : undefined}
+          aria-label={isLast ? 'Siguiente paso' : 'Siguiente pregunta'}
+          className={`hidden md:flex absolute right-0 top-5 w-11 h-11 items-center justify-center rounded-2xl transition-all duration-300 ${
+            answered
+              ? 'bg-[#1D0084] text-white shadow-md shadow-[#1D0084]/20 ring-4 ring-[#1D0084]/10 cursor-pointer hover:bg-[#025dc7]'
+              : 'text-[#E8ECF4] pointer-events-none'
+          }`}
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
       </div>
 
-      {/* Mobile bottom buttons (hidden on desktop) */}
+      {/* Mobile: button at bottom, back only when possible */}
       {answered && (
         <div className="space-y-2 md:hidden">
-          <button
-            onClick={handlePrev}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white text-[#9CA3AF] text-[13px] font-semibold border border-[#DDE6F5] hover:text-[#1D0084] hover:border-[#1D0084]/30 transition-colors duration-200"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
-            {index > 0 ? 'Ejercicio anterior' : 'Paso anterior'}
-          </button>
+          {canGoBack && (
+            <button
+              onClick={handlePrev}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white text-[#9CA3AF] text-[13px] font-semibold border border-[#DDE6F5] hover:text-[#1D0084] hover:border-[#1D0084]/30 transition-colors duration-200"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+              Pregunta anterior
+            </button>
+          )}
           <button onClick={handleNext} className="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200">
-            {isLast ? 'Siguiente paso' : 'Siguiente ejercicio'}
+            {isLast ? 'Siguiente paso' : 'Siguiente pregunta'}
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
             </svg>
@@ -704,14 +716,23 @@ function VocabPracticeSection({
     () => buildVPSteps(vocabItems, phraseItems, practiceExercises),
     [vocabItems, phraseItems, practiceExercises]
   );
-  const [stepIndex, setStepIndex] = useState(0);
+  const stepCacheKey = typeof window !== 'undefined' ? `vp-step-${window.location.pathname}` : null;
+  const [stepIndex, setStepIndex] = useState(() => {
+    if (!stepCacheKey) return 0;
+    try {
+      const n = parseInt(sessionStorage.getItem(stepCacheKey) ?? '0', 10);
+      return Number.isFinite(n) && n < steps.length ? n : 0;
+    } catch { return 0; }
+  });
   const [allDone, setAllDone] = useState(false);
   const [runnerKey, setRunnerKey] = useState(0);
   const [subProgress, setSubProgress] = useState<{ done: number; total: number } | undefined>();
 
   function handleStepBack() {
     if (stepIndex > 0) {
-      setStepIndex(i => i - 1);
+      const next = stepIndex - 1;
+      setStepIndex(next);
+      if (stepCacheKey) try { sessionStorage.setItem(stepCacheKey, String(next)); } catch {}
       setSubProgress(undefined);
       setRunnerKey(k => k + 1);
     }
@@ -719,9 +740,12 @@ function VocabPracticeSection({
 
   function handleStepDone() {
     if (stepIndex + 1 >= steps.length) {
+      if (stepCacheKey) try { sessionStorage.removeItem(stepCacheKey); } catch {}
       setAllDone(true);
     } else {
-      setStepIndex(i => i + 1);
+      const next = stepIndex + 1;
+      setStepIndex(next);
+      if (stepCacheKey) try { sessionStorage.setItem(stepCacheKey, String(next)); } catch {}
       setRunnerKey(k => k + 1);
     }
   }
@@ -765,6 +789,7 @@ function VocabPracticeSection({
           onDone={handleStepDone}
           onBack={handleStepBack}
           onSubProgress={(done, total) => setSubProgress({ done, total })}
+          cacheKey={step.type}
         />
       )}
       {step.type === 'classify' && (
@@ -981,6 +1006,17 @@ function MultipleChoiceExercise({
   const [selected, setSelected] = useState<string | null>(null);
   const isAnswered = selected !== null;
 
+  // Shuffle options once per exercise (stable across re-renders)
+  const shuffledOptions = useMemo(() => {
+    if (!exercise.options?.length) return exercise.options ?? [];
+    const arr = [...exercise.options];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }, [exercise.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   function handleSelect(opt: string) {
     if (isAnswered) return;
     setSelected(opt);
@@ -1006,7 +1042,7 @@ function MultipleChoiceExercise({
         <p className="text-[17px] font-semibold text-[#1D0084] leading-snug">{exercise.prompt}</p>
       </div>
       <div className="grid grid-cols-1 gap-2">
-        {exercise.options?.map((opt, idx) => (
+        {shuffledOptions.map((opt, idx) => (
           <button key={opt} className={optionStyle(opt)} onClick={() => handleSelect(opt)}>
             <span className="flex items-center gap-3">
               <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-[12px] font-bold shrink-0 transition-all duration-200 ${
@@ -1196,6 +1232,17 @@ function ListenAndChooseExercise({
   const match = exercise.prompt.match(/"([^"]+)"/);
   const dutchText = match ? match[1] : exercise.prompt;
 
+  // Shuffle options once per exercise
+  const shuffledOptions = useMemo(() => {
+    if (!exercise.options?.length) return exercise.options ?? [];
+    const arr = [...exercise.options];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }, [exercise.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   function handleSelect(opt: string) {
     if (isAnswered) return;
     setSelected(opt);
@@ -1234,7 +1281,7 @@ function ListenAndChooseExercise({
         )}
       </div>
       <div className="grid grid-cols-1 gap-2">
-        {exercise.options?.map((opt, idx) => (
+        {shuffledOptions.map((opt, idx) => (
           <button key={opt} className={optionStyle(opt)} onClick={() => handleSelect(opt)}>
             <span className="flex items-center gap-3">
               <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-[12px] font-bold shrink-0 transition-all duration-200 ${
