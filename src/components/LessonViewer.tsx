@@ -490,6 +490,8 @@ function ExerciseRunner({ exercises, onDone, onBack: _onBack, onSubProgress, cac
   const [score, setScore] = useState(0);
   const [answered, setAnswered] = useState(false);
   const [exKey, setExKey] = useState(0);
+  const [answers, setAnswers] = useState<Record<number, string>>({});
+  const [finished, setFinished] = useState(false);
   const scoreRef = useRef(0);
 
   useEffect(() => {
@@ -497,16 +499,16 @@ function ExerciseRunner({ exercises, onDone, onBack: _onBack, onSubProgress, cac
     onSubProgress?.(index, exercises.length);
   }, [index]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function handleAnswer(correct: boolean) {
+  function handleAnswer(correct: boolean, answer: string) {
     setAnswered(true);
+    setAnswers(prev => ({ ...prev, [index]: answer }));
     if (correct) { scoreRef.current += 1; setScore(scoreRef.current); }
     onSubProgress?.(index + 1, exercises.length);
   }
 
   function handleNext() {
     if (index + 1 >= exercises.length) {
-      if (storageKey) try { sessionStorage.removeItem(storageKey); } catch {}
-      onDone();
+      setFinished(true);
     } else {
       setIndex(i => i + 1);
       setAnswered(false);
@@ -514,10 +516,16 @@ function ExerciseRunner({ exercises, onDone, onBack: _onBack, onSubProgress, cac
     }
   }
 
+  function handleFinish() {
+    if (storageKey) try { sessionStorage.removeItem(storageKey); } catch {}
+    onDone();
+  }
+
   function handlePrev() {
     if (index > 0) {
-      setIndex(i => i - 1);
-      setAnswered(false);
+      const prevIdx = index - 1;
+      setIndex(prevIdx);
+      setAnswered(prevIdx in answers);
       setExKey(k => k + 1);
     }
     // At question 1: do nothing — don't exit the step
@@ -525,6 +533,45 @@ function ExerciseRunner({ exercises, onDone, onBack: _onBack, onSubProgress, cac
 
   const isLast = index + 1 >= exercises.length;
   const canGoBack = index > 0;
+
+  if (finished) {
+    return (
+      <div className="space-y-6 text-center py-4">
+        <div className="text-5xl">{score >= exercises.length * 0.8 ? '🎉' : '📝'}</div>
+        <div>
+          <p className="text-[22px] font-bold text-[#1D0084]">{score} / {exercises.length} correctas</p>
+          <p className="text-[14px] text-[#9CA3AF] mt-1">
+            {score === exercises.length ? '¡Perfecto!' : score >= exercises.length * 0.8 ? '¡Muy bien!' : 'Sigue practicando'}
+          </p>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <button
+            onClick={() => {
+              setFinished(false);
+              setIndex(exercises.length - 1);
+              setAnswered(true);
+              setExKey(k => k + 1);
+            }}
+            className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-white text-[#1D0084] text-[14px] font-semibold border-2 border-[#1D0084]/20 hover:border-[#1D0084]/50 transition-colors duration-200"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+            Revisar respuestas
+          </button>
+          <button
+            onClick={handleFinish}
+            className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-[#1D0084] text-white text-[14px] font-semibold hover:bg-[#025dc7] transition-colors duration-200"
+          >
+            Continuar
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -561,7 +608,7 @@ function ExerciseRunner({ exercises, onDone, onBack: _onBack, onSubProgress, cac
 
         {/* Exercise content */}
         <div key={exKey}>
-          <ExerciseStep exercise={exercises[index]} onAnswer={handleAnswer} />
+          <ExerciseStep exercise={exercises[index]} onAnswer={handleAnswer} initialAnswer={answers[index]} />
         </div>
 
         {/* → Right (desktop) — invisible until answered, then glows */}
@@ -999,11 +1046,13 @@ function FlashcardSection({
 function MultipleChoiceExercise({
   exercise,
   onAnswer,
+  initialAnswer,
 }: {
   exercise: ExerciseItem;
-  onAnswer: (correct: boolean) => void;
+  onAnswer: (correct: boolean, answer: string) => void;
+  initialAnswer?: string;
 }) {
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(initialAnswer ?? null);
   const isAnswered = selected !== null;
 
   // Shuffle options once per exercise (stable across re-renders)
@@ -1020,7 +1069,7 @@ function MultipleChoiceExercise({
   function handleSelect(opt: string) {
     if (isAnswered) return;
     setSelected(opt);
-    onAnswer(opt === exercise.correctAnswer);
+    onAnswer(opt === exercise.correctAnswer, opt);
   }
 
   function optionStyle(opt: string): string {
@@ -1090,18 +1139,20 @@ function MultipleChoiceExercise({
 function WriteAnswerExercise({
   exercise,
   onAnswer,
+  initialAnswer,
 }: {
   exercise: ExerciseItem;
-  onAnswer: (correct: boolean) => void;
+  onAnswer: (correct: boolean, answer: string) => void;
+  initialAnswer?: string;
 }) {
-  const [value, setValue] = useState('');
-  const [submitted, setSubmitted] = useState(false);
+  const [value, setValue] = useState(initialAnswer ?? '');
+  const [submitted, setSubmitted] = useState(initialAnswer !== undefined);
   const isCorrect = value.trim().toLowerCase() === exercise.correctAnswer.trim().toLowerCase();
 
   function handleSubmit() {
     if (!value.trim() || submitted) return;
     setSubmitted(true);
-    onAnswer(isCorrect);
+    onAnswer(isCorrect, value.trim());
   }
 
   return (
@@ -1150,19 +1201,21 @@ function WriteAnswerExercise({
 function FillBlankExercise({
   exercise,
   onAnswer,
+  initialAnswer,
 }: {
   exercise: ExerciseItem;
-  onAnswer: (correct: boolean) => void;
+  onAnswer: (correct: boolean, answer: string) => void;
+  initialAnswer?: string;
 }) {
-  const [value, setValue] = useState('');
-  const [submitted, setSubmitted] = useState(false);
+  const [value, setValue] = useState(initialAnswer ?? '');
+  const [submitted, setSubmitted] = useState(initialAnswer !== undefined);
   const isCorrect = value.trim().toLowerCase() === exercise.correctAnswer.trim().toLowerCase();
   const parts = exercise.prompt.split('___');
 
   function handleSubmit() {
     if (!value.trim() || submitted) return;
     setSubmitted(true);
-    onAnswer(isCorrect);
+    onAnswer(isCorrect, value.trim());
   }
 
   return (
@@ -1223,11 +1276,13 @@ function FillBlankExercise({
 function ListenAndChooseExercise({
   exercise,
   onAnswer,
+  initialAnswer,
 }: {
   exercise: ExerciseItem;
-  onAnswer: (correct: boolean) => void;
+  onAnswer: (correct: boolean, answer: string) => void;
+  initialAnswer?: string;
 }) {
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(initialAnswer ?? null);
   const isAnswered = selected !== null;
   const match = exercise.prompt.match(/"([^"]+)"/);
   const dutchText = match ? match[1] : exercise.prompt;
@@ -1246,7 +1301,7 @@ function ListenAndChooseExercise({
   function handleSelect(opt: string) {
     if (isAnswered) return;
     setSelected(opt);
-    onAnswer(opt === exercise.correctAnswer);
+    onAnswer(opt === exercise.correctAnswer, opt);
   }
 
   function optionStyle(opt: string): string {
@@ -1331,7 +1386,7 @@ function OrderSentenceExercise({
   onAnswer,
 }: {
   exercise: ExerciseItem;
-  onAnswer: (correct: boolean) => void;
+  onAnswer: (correct: boolean, answer: string) => void;
 }) {
   const [available, setAvailable] = useState<string[]>(() =>
     [...(exercise.options ?? [])].sort(() => Math.random() - 0.5)
@@ -1355,7 +1410,7 @@ function OrderSentenceExercise({
   function handleSubmit() {
     if (!sentence.length || submitted) return;
     setSubmitted(true);
-    onAnswer(isCorrect);
+    onAnswer(isCorrect, sentence.join(' '));
   }
 
   function handleReset() {
@@ -1432,7 +1487,7 @@ function OrderSentenceExercise({
   );
 }
 
-function WordScrambleExercise({ exercise, onAnswer }: { exercise: ExerciseItem; onAnswer: (correct: boolean) => void }) {
+function WordScrambleExercise({ exercise, onAnswer }: { exercise: ExerciseItem; onAnswer: (correct: boolean, answer: string) => void }) {
   const word = exercise.correctAnswer;
   const [letters, setLetters] = useState<string[]>(() =>
     word.split('').map((ch, i) => `${ch}__${i}`).sort(() => Math.random() - 0.5)
@@ -1455,7 +1510,7 @@ function WordScrambleExercise({ exercise, onAnswer }: { exercise: ExerciseItem; 
   function handleSubmit() {
     if (!selected.length || submitted) return;
     setSubmitted(true);
-    onAnswer(isCorrect);
+    onAnswer(isCorrect, formed);
   }
   function handleReset() {
     setLetters(word.split('').map((ch, i) => `${ch}__${i}`).sort(() => Math.random() - 0.5));
@@ -1525,7 +1580,7 @@ function WordScrambleExercise({ exercise, onAnswer }: { exercise: ExerciseItem; 
   );
 }
 
-function MatchPairsExercise({ exercise, onAnswer }: { exercise: ExerciseItem; onAnswer: (correct: boolean) => void }) {
+function MatchPairsExercise({ exercise, onAnswer }: { exercise: ExerciseItem; onAnswer: (correct: boolean, answer: string) => void }) {
   const pairs = exercise.pairs ?? [];
   const [leftSel, setLeftSel] = useState<string | null>(null);
   const [rightSel, setRightSel] = useState<string | null>(null);
@@ -1544,7 +1599,7 @@ function MatchPairsExercise({ exercise, onAnswer }: { exercise: ExerciseItem; on
         setMatched(next);
         if (Object.keys(next).length === pairs.length) {
           setDone(true);
-          onAnswer(errors === 0);
+          onAnswer(errors === 0, '');
         }
       } else {
         setErrors(e => e + 1);
@@ -1618,15 +1673,17 @@ function MatchPairsExercise({ exercise, onAnswer }: { exercise: ExerciseItem; on
 function ExerciseStep({
   exercise,
   onAnswer,
+  initialAnswer,
 }: {
   exercise: ExerciseItem;
-  onAnswer: (correct: boolean) => void;
+  onAnswer: (correct: boolean, answer: string) => void;
+  initialAnswer?: string;
 }) {
-  if (exercise.type === 'multiple_choice') return <MultipleChoiceExercise exercise={exercise} onAnswer={onAnswer} />;
-  if (exercise.type === 'write_answer') return <WriteAnswerExercise exercise={exercise} onAnswer={onAnswer} />;
-  if (exercise.type === 'listen_and_choose') return <ListenAndChooseExercise exercise={exercise} onAnswer={onAnswer} />;
+  if (exercise.type === 'multiple_choice') return <MultipleChoiceExercise exercise={exercise} onAnswer={onAnswer} initialAnswer={initialAnswer} />;
+  if (exercise.type === 'write_answer') return <WriteAnswerExercise exercise={exercise} onAnswer={onAnswer} initialAnswer={initialAnswer} />;
+  if (exercise.type === 'listen_and_choose') return <ListenAndChooseExercise exercise={exercise} onAnswer={onAnswer} initialAnswer={initialAnswer} />;
+  if (exercise.type === 'fill_blank') return <FillBlankExercise exercise={exercise} onAnswer={onAnswer} initialAnswer={initialAnswer} />;
   if (exercise.type === 'order_sentence') return <OrderSentenceExercise exercise={exercise} onAnswer={onAnswer} />;
-  if (exercise.type === 'fill_blank') return <FillBlankExercise exercise={exercise} onAnswer={onAnswer} />;
   if (exercise.type === 'word_scramble') return <WordScrambleExercise exercise={exercise} onAnswer={onAnswer} />;
   if (exercise.type === 'match_pairs') return <MatchPairsExercise exercise={exercise} onAnswer={onAnswer} />;
   return null;
