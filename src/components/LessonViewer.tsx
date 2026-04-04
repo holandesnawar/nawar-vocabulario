@@ -570,7 +570,7 @@ function ExerciseRunner({ exercises, onDone, onBack: _onBack, onSubProgress, cac
           aria-label={isLast ? 'Siguiente paso' : 'Siguiente pregunta'}
           className={`hidden md:flex absolute right-0 top-5 w-11 h-11 items-center justify-center rounded-2xl transition-all duration-300 ${
             answered
-              ? 'bg-[#1D0084] text-white shadow-md shadow-[#1D0084]/20 ring-4 ring-[#1D0084]/10 cursor-pointer hover:bg-[#025dc7]'
+              ? 'bg-[#1D0084] text-white cursor-pointer hover:bg-[#025dc7]'
               : 'text-[#E8ECF4] pointer-events-none'
           }`}
         >
