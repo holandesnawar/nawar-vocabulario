@@ -471,10 +471,11 @@ function PhrasesStep({ items, onDone, onBack, onSubProgress }: {
 
 /* ── Exercise runner (listen / complete / write steps) ── */
 
-function ExerciseRunner({ exercises, onDone, onBack: _onBack, onSubProgress, cacheKey }: {
+function ExerciseRunner({ exercises, onDone, onBack, hasBackStep, onSubProgress, cacheKey }: {
   exercises: ExerciseItem[];
   onDone: () => void;
   onBack: () => void;
+  hasBackStep?: boolean;
   onSubProgress?: (done: number, total: number) => void;
   cacheKey?: string;
 }) {
@@ -539,12 +540,13 @@ function ExerciseRunner({ exercises, onDone, onBack: _onBack, onSubProgress, cac
       setIndex(prevIdx);
       setAnswered(reviewMode || prevIdx in answers);
       setExKey(k => k + 1);
+    } else if (!reviewMode) {
+      onBack();
     }
-    // At question 1: do nothing — don't exit the step
   }
 
   const isLast = index + 1 >= exercises.length;
-  const canGoBack = index > 0;
+  const canGoBack = index > 0 || (!!hasBackStep && !reviewMode);
 
   if (finished) {
     return (
@@ -848,6 +850,7 @@ function VocabPracticeSection({
           exercises={step.exercises}
           onDone={handleStepDone}
           onBack={handleStepBack}
+          hasBackStep={stepIndex > 0}
           onSubProgress={(done, total) => setSubProgress({ done, total })}
           cacheKey={step.type}
         />
