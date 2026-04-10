@@ -471,128 +471,52 @@ function PhrasesStep({ items, onDone, onBack, onSubProgress }: {
 
 /* ── Exercise runner (listen / complete / write steps) ── */
 
-function ExerciseRunner({ exercises, onDone, onBack: _onBack, onSubProgress, cacheKey }: {
+function ExerciseRunner({ exercises, onDone, onBack, onSubProgress }: {
   exercises: ExerciseItem[];
   onDone: () => void;
   onBack: () => void;
   onSubProgress?: (done: number, total: number) => void;
-  cacheKey?: string;
 }) {
-  const storageKey = cacheKey ? `vp-ex-${cacheKey}` : null;
-
-  const [index, setIndex] = useState(() => {
-    if (!storageKey) return 0;
-    try {
-      const n = parseInt(sessionStorage.getItem(storageKey) ?? '0', 10);
-      return Number.isFinite(n) && n < exercises.length ? n : 0;
-    } catch { return 0; }
-  });
+  const [index, setIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [answered, setAnswered] = useState(false);
   const [exKey, setExKey] = useState(0);
-  const [answers, setAnswers] = useState<Record<number, string>>({});
-  const [finished, setFinished] = useState(false);
-  const [reviewMode, setReviewMode] = useState(false);
   const scoreRef = useRef(0);
 
   useEffect(() => {
-    if (storageKey) try { sessionStorage.setItem(storageKey, String(index)); } catch {}
     onSubProgress?.(index, exercises.length);
   }, [index]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // In review mode always allow forward navigation regardless of answered state
-  useEffect(() => {
-    if (reviewMode) setAnswered(true);
-  }, [reviewMode, index]);
-
-  function handleAnswer(correct: boolean, answer: string) {
+  function handleAnswer(correct: boolean) {
     setAnswered(true);
-    setAnswers(prev => ({ ...prev, [index]: answer }));
     if (correct) { scoreRef.current += 1; setScore(scoreRef.current); }
     onSubProgress?.(index + 1, exercises.length);
   }
 
   function handleNext() {
     if (index + 1 >= exercises.length) {
-      if (reviewMode) {
-        handleFinish();
-      } else {
-        setFinished(true);
-      }
+      onDone();
     } else {
-      const nextIdx = index + 1;
-      setIndex(nextIdx);
-      // In review mode all questions are answered; otherwise check answers map
-      setAnswered(reviewMode || nextIdx in answers);
+      setIndex(i => i + 1);
+      setAnswered(false);
       setExKey(k => k + 1);
     }
-  }
-
-  function handleFinish() {
-    if (storageKey) try { sessionStorage.removeItem(storageKey); } catch {}
-    onDone();
   }
 
   function handlePrev() {
     if (index > 0) {
-      const prevIdx = index - 1;
-      setIndex(prevIdx);
-      setAnswered(reviewMode || prevIdx in answers);
+      setIndex(i => i - 1);
+      setAnswered(false);
       setExKey(k => k + 1);
+    } else {
+      onBack();
     }
-    // At question 1: do nothing — don't exit the step
-  }
-
-  const isLast = index + 1 >= exercises.length;
-  const canGoBack = index > 0;
-
-  if (finished) {
-    return (
-      <div className="space-y-6 text-center py-4">
-        <div className="text-5xl">{score >= exercises.length * 0.8 ? '🎉' : '📝'}</div>
-        <div>
-          <p className="text-[22px] font-bold text-[#1D0084]">{score} / {exercises.length} correctas</p>
-          <p className="text-[14px] text-[#9CA3AF] mt-1">
-            {score === exercises.length ? '¡Perfecto!' : score >= exercises.length * 0.8 ? '¡Muy bien!' : 'Sigue practicando'}
-          </p>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <button
-            onClick={() => {
-              setFinished(false);
-              setReviewMode(true);
-              setIndex(0);
-              setAnswered(true);
-              setExKey(k => k + 1);
-            }}
-            className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-white text-[#1D0084] text-[14px] font-semibold border-2 border-[#1D0084]/20 hover:border-[#1D0084]/50 transition-colors duration-200"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
-            Revisar respuestas
-          </button>
-          <button
-            onClick={handleFinish}
-            className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-[#1D0084] text-white text-[14px] font-semibold hover:bg-[#025dc7] transition-colors duration-200"
-          >
-            Continuar
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        </div>
-      </div>
-    );
   }
 
   return (
-    <div className="space-y-4">
-      {/* Counter + score */}
-      <div className="flex justify-between items-center">
-        <span className="text-[12px] text-[#9CA3AF] font-medium tabular-nums">
-          {index + 1} / {exercises.length}
-        </span>
+    <div className="space-y-5">
+      {/* Score badge */}
+      <div className="flex justify-end">
         <div className="flex items-center gap-1.5 text-[13px] font-bold text-[#16a34a] bg-green-50 border border-green-200 px-3 py-1 rounded-full">
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -601,61 +525,23 @@ function ExerciseRunner({ exercises, onDone, onBack: _onBack, onSubProgress, cac
         </div>
       </div>
 
-      {/* Absolute side-nav on desktop — fixed position, never shifts layout */}
-      <div className="relative md:px-[84px]">
-
-        {/* ← Left (desktop) — ghost when disabled */}
-        <button
-          onClick={canGoBack ? handlePrev : undefined}
-          aria-label="Pregunta anterior"
-          className={`hidden md:flex absolute left-0 top-5 w-11 h-11 items-center justify-center rounded-2xl transition-all duration-200 ${
-            canGoBack
-              ? 'text-[#9CA3AF] hover:bg-[#F0F5FF] hover:text-[#1D0084] cursor-pointer'
-              : 'text-[#E8ECF4] pointer-events-none'
-          }`}
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-
-        {/* Exercise content */}
-        <div key={exKey}>
-          <ExerciseStep exercise={exercises[index]} onAnswer={handleAnswer} initialAnswer={answers[index]} />
-        </div>
-
-        {/* → Right (desktop) — invisible until answered, then glows */}
-        <button
-          onClick={answered || reviewMode ? handleNext : undefined}
-          aria-label={isLast ? 'Siguiente paso' : 'Siguiente pregunta'}
-          className={`hidden md:flex absolute right-0 top-5 w-11 h-11 items-center justify-center rounded-2xl transition-all duration-300 ${
-            answered || reviewMode
-              ? 'bg-[#1D0084] text-white cursor-pointer hover:bg-[#025dc7]'
-              : 'text-[#E8ECF4] pointer-events-none'
-          }`}
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
+      <div key={exKey}>
+        <ExerciseStep exercise={exercises[index]} onAnswer={handleAnswer} />
       </div>
 
-      {/* Mobile: button at bottom, back only when possible */}
-      {(answered || reviewMode) && (
-        <div className="space-y-2 md:hidden">
-          {canGoBack && (
-            <button
-              onClick={handlePrev}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white text-[#9CA3AF] text-[13px] font-semibold border border-[#DDE6F5] hover:text-[#1D0084] hover:border-[#1D0084]/30 transition-colors duration-200"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-              </svg>
-              Pregunta anterior
-            </button>
-          )}
+      {answered && (
+        <div className="space-y-2">
+          <button
+            onClick={handlePrev}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white text-[#9CA3AF] text-[13px] font-semibold border border-[#DDE6F5] hover:text-[#1D0084] hover:border-[#1D0084]/30 transition-colors duration-200"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+            {index > 0 ? 'Ejercicio anterior' : 'Paso anterior'}
+          </button>
           <button onClick={handleNext} className="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200">
-            {reviewMode && isLast ? 'Continuar' : isLast ? 'Siguiente paso' : 'Siguiente pregunta'}
+            {index + 1 < exercises.length ? 'Siguiente ejercicio' : 'Siguiente paso'}
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
             </svg>
@@ -776,23 +662,14 @@ function VocabPracticeSection({
     () => buildVPSteps(vocabItems, phraseItems, practiceExercises),
     [vocabItems, phraseItems, practiceExercises]
   );
-  const stepCacheKey = typeof window !== 'undefined' ? `vp-step-${window.location.pathname}` : null;
-  const [stepIndex, setStepIndex] = useState(() => {
-    if (!stepCacheKey) return 0;
-    try {
-      const n = parseInt(sessionStorage.getItem(stepCacheKey) ?? '0', 10);
-      return Number.isFinite(n) && n < steps.length ? n : 0;
-    } catch { return 0; }
-  });
+  const [stepIndex, setStepIndex] = useState(0);
   const [allDone, setAllDone] = useState(false);
   const [runnerKey, setRunnerKey] = useState(0);
   const [subProgress, setSubProgress] = useState<{ done: number; total: number } | undefined>();
 
   function handleStepBack() {
     if (stepIndex > 0) {
-      const next = stepIndex - 1;
-      setStepIndex(next);
-      if (stepCacheKey) try { sessionStorage.setItem(stepCacheKey, String(next)); } catch {}
+      setStepIndex(i => i - 1);
       setSubProgress(undefined);
       setRunnerKey(k => k + 1);
     }
@@ -800,12 +677,9 @@ function VocabPracticeSection({
 
   function handleStepDone() {
     if (stepIndex + 1 >= steps.length) {
-      if (stepCacheKey) try { sessionStorage.removeItem(stepCacheKey); } catch {}
       setAllDone(true);
     } else {
-      const next = stepIndex + 1;
-      setStepIndex(next);
-      if (stepCacheKey) try { sessionStorage.setItem(stepCacheKey, String(next)); } catch {}
+      setStepIndex(i => i + 1);
       setRunnerKey(k => k + 1);
     }
   }
@@ -849,7 +723,6 @@ function VocabPracticeSection({
           onDone={handleStepDone}
           onBack={handleStepBack}
           onSubProgress={(done, total) => setSubProgress({ done, total })}
-          cacheKey={step.type}
         />
       )}
       {step.type === 'classify' && (
@@ -1059,30 +932,17 @@ function FlashcardSection({
 function MultipleChoiceExercise({
   exercise,
   onAnswer,
-  initialAnswer,
 }: {
   exercise: ExerciseItem;
-  onAnswer: (correct: boolean, answer: string) => void;
-  initialAnswer?: string;
+  onAnswer: (correct: boolean) => void;
 }) {
-  const [selected, setSelected] = useState<string | null>(initialAnswer ?? null);
+  const [selected, setSelected] = useState<string | null>(null);
   const isAnswered = selected !== null;
-
-  // Shuffle options once per exercise (stable across re-renders)
-  const shuffledOptions = useMemo(() => {
-    if (!exercise.options?.length) return exercise.options ?? [];
-    const arr = [...exercise.options];
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
-  }, [exercise.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleSelect(opt: string) {
     if (isAnswered) return;
     setSelected(opt);
-    onAnswer(opt === exercise.correctAnswer, opt);
+    onAnswer(opt === exercise.correctAnswer);
   }
 
   function optionStyle(opt: string): string {
@@ -1104,7 +964,7 @@ function MultipleChoiceExercise({
         <p className="text-[17px] font-semibold text-[#1D0084] leading-snug">{exercise.prompt}</p>
       </div>
       <div className="grid grid-cols-1 gap-2">
-        {shuffledOptions.map((opt, idx) => (
+        {exercise.options?.map((opt, idx) => (
           <button key={opt} className={optionStyle(opt)} onClick={() => handleSelect(opt)}>
             <span className="flex items-center gap-3">
               <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-[12px] font-bold shrink-0 transition-all duration-200 ${
@@ -1152,20 +1012,18 @@ function MultipleChoiceExercise({
 function WriteAnswerExercise({
   exercise,
   onAnswer,
-  initialAnswer,
 }: {
   exercise: ExerciseItem;
-  onAnswer: (correct: boolean, answer: string) => void;
-  initialAnswer?: string;
+  onAnswer: (correct: boolean) => void;
 }) {
-  const [value, setValue] = useState(initialAnswer ?? '');
-  const [submitted, setSubmitted] = useState(initialAnswer !== undefined);
+  const [value, setValue] = useState('');
+  const [submitted, setSubmitted] = useState(false);
   const isCorrect = value.trim().toLowerCase() === exercise.correctAnswer.trim().toLowerCase();
 
   function handleSubmit() {
     if (!value.trim() || submitted) return;
     setSubmitted(true);
-    onAnswer(isCorrect, value.trim());
+    onAnswer(isCorrect);
   }
 
   return (
@@ -1214,21 +1072,19 @@ function WriteAnswerExercise({
 function FillBlankExercise({
   exercise,
   onAnswer,
-  initialAnswer,
 }: {
   exercise: ExerciseItem;
-  onAnswer: (correct: boolean, answer: string) => void;
-  initialAnswer?: string;
+  onAnswer: (correct: boolean) => void;
 }) {
-  const [value, setValue] = useState(initialAnswer ?? '');
-  const [submitted, setSubmitted] = useState(initialAnswer !== undefined);
+  const [value, setValue] = useState('');
+  const [submitted, setSubmitted] = useState(false);
   const isCorrect = value.trim().toLowerCase() === exercise.correctAnswer.trim().toLowerCase();
   const parts = exercise.prompt.split('___');
 
   function handleSubmit() {
     if (!value.trim() || submitted) return;
     setSubmitted(true);
-    onAnswer(isCorrect, value.trim());
+    onAnswer(isCorrect);
   }
 
   return (
@@ -1289,32 +1145,19 @@ function FillBlankExercise({
 function ListenAndChooseExercise({
   exercise,
   onAnswer,
-  initialAnswer,
 }: {
   exercise: ExerciseItem;
-  onAnswer: (correct: boolean, answer: string) => void;
-  initialAnswer?: string;
+  onAnswer: (correct: boolean) => void;
 }) {
-  const [selected, setSelected] = useState<string | null>(initialAnswer ?? null);
+  const [selected, setSelected] = useState<string | null>(null);
   const isAnswered = selected !== null;
   const match = exercise.prompt.match(/"([^"]+)"/);
   const dutchText = match ? match[1] : exercise.prompt;
 
-  // Shuffle options once per exercise
-  const shuffledOptions = useMemo(() => {
-    if (!exercise.options?.length) return exercise.options ?? [];
-    const arr = [...exercise.options];
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
-  }, [exercise.id]); // eslint-disable-line react-hooks/exhaustive-deps
-
   function handleSelect(opt: string) {
     if (isAnswered) return;
     setSelected(opt);
-    onAnswer(opt === exercise.correctAnswer, opt);
+    onAnswer(opt === exercise.correctAnswer);
   }
 
   function optionStyle(opt: string): string {
@@ -1349,7 +1192,7 @@ function ListenAndChooseExercise({
         )}
       </div>
       <div className="grid grid-cols-1 gap-2">
-        {shuffledOptions.map((opt, idx) => (
+        {exercise.options?.map((opt, idx) => (
           <button key={opt} className={optionStyle(opt)} onClick={() => handleSelect(opt)}>
             <span className="flex items-center gap-3">
               <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-[12px] font-bold shrink-0 transition-all duration-200 ${
@@ -1399,7 +1242,7 @@ function OrderSentenceExercise({
   onAnswer,
 }: {
   exercise: ExerciseItem;
-  onAnswer: (correct: boolean, answer: string) => void;
+  onAnswer: (correct: boolean) => void;
 }) {
   const [available, setAvailable] = useState<string[]>(() =>
     [...(exercise.options ?? [])].sort(() => Math.random() - 0.5)
@@ -1423,7 +1266,7 @@ function OrderSentenceExercise({
   function handleSubmit() {
     if (!sentence.length || submitted) return;
     setSubmitted(true);
-    onAnswer(isCorrect, sentence.join(' '));
+    onAnswer(isCorrect);
   }
 
   function handleReset() {
@@ -1500,7 +1343,7 @@ function OrderSentenceExercise({
   );
 }
 
-function WordScrambleExercise({ exercise, onAnswer }: { exercise: ExerciseItem; onAnswer: (correct: boolean, answer: string) => void }) {
+function WordScrambleExercise({ exercise, onAnswer }: { exercise: ExerciseItem; onAnswer: (correct: boolean) => void }) {
   const word = exercise.correctAnswer;
   const [letters, setLetters] = useState<string[]>(() =>
     word.split('').map((ch, i) => `${ch}__${i}`).sort(() => Math.random() - 0.5)
@@ -1523,7 +1366,7 @@ function WordScrambleExercise({ exercise, onAnswer }: { exercise: ExerciseItem; 
   function handleSubmit() {
     if (!selected.length || submitted) return;
     setSubmitted(true);
-    onAnswer(isCorrect, formed);
+    onAnswer(isCorrect);
   }
   function handleReset() {
     setLetters(word.split('').map((ch, i) => `${ch}__${i}`).sort(() => Math.random() - 0.5));
@@ -1593,7 +1436,7 @@ function WordScrambleExercise({ exercise, onAnswer }: { exercise: ExerciseItem; 
   );
 }
 
-function MatchPairsExercise({ exercise, onAnswer }: { exercise: ExerciseItem; onAnswer: (correct: boolean, answer: string) => void }) {
+function MatchPairsExercise({ exercise, onAnswer }: { exercise: ExerciseItem; onAnswer: (correct: boolean) => void }) {
   const pairs = exercise.pairs ?? [];
   const [leftSel, setLeftSel] = useState<string | null>(null);
   const [rightSel, setRightSel] = useState<string | null>(null);
@@ -1612,7 +1455,7 @@ function MatchPairsExercise({ exercise, onAnswer }: { exercise: ExerciseItem; on
         setMatched(next);
         if (Object.keys(next).length === pairs.length) {
           setDone(true);
-          onAnswer(errors === 0, '');
+          onAnswer(errors === 0);
         }
       } else {
         setErrors(e => e + 1);
@@ -1686,17 +1529,15 @@ function MatchPairsExercise({ exercise, onAnswer }: { exercise: ExerciseItem; on
 function ExerciseStep({
   exercise,
   onAnswer,
-  initialAnswer,
 }: {
   exercise: ExerciseItem;
-  onAnswer: (correct: boolean, answer: string) => void;
-  initialAnswer?: string;
+  onAnswer: (correct: boolean) => void;
 }) {
-  if (exercise.type === 'multiple_choice') return <MultipleChoiceExercise exercise={exercise} onAnswer={onAnswer} initialAnswer={initialAnswer} />;
-  if (exercise.type === 'write_answer') return <WriteAnswerExercise exercise={exercise} onAnswer={onAnswer} initialAnswer={initialAnswer} />;
-  if (exercise.type === 'listen_and_choose') return <ListenAndChooseExercise exercise={exercise} onAnswer={onAnswer} initialAnswer={initialAnswer} />;
-  if (exercise.type === 'fill_blank') return <FillBlankExercise exercise={exercise} onAnswer={onAnswer} initialAnswer={initialAnswer} />;
+  if (exercise.type === 'multiple_choice') return <MultipleChoiceExercise exercise={exercise} onAnswer={onAnswer} />;
+  if (exercise.type === 'write_answer') return <WriteAnswerExercise exercise={exercise} onAnswer={onAnswer} />;
+  if (exercise.type === 'listen_and_choose') return <ListenAndChooseExercise exercise={exercise} onAnswer={onAnswer} />;
   if (exercise.type === 'order_sentence') return <OrderSentenceExercise exercise={exercise} onAnswer={onAnswer} />;
+  if (exercise.type === 'fill_blank') return <FillBlankExercise exercise={exercise} onAnswer={onAnswer} />;
   if (exercise.type === 'word_scramble') return <WordScrambleExercise exercise={exercise} onAnswer={onAnswer} />;
   if (exercise.type === 'match_pairs') return <MatchPairsExercise exercise={exercise} onAnswer={onAnswer} />;
   return null;
@@ -1754,8 +1595,8 @@ function LezenSection({
         {progressBar}
         <div className="rounded-2xl border border-[#DDE6F5] bg-white p-6">
           <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-widest mb-4">Texto en neerlandés</p>
-          <div className="text-[16px] text-[#1D0084] leading-relaxed whitespace-pre-line font-medium text-left">
-            {textNl.replace(/^[ \t]+/gm, '').trim()}
+          <div className="text-[16px] text-[#1D0084] leading-relaxed whitespace-pre-wrap font-medium text-left">
+            {textNl}
           </div>
         </div>
         <button
@@ -1817,11 +1658,11 @@ function LezenSection({
       <div className="rounded-2xl border border-[#DDE6F5] bg-white p-6 space-y-4">
         <div>
           <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-widest mb-3">Texto original</p>
-          <p className="text-[14px] text-[#5A6480] leading-relaxed whitespace-pre-line text-left">{textNl.replace(/^[ \t]+/gm, '').trim()}</p>
+          <p className="text-[14px] text-[#5A6480] leading-relaxed whitespace-pre-wrap text-left">{textNl}</p>
         </div>
         <div className="border-t border-[#DDE6F5] pt-4">
           <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-widest mb-3">Traducción al español</p>
-          <p className="text-[15px] text-[#1D0084] font-medium leading-relaxed whitespace-pre-line text-left">{textEs.replace(/^[ \t]+/gm, '').trim()}</p>
+          <p className="text-[15px] text-[#1D0084] font-medium leading-relaxed whitespace-pre-wrap text-left">{textEs}</p>
         </div>
       </div>
       <button
@@ -1848,24 +1689,23 @@ function LuisterenSection({
   onComplete: () => void;
 }) {
   const hasExercises = practiceExercises.length > 0;
-  const [step, setStep] = useState<'dialogue' | 'exercises'>('dialogue');
+  const totalSteps = hasExercises ? 3 : 2;
+  const [step, setStep] = useState<'audio' | 'exercises' | 'translation'>('audio');
   const [exerciseIndex, setExerciseIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [answered, setAnswered] = useState(false);
   const [exKey, setExKey] = useState(0);
-  const [showTranslation, setShowTranslation] = useState(false);
-  const [exercisesDone, setExercisesDone] = useState(false);
   const [isPlayingNormal, setIsPlayingNormal] = useState(false);
   const [isPlayingSlow, setIsPlayingSlow] = useState(false);
   const normalAudioRef = useRef<HTMLAudioElement | null>(null);
   const slowAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const exercise = practiceExercises[exerciseIndex];
-  const pct = step === 'dialogue' ? 0
-    : Math.round(((exerciseIndex + (answered ? 1 : 0)) / Math.max(practiceExercises.length, 1)) * 100);
+  const stepNum = step === 'audio' ? 1 : step === 'exercises' ? 2 : totalSteps;
+  const pct = Math.round(((stepNum - 1 + (step === 'exercises' ? exerciseIndex / practiceExercises.length : 0)) / totalSteps) * 100);
 
   const speakerColors: Record<string, string> = {};
-  const colorList = ['#1D0084', '#025dc7'];
+  const colorList = ['#1D0084', '#025dc7', '#0b4db5'];
   dialogue.lines.forEach(line => {
     if (!speakerColors[line.speaker]) {
       speakerColors[line.speaker] = colorList[Object.keys(speakerColors).length % colorList.length];
@@ -1887,6 +1727,7 @@ function LuisterenSection({
       setPlaying(false);
       return;
     }
+    // Stop other
     otherRef.current?.pause();
     if (otherRef.current) otherRef.current.currentTime = 0;
     setOtherPlaying(false);
@@ -1897,190 +1738,166 @@ function LuisterenSection({
       audio.onended = () => setPlaying(false);
       audio.play().catch(() => setPlaying(false));
       setPlaying(true);
-    } else if (typeof window !== 'undefined' && window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-      const fullText = dialogue.lines.map(l => l.dutch).join('. ');
-      const u = new SpeechSynthesisUtterance(fullText);
-      u.lang = 'nl-NL';
-      u.rate = isNormal ? 0.85 : 0.6;
-      u.onend = () => setPlaying(false);
-      window.speechSynthesis.speak(u);
-      setPlaying(true);
+    } else {
+      // TTS: read all lines
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+        const fullText = dialogue.lines.map(l => l.dutch).join(' ');
+        const u = new SpeechSynthesisUtterance(fullText);
+        u.lang = 'nl-NL';
+        u.rate = isNormal ? 0.85 : 0.6;
+        u.onend = () => setPlaying(false);
+        window.speechSynthesis.speak(u);
+        setPlaying(true);
+      }
     }
   }
 
-  /* ── Step 1: dialogue view ─────────────────────────────── */
-  if (step === 'dialogue') {
-    return (
-      <div className="space-y-4">
-        <GradientBar pct={0} />
+  const progressBar = <GradientBar pct={pct} />;
 
-        {/* Header: title + compact audio controls */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="text-[16px] font-bold text-[#1D0084] leading-snug" style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}>
-              {dialogue.title}
-            </h3>
-            {dialogue.context && (
-              <p className="text-[12px] text-[#9CA3AF] mt-0.5">{dialogue.context}</p>
-            )}
-          </div>
-          <div className="flex gap-2 shrink-0">
-            <button
-              onClick={() => playAudio('normal')}
-              title="Velocidad normal"
-              className={`w-9 h-9 flex items-center justify-center rounded-xl border text-[14px] transition-all duration-200 ${
-                isPlayingNormal
-                  ? 'bg-[#1D0084] border-[#1D0084] text-white'
-                  : 'bg-white border-[#DDE6F5] text-[#1D0084] hover:bg-[#F0F5FF]'
-              }`}
-            >
-              {isPlayingNormal
-                ? <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-                : <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>}
-            </button>
-            <button
-              onClick={() => playAudio('slow')}
-              title="Versión lenta"
-              className={`w-9 h-9 flex items-center justify-center rounded-xl border text-[15px] transition-all duration-200 ${
-                isPlayingSlow
-                  ? 'bg-[#025dc7] border-[#025dc7] text-white'
-                  : 'bg-white border-[#DDE6F5] text-[#1D0084] hover:bg-[#F0F5FF]'
-              }`}
-            >
-              🐢
-            </button>
-          </div>
+  if (step === 'audio') {
+    return (
+      <div className="space-y-6">
+        {progressBar}
+
+        {/* Title + context */}
+        <div className="rounded-2xl border border-[#DDE6F5] bg-white p-5">
+          <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-widest mb-1">{dialogue.context}</p>
+          <h3 className="text-[17px] font-bold text-[#1D0084]" style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}>
+            {dialogue.title}
+          </h3>
         </div>
 
-        {/* Conversation bubbles */}
-        <div className="rounded-2xl border border-[#DDE6F5] bg-[#F8FAFF] p-4">
-          <div className="space-y-3">
+        {/* Audio buttons */}
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={() => playAudio('normal')}
+            className={`flex flex-col items-center gap-2 py-5 rounded-2xl border text-[14px] font-semibold transition-all duration-200 ${
+              isPlayingNormal ? 'bg-[#1D0084] border-[#1D0084] text-white' : 'bg-white border-[#DDE6F5] text-[#1D0084] hover:bg-[#F0F5FF] hover:border-[#025dc7]/40'
+            }`}
+          >
+            {isPlayingNormal ? (
+              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>
+            ) : (
+              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+            )}
+            {isPlayingNormal ? 'Parar' : 'Velocidad normal'}
+          </button>
+          <button
+            onClick={() => playAudio('slow')}
+            className={`flex flex-col items-center gap-2 py-5 rounded-2xl border text-[14px] font-semibold transition-all duration-200 ${
+              isPlayingSlow ? 'bg-[#025dc7] border-[#025dc7] text-white' : 'bg-white border-[#DDE6F5] text-[#1D0084] hover:bg-[#F0F5FF] hover:border-[#025dc7]/40'
+            }`}
+          >
+            {isPlayingSlow ? (
+              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>
+            ) : (
+              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+            )}
+            {isPlayingSlow ? 'Parar' : 'Versión lenta'}
+          </button>
+        </div>
+
+        {/* Dialogue text — 2 columns on desktop to avoid scroll */}
+        <div className="rounded-2xl border border-[#DDE6F5] bg-[#F8FAFF] p-5">
+          <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-widest mb-4">Diálogo</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
             {dialogue.lines.map(line => (
-              <div key={line.id} className="flex gap-3 items-start">
-                {/* Speaker avatar */}
-                <div
-                  className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[11px] font-black shrink-0 mt-0.5"
+              <div key={line.id} className="flex items-start gap-2.5">
+                <span
+                  className="text-[10px] font-bold px-2 py-1 rounded-full text-white shrink-0 mt-0.5"
                   style={{ background: speakerColors[line.speaker] ?? '#1D0084' }}
                 >
-                  {line.speaker[0]}
-                </div>
-                {/* Text */}
-                <div className="min-w-0 flex-1">
-                  <p className="text-[13px] font-bold text-[#9CA3AF] uppercase tracking-wide leading-none mb-0.5">
-                    {line.speaker}
-                  </p>
-                  <p className="text-[15px] text-[#1D0084] font-semibold leading-snug">{line.dutch}</p>
-                  {showTranslation && (
-                    <p className="text-[13px] text-[#9CA3AF] leading-snug mt-0.5 italic">{line.spanish}</p>
-                  )}
-                </div>
+                  {line.speaker}
+                </span>
+                <p className="text-[14px] text-[#1D0084] font-medium leading-snug">{line.dutch}</p>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Toggle translation */}
         <button
-          onClick={() => setShowTranslation(t => !t)}
-          className="w-full py-2.5 rounded-xl bg-white border border-[#DDE6F5] text-[#1D0084] text-[13px] font-semibold hover:bg-[#F0F5FF] transition-colors duration-200"
+          onClick={() => hasExercises ? setStep('exercises') : setStep('translation')}
+          className="w-full py-3.5 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200"
         >
-          {showTranslation ? 'Ocultar traducción' : 'Ver traducción al español'}
+          {hasExercises ? 'Ir a los ejercicios →' : 'Ver traducción →'}
         </button>
+      </div>
+    );
+  }
 
-        {/* Action button */}
-        {hasExercises && (
-          <button
-            onClick={() => setStep('exercises')}
-            className="w-full py-3.5 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200"
-          >
-            Practicar →
+  if (step === 'exercises' && exercise) {
+    return (
+      <div className="space-y-5">
+        {progressBar}
+        <div className="flex items-center justify-between">
+          <button onClick={() => setStep('audio')} className="flex items-center gap-1.5 text-[13px] font-semibold text-[#9CA3AF] hover:text-[#1D0084] transition-colors duration-200">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+            Volver al diálogo
+          </button>
+          <div className="flex items-center gap-1.5 text-[13px] font-bold text-[#16a34a] bg-green-50 border border-green-200 px-3 py-1 rounded-full">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+            {score}
+          </div>
+        </div>
+        <div key={exKey}>
+          <ExerciseStep exercise={exercise} onAnswer={(correct) => { setAnswered(true); if (correct) setScore(s => s + 1); }} />
+        </div>
+        {answered && (
+          <button onClick={() => {
+            if (exerciseIndex + 1 >= practiceExercises.length) { setStep('translation'); }
+            else { setExerciseIndex(i => i + 1); setAnswered(false); setExKey(k => k + 1); }
+          }} className="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200">
+            {exerciseIndex + 1 < practiceExercises.length ? 'Siguiente ejercicio' : 'Ver traducción del diálogo'}
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
           </button>
         )}
       </div>
     );
   }
 
-  /* ── Step 2: exercises ─────────────────────────────────── */
-
-  // Results banner shown after last exercise
-  if (exercisesDone) {
-    return (
-      <div className="space-y-4">
-        <GradientBar pct={100} />
+  // translation step
+  return (
+    <div className="space-y-6">
+      <GradientBar pct={100} />
+      {hasExercises && (
         <div className="flex items-center gap-3 rounded-2xl px-5 py-4" style={{ background: 'linear-gradient(135deg, #1D0084 0%, #025dc7 100%)' }}>
-          <span className="text-2xl">{score >= practiceExercises.length * 0.8 ? '🎉' : '📝'}</span>
+          <span className="text-2xl">🎉</span>
           <div>
-            <p className="text-white font-bold text-[15px]">{score} / {practiceExercises.length} correctas</p>
-            <p className="text-white/60 text-[13px]">
-              {score === practiceExercises.length ? '¡Perfecto!' : score >= practiceExercises.length * 0.8 ? '¡Muy bien!' : 'Sigue practicando'}
-            </p>
+            <p className="text-white font-bold text-[15px]">¡Diálogo completado!</p>
+            <p className="text-white/60 text-[13px]">{score} de {practiceExercises.length} respuestas correctas</p>
           </div>
         </div>
-        <button
-          onClick={() => {
-            setStep('dialogue');
-            setExerciseIndex(0);
-            setScore(0);
-            setAnswered(false);
-            setExKey(k => k + 1);
-            setExercisesDone(false);
-          }}
-          className="w-full py-3.5 rounded-xl bg-[#F0F5FF] text-[#1D0084] text-[15px] font-semibold border border-[#DDE6F5] hover:bg-[#e0eaff] transition-colors duration-200"
-        >
-          🔄 Volver al diálogo
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-5">
-      <GradientBar pct={pct} />
-      <div className="flex items-center justify-between">
-        <button
-          onClick={() => { setStep('dialogue'); setExerciseIndex(0); setScore(0); setAnswered(false); setExKey(k => k + 1); }}
-          className="flex items-center gap-1.5 text-[13px] font-semibold text-[#9CA3AF] hover:text-[#1D0084] transition-colors duration-200"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-          </svg>
-          Volver al diálogo
-        </button>
-        <div className="flex items-center gap-1.5 text-[13px] font-bold text-[#16a34a] bg-green-50 border border-green-200 px-3 py-1 rounded-full">
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-          </svg>
-          {score}
+      )}
+      <div className="rounded-2xl border border-[#DDE6F5] bg-white p-5">
+        <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-widest mb-4">Traducción completa</p>
+        <div className="space-y-3">
+          {dialogue.lines.map(line => (
+            <div key={line.id} className="grid grid-cols-2 gap-4 pb-3 border-b border-[#F0F5FF] last:border-0 last:pb-0">
+              <div>
+                <span className="text-[10px] font-bold text-[#9CA3AF] uppercase">{line.speaker} (NL)</span>
+                <p className="text-[14px] font-medium text-[#1D0084] leading-snug mt-0.5">{line.dutch}</p>
+              </div>
+              <div>
+                <span className="text-[10px] font-bold text-[#9CA3AF] uppercase">{line.speaker} (ES)</span>
+                <p className="text-[14px] text-[#5A6480] leading-snug mt-0.5">{line.spanish}</p>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
-      {exercise && (
-        <div key={exKey}>
-          <ExerciseStep
-            exercise={exercise}
-            onAnswer={(correct) => { setAnswered(true); if (correct) setScore(s => s + 1); }}
-          />
-        </div>
-      )}
-      {answered && (
-        <button
-          onClick={() => {
-            if (exerciseIndex + 1 >= practiceExercises.length) {
-              setExercisesDone(true);
-            } else {
-              setExerciseIndex(i => i + 1);
-              setAnswered(false);
-              setExKey(k => k + 1);
-            }
-          }}
-          className="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200"
-        >
-          {exerciseIndex + 1 < practiceExercises.length ? 'Siguiente ejercicio' : 'Ver resultado'}
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
-      )}
+      <button
+        onClick={() => { setStep('audio'); setExerciseIndex(0); setScore(0); setAnswered(false); setExKey(k => k + 1); }}
+        className="w-full py-3.5 rounded-xl bg-[#F0F5FF] text-[#1D0084] text-[15px] font-semibold border border-[#DDE6F5] hover:bg-[#e0eaff] transition-colors duration-200"
+      >
+        🔄 Escuchar de nuevo
+      </button>
     </div>
   );
 }
@@ -2267,7 +2084,7 @@ export default function LessonViewer({ lesson, module, prevLesson: _prev, nextLe
 
       {/* ── Content ── */}
       <div className="bg-white min-h-[70vh] py-8 pb-20">
-        <div className={`mx-auto px-6 ${activeSection === 'vocabulary' || activeSection === 'luisteren' ? 'max-w-5xl' : 'max-w-2xl'}`}>
+        <div className={`mx-auto px-6 ${activeSection === 'vocabulary' || activeSection === 'luisteren' ? 'max-w-4xl' : 'max-w-2xl'}`}>
 
           {/* LANDING */}
           {activeSection === null && (

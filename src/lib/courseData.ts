@@ -1404,6 +1404,198 @@ const m3_les1: Lesson = {
 };
 
 /* ─────────────────────────────────────────────────────────────────────────────
+   MODULE 3 — BOODSCHAPPEN — Les 2
+───────────────────────────────────────────────────────────────────────────── */
+
+const m3_les2: Lesson = {
+  id: 'm3-les-2-grammatica',
+  moduleId: 'boodschappen',
+  title: 'Les 2 — Grammatica | Ik wil… / Mag ik…?',
+  subtitle: 'Pedir en un café o snackbar',
+  order: 2,
+  learningObjective: 'Pedir comida y bebida de forma natural y educada usando willen, nemen y mogen',
+  estimatedMinutes: 25,
+  isExtra: false,
+  blocks: [
+    {
+      type: 'vocabulary',
+      items: [
+        // Bebidas
+        { id: 'm3l2v-koffie',   dutch: 'de koffie',         spanish: 'el café',                 article: 'de',  emoji: '☕', color: '#0b7a4d', exampleNl: 'Ik wil graag een koffie.', exampleEs: 'Quiero un café.',               category: 'bestellen', difficulty: 'A0' },
+        { id: 'm3l2v-thee',     dutch: 'de thee',            spanish: 'el té',                   article: 'de',  emoji: '🍵', color: '#1a7a40', exampleNl: 'Wil jij thee of koffie?',  exampleEs: '¿Quieres té o café?',           category: 'bestellen', difficulty: 'A0' },
+        { id: 'm3l2v-cola',     dutch: 'de cola',            spanish: 'la cola',                 article: 'de',  emoji: '🥤', color: '#0d6e33', exampleNl: 'Ik neem een cola.',        exampleEs: 'Tomo una cola.',                category: 'bestellen', difficulty: 'A0' },
+        { id: 'm3l2v-water',    dutch: 'het water',          spanish: 'el agua',                 article: 'het', emoji: '💧', color: '#2e7d52', exampleNl: 'Mag ik een glas water?',   exampleEs: '¿Me pone un vaso de agua?',     category: 'bestellen', difficulty: 'A0' },
+        { id: 'm3l2v-sap',      dutch: 'het sap',            spanish: 'el zumo',                 article: 'het', emoji: '🧃', color: '#0b7a4d', exampleNl: 'Ik wil graag sap.',        exampleEs: 'Quiero zumo.',                  category: 'bestellen', difficulty: 'A0' },
+        // Comida
+        { id: 'm3l2v-broodje',  dutch: 'het broodje',        spanish: 'el bocadillo / panecillo',article: 'het', emoji: '🥖', color: '#1a7a40', exampleNl: 'Ik neem een broodje.',     exampleEs: 'Me pongo un bocadillo.',        category: 'bestellen', difficulty: 'A0' },
+        { id: 'm3l2v-broodjekaas', dutch: 'het broodje kaas',spanish: 'el bocadillo de queso',   article: 'het', emoji: '🧀', color: '#0d6e33', exampleNl: 'Ik wil graag een broodje kaas.', exampleEs: 'Quiero un bocadillo de queso.', category: 'bestellen', difficulty: 'A0' },
+        { id: 'm3l2v-soep',     dutch: 'de soep',            spanish: 'la sopa',                 article: 'de',  emoji: '🍲', color: '#2e7d52', exampleNl: 'Wij nemen soep.',          exampleEs: 'Pedimos sopa.',                 category: 'bestellen', difficulty: 'A0' },
+        { id: 'm3l2v-friet',    dutch: 'de friet',           spanish: 'las patatas fritas',      article: 'de',  emoji: '🍟', color: '#0b7a4d', exampleNl: 'Hij neemt friet.',         exampleEs: 'Él pide patatas fritas.',       category: 'bestellen', difficulty: 'A0' },
+        { id: 'm3l2v-salade',   dutch: 'de salade',          spanish: 'la ensalada',             article: 'de',  emoji: '🥗', color: '#1a7a40', exampleNl: 'Ik wil graag een salade.', exampleEs: 'Quiero una ensalada.',          category: 'bestellen', difficulty: 'A0' },
+        // Verbos clave
+        { id: 'm3l2v-willen',   dutch: 'willen',             spanish: 'querer',                  article: null,  emoji: '💚', color: '#0d6e33', exampleNl: 'Ik wil graag koffie.',     exampleEs: 'Quiero café.',                  category: 'werkwoorden', difficulty: 'A0' },
+        { id: 'm3l2v-nemen',    dutch: 'nemen',              spanish: 'tomar / coger / pedir',   article: null,  emoji: '🤲', color: '#2e7d52', exampleNl: 'Ik neem een broodje.',     exampleEs: 'Tomo un bocadillo.',            category: 'werkwoorden', difficulty: 'A0' },
+        { id: 'm3l2v-mogen',    dutch: 'mogen',              spanish: 'poder / tener permiso',   article: null,  emoji: '✅', color: '#0b7a4d', exampleNl: 'Mag ik pinnen?',           exampleEs: '¿Puedo pagar con tarjeta?',     category: 'werkwoorden', difficulty: 'A0' },
+        { id: 'm3l2v-betalen',  dutch: 'betalen',            spanish: 'pagar',                   article: null,  emoji: '💳', color: '#1a7a40', exampleNl: 'Ik wil betalen.',          exampleEs: 'Quiero pagar.',                 category: 'cafe', difficulty: 'A0' },
+        { id: 'm3l2v-pinnen',   dutch: 'pinnen',             spanish: 'pagar con tarjeta',       article: null,  emoji: '💳', color: '#0d6e33', exampleNl: 'Mag ik pinnen?',           exampleEs: '¿Puedo pagar con tarjeta?',     category: 'cafe', difficulty: 'A0' },
+        // Palabras del café
+        { id: 'm3l2v-ober',     dutch: 'de ober',            spanish: 'el camarero',             article: 'de',  emoji: '🧑‍🍳', color: '#2e7d52', exampleNl: 'De ober komt eraan.',  exampleEs: 'El camarero viene en camino.',  category: 'cafe', difficulty: 'A0' },
+        { id: 'm3l2v-klant',    dutch: 'de klant',           spanish: 'el cliente',              article: 'de',  emoji: '👤', color: '#0b7a4d', exampleNl: 'De klant wil betalen.',    exampleEs: 'El cliente quiere pagar.',      category: 'cafe', difficulty: 'A0' },
+        { id: 'm3l2v-rekening', dutch: 'de rekening',        spanish: 'la cuenta',               article: 'de',  emoji: '🧾', color: '#1a7a40', exampleNl: 'Mag ik de rekening?',      exampleEs: '¿Me trae la cuenta?',           category: 'cafe', difficulty: 'A0' },
+      ],
+    },
+    {
+      type: 'phrases',
+      items: [
+        { id: 'm3l2p-1',  dutch: 'Ik wil graag een koffie.',          spanish: 'Quiero un café.',                    context: 'Bestellen' },
+        { id: 'm3l2p-2',  dutch: 'Ik neem een broodje kaas.',         spanish: 'Tomo un bocadillo de queso.',        context: 'Bestellen' },
+        { id: 'm3l2p-3',  dutch: 'Mag ik de rekening, alstublieft?',  spanish: '¿Me trae la cuenta, por favor?',     context: 'Betalen' },
+        { id: 'm3l2p-4',  dutch: 'Mag ik pinnen?',                    spanish: '¿Puedo pagar con tarjeta?',          context: 'Betalen' },
+        { id: 'm3l2p-5',  dutch: 'Nog iets?',                         spanish: '¿Algo más?',                         context: 'In het café' },
+        { id: 'm3l2p-6',  dutch: 'Nee, dat is alles.',                spanish: 'No, eso es todo.',                   context: 'In het café' },
+        { id: 'm3l2p-7',  dutch: 'Wil jij thee of koffie?',           spanish: '¿Quieres té o café?',                context: 'Bestellen' },
+        { id: 'm3l2p-8',  dutch: 'Mag ik hier zitten?',               spanish: '¿Puedo sentarme aquí?',              context: 'In het café' },
+        { id: 'm3l2p-9',  dutch: 'Wij willen graag soep en salade.',  spanish: 'Queremos sopa y ensalada.',          context: 'Bestellen' },
+        { id: 'm3l2p-10', dutch: 'Dank u wel.',                       spanish: 'Gracias.',                           context: 'Beleefdheid' },
+      ],
+    },
+    {
+      type: 'dialogue',
+      dialogue: {
+        id: 'm3d2',
+        title: 'Dialoog – In een café',
+        context: 'Een klant bestelt in een Nederlands café.',
+        lines: [
+          { id: 'm3d2-1',  speaker: 'Medewerker', dutch: 'Goedemiddag.',                                           spanish: 'Buenas tardes.' },
+          { id: 'm3d2-2',  speaker: 'Klant',       dutch: 'Goedemiddag.',                                           spanish: 'Buenas tardes.' },
+          { id: 'm3d2-3',  speaker: 'Medewerker', dutch: 'Wat wilt u drinken?',                                    spanish: '¿Qué quiere beber?' },
+          { id: 'm3d2-4',  speaker: 'Klant',       dutch: 'Ik wil graag een koffie, alstublieft.',                  spanish: 'Quiero un café, por favor.' },
+          { id: 'm3d2-5',  speaker: 'Medewerker', dutch: 'Nog iets?',                                              spanish: '¿Algo más?' },
+          { id: 'm3d2-6',  speaker: 'Klant',       dutch: 'Ja, ik neem ook een broodje kaas.',                      spanish: 'Sí, también tomo un bocadillo de queso.' },
+          { id: 'm3d2-7',  speaker: 'Medewerker', dutch: 'Natuurlijk. Wilt u hier zitten of meenemen?',            spanish: 'Claro. ¿Quiere sentarse aquí o para llevar?' },
+          { id: 'm3d2-8',  speaker: 'Klant',       dutch: 'Hier, alstublieft.',                                     spanish: 'Aquí, por favor.' },
+          { id: 'm3d2-9',  speaker: 'Medewerker', dutch: 'Prima. Dat is €8,50.',                                   spanish: 'Perfecto. Son 8,50 €.' },
+          { id: 'm3d2-10', speaker: 'Klant',       dutch: 'Mag ik pinnen?',                                         spanish: '¿Puedo pagar con tarjeta?' },
+          { id: 'm3d2-11', speaker: 'Medewerker', dutch: 'Ja, natuurlijk.',                                        spanish: 'Sí, claro.' },
+          { id: 'm3d2-12', speaker: 'Klant',       dutch: 'Dank u wel.',                                            spanish: 'Gracias.' },
+          { id: 'm3d2-13', speaker: 'Medewerker', dutch: 'Alstublieft.',                                           spanish: 'Aquí tiene.' },
+        ],
+      },
+    },
+    {
+      type: 'practice',
+      exercises: [
+        { id: 'm3l2e-1',  type: 'fill_blank',      prompt: 'Ik ___ graag een koffie. (willen — ik)',                correctAnswer: 'wil',      hint: '"Willen" → ik wil' },
+        { id: 'm3l2e-2',  type: 'fill_blank',      prompt: 'Hij ___ een broodje kaas. (nemen — hij)',               correctAnswer: 'neemt',    hint: '"Nemen" → hij neemt' },
+        { id: 'm3l2e-3',  type: 'fill_blank',      prompt: '___ ik de rekening, alstublieft? (mogen — ik)',         correctAnswer: 'Mag',      hint: '"Mogen" → ik mag' },
+        { id: 'm3l2e-4',  type: 'multiple_choice', prompt: '¿Qué frase suena más educada y natural?', options: ['Ik wil koffie.', 'Ik wil graag koffie.', 'Koffie!', 'Geef koffie.'], correctAnswer: 'Ik wil graag koffie.', explanation: '"Graag" suaviza la frase y la hace más natural.' },
+        { id: 'm3l2e-5',  type: 'multiple_choice', prompt: '¿Cuál es la forma correcta en una pregunta?', options: ['Jij wil koffie?', 'Wil jij koffie?', 'Wil jij koffiet?', 'Wilt jij koffie?'], correctAnswer: 'Wil jij koffie?', explanation: 'En preguntas, el verbo va primero: Wil jij…?' },
+        { id: 'm3l2e-6',  type: 'order_sentence',  prompt: 'Ordena: "Quiero un café, por favor."', options: ['Ik', 'wil', 'graag', 'een', 'koffie,', 'alstublieft.'], correctAnswer: 'Ik wil graag een koffie, alstublieft.' },
+        { id: 'm3l2e-7',  type: 'order_sentence',  prompt: 'Ordena: "¿Puedo pagar con tarjeta?"', options: ['Mag', 'ik', 'pinnen?'], correctAnswer: 'Mag ik pinnen?' },
+        { id: 'm3l2e-8',  type: 'fill_blank',      prompt: 'Neem ___ soep? → pregunta con jij (nemen)',             correctAnswer: 'jij',      hint: 'La -t desaparece en preguntas con jij' },
+        { id: 'm3l2e-9',  type: 'multiple_choice', prompt: '¿Qué significa "Nog iets?"?', options: ['¿Algo más?', '¿Quiere pagar?', '¿Está aquí?', 'Aquí tiene.'], correctAnswer: '¿Algo más?', explanation: '"Nog iets?" = ¿Algo más? Se usa para preguntar si el cliente quiere otra cosa.' },
+        { id: 'm3l2e-10', type: 'fill_blank',      prompt: 'Wij ___ graag soep en salade. (willen — wij)',          correctAnswer: 'willen',   hint: '"Willen" → wij willen' },
+      ],
+    },
+    { type: 'review' },
+  ],
+};
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   MODULE 3 — BOODSCHAPPEN — Les 3
+───────────────────────────────────────────────────────────────────────────── */
+
+const m3_les3: Lesson = {
+  id: 'm3-les-3-grammatica',
+  moduleId: 'boodschappen',
+  title: 'Les 3 — Grammatica | Vragende woorden',
+  subtitle: 'Hacer preguntas en neerlandés',
+  order: 3,
+  learningObjective: 'Hacer preguntas de sí/no y con palabras interrogativas sobre comida y bebida',
+  estimatedMinutes: 25,
+  isExtra: false,
+  blocks: [
+    {
+      type: 'vocabulary',
+      items: [
+        // Palabras interrogativas
+        { id: 'm3l3v-wat',      dutch: 'wat',      spanish: 'qué',                   article: null,  emoji: '❓', color: '#0b7a4d', exampleNl: 'Wat drink je?',            exampleEs: '¿Qué bebes?',               category: 'vraagwoorden', difficulty: 'A0' },
+        { id: 'm3l3v-waar',     dutch: 'waar',     spanish: 'dónde',                 article: null,  emoji: '📍', color: '#1a7a40', exampleNl: 'Waar eet je?',             exampleEs: '¿Dónde comes?',             category: 'vraagwoorden', difficulty: 'A0' },
+        { id: 'm3l3v-wanneer',  dutch: 'wanneer',  spanish: 'cuándo',                article: null,  emoji: '⏰', color: '#0d6e33', exampleNl: 'Wanneer eten we?',          exampleEs: '¿Cuándo comemos?',          category: 'vraagwoorden', difficulty: 'A0' },
+        { id: 'm3l3v-wie',      dutch: 'wie',      spanish: 'quién',                 article: null,  emoji: '👤', color: '#2e7d52', exampleNl: 'Wie komt er?',             exampleEs: '¿Quién viene?',             category: 'vraagwoorden', difficulty: 'A0' },
+        { id: 'm3l3v-hoeveel',  dutch: 'hoeveel',  spanish: 'cuánto / cuánta / cuántos', article: null, emoji: '🔢', color: '#0b7a4d', exampleNl: 'Hoeveel suiker wil je?', exampleEs: '¿Cuánta azúcar quieres?',  category: 'vraagwoorden', difficulty: 'A0' },
+        // Comida y bebida
+        { id: 'm3l3v-koffie',   dutch: 'de koffie',  spanish: 'el café',     article: 'de',  emoji: '☕', color: '#1a7a40', exampleNl: 'Drink je koffie?',         exampleEs: '¿Bebes café?',              category: 'eten-drinken', difficulty: 'A0' },
+        { id: 'm3l3v-thee',     dutch: 'de thee',    spanish: 'el té',       article: 'de',  emoji: '🍵', color: '#0d6e33', exampleNl: 'Wil je thee?',             exampleEs: '¿Quieres té?',              category: 'eten-drinken', difficulty: 'A0' },
+        { id: 'm3l3v-water',    dutch: 'het water',  spanish: 'el agua',     article: 'het', emoji: '💧', color: '#2e7d52', exampleNl: 'Mag ik een glas water?',   exampleEs: '¿Me pone un vaso de agua?', category: 'eten-drinken', difficulty: 'A0' },
+        { id: 'm3l3v-broodje',  dutch: 'het broodje',spanish: 'el bocadillo',article: 'het', emoji: '🥖', color: '#0b7a4d', exampleNl: 'Ik neem een broodje.',     exampleEs: 'Tomo un bocadillo.',        category: 'eten-drinken', difficulty: 'A0' },
+        { id: 'm3l3v-suiker',   dutch: 'de suiker',  spanish: 'el azúcar',   article: 'de',  emoji: '🍬', color: '#1a7a40', exampleNl: 'Hoeveel suiker wil je?',   exampleEs: '¿Cuánta azúcar quieres?',  category: 'eten-drinken', difficulty: 'A0' },
+        { id: 'm3l3v-vlees',    dutch: 'het vlees',  spanish: 'la carne',    article: 'het', emoji: '🥩', color: '#0d6e33', exampleNl: 'Ik eet geen vlees.',       exampleEs: 'No como carne.',            category: 'eten-drinken', difficulty: 'A0' },
+        { id: 'm3l3v-vis',      dutch: 'de vis',     spanish: 'el pescado',  article: 'de',  emoji: '🐟', color: '#2e7d52', exampleNl: 'Eet jij vis?',             exampleEs: '¿Comes pescado?',           category: 'eten-drinken', difficulty: 'A0' },
+        // Verbos útiles
+        { id: 'm3l3v-drinken',  dutch: 'drinken',  spanish: 'beber',   article: null,  emoji: '🥤', color: '#0b7a4d', exampleNl: 'Wat drink je?',            exampleEs: '¿Qué bebes?',               category: 'werkwoorden', difficulty: 'A0' },
+        { id: 'm3l3v-eten',     dutch: 'eten',     spanish: 'comer',   article: null,  emoji: '🍽️', color: '#1a7a40', exampleNl: 'Wanneer eten we?',          exampleEs: '¿Cuándo comemos?',          category: 'werkwoorden', difficulty: 'A0' },
+        { id: 'm3l3v-willen',   dutch: 'willen',   spanish: 'querer',  article: null,  emoji: '💚', color: '#0d6e33', exampleNl: 'Wil je thee?',             exampleEs: '¿Quieres té?',              category: 'werkwoorden', difficulty: 'A0' },
+        { id: 'm3l3v-komen',    dutch: 'komen',    spanish: 'venir',   article: null,  emoji: '🚶', color: '#2e7d52', exampleNl: 'Wie komt er?',             exampleEs: '¿Quién viene?',             category: 'werkwoorden', difficulty: 'A0' },
+        // Negación
+        { id: 'm3l3v-geen',     dutch: 'geen',     spanish: 'no / ningún / ninguna', article: null, emoji: '🚫', color: '#0b7a4d', exampleNl: 'Ik drink geen koffie.', exampleEs: 'No bebo café.',           category: 'grammatica', difficulty: 'A0' },
+      ],
+    },
+    {
+      type: 'phrases',
+      items: [
+        { id: 'm3l3p-1',  dutch: 'Drink je koffie?',           spanish: '¿Bebes café?',                context: 'Ja/nee-vraag' },
+        { id: 'm3l3p-2',  dutch: 'Wil je thee?',               spanish: '¿Quieres té?',                context: 'Ja/nee-vraag' },
+        { id: 'm3l3p-3',  dutch: 'Wat drink je?',              spanish: '¿Qué bebes?',                 context: 'W-vraag' },
+        { id: 'm3l3p-4',  dutch: 'Waar eet je?',               spanish: '¿Dónde comes?',               context: 'W-vraag' },
+        { id: 'm3l3p-5',  dutch: 'Wanneer eten we?',            spanish: '¿Cuándo comemos?',            context: 'W-vraag' },
+        { id: 'm3l3p-6',  dutch: 'Wie komt er?',               spanish: '¿Quién viene?',               context: 'W-vraag' },
+        { id: 'm3l3p-7',  dutch: 'Hoeveel suiker wil je?',     spanish: '¿Cuánta azúcar quieres?',     context: 'W-vraag' },
+        { id: 'm3l3p-8',  dutch: 'Nee, ik drink geen koffie.', spanish: 'No, no bebo café.',           context: 'Negatie met geen' },
+        { id: 'm3l3p-9',  dutch: 'Ja, ik wil thee.',           spanish: 'Sí, quiero té.',              context: 'Bevestigend antwoord' },
+        { id: 'm3l3p-10', dutch: 'Ik eet geen vlees.',         spanish: 'No como carne.',              context: 'Negatie met geen' },
+      ],
+    },
+    {
+      type: 'dialogue',
+      dialogue: {
+        id: 'm3d3',
+        title: 'Dialoog – In een café',
+        context: 'Een klant bestelt in een café en gebruikt vragende woorden.',
+        lines: [
+          { id: 'm3d3-1',  speaker: 'Ober',  dutch: 'Goedemiddag! Wat wilt u drinken?',             spanish: 'Buenas tardes. ¿Qué quiere beber?' },
+          { id: 'm3d3-2',  speaker: 'Klant', dutch: 'Ik wil graag een koffie.',                      spanish: 'Quiero un café.' },
+          { id: 'm3d3-3',  speaker: 'Ober',  dutch: 'Hoeveel suiker wilt u?',                        spanish: '¿Cuánta azúcar quiere?' },
+          { id: 'm3d3-4',  speaker: 'Klant', dutch: 'Twee suiker, alstublieft.',                     spanish: 'Dos azúcares, por favor.' },
+          { id: 'm3d3-5',  speaker: 'Ober',  dutch: 'Wilt u ook iets eten?',                         spanish: '¿Quiere también algo de comer?' },
+          { id: 'm3d3-6',  speaker: 'Klant', dutch: 'Ja. Wat heeft u?',                              spanish: 'Sí. ¿Qué tienen?' },
+          { id: 'm3d3-7',  speaker: 'Ober',  dutch: 'Wij hebben broodjes, soep en salade.',          spanish: 'Tenemos bocadillos, sopa y ensalada.' },
+          { id: 'm3d3-8',  speaker: 'Klant', dutch: 'Ik neem een broodje kaas.',                     spanish: 'Tomo un bocadillo de queso.' },
+          { id: 'm3d3-9',  speaker: 'Ober',  dutch: 'Prima. Wilt u nog iets?',                       spanish: 'Perfecto. ¿Quiere algo más?' },
+          { id: 'm3d3-10', speaker: 'Klant', dutch: 'Nee, dat is alles. Mag ik pinnen?',             spanish: 'No, eso es todo. ¿Puedo pagar con tarjeta?' },
+          { id: 'm3d3-11', speaker: 'Ober',  dutch: 'Ja, natuurlijk. Dat is €7,50.',                 spanish: 'Sí, claro. Son 7,50 €.' },
+          { id: 'm3d3-12', speaker: 'Klant', dutch: 'Dank u wel.',                                   spanish: 'Gracias.' },
+        ],
+      },
+    },
+    {
+      type: 'practice',
+      exercises: [
+        { id: 'm3l3e-1', type: 'fill_blank',      prompt: '______ drink je? (¿qué bebes?)',                                correctAnswer: 'Wat',            hint: '"Wat" = qué' },
+        { id: 'm3l3e-2', type: 'fill_blank',      prompt: '______ eet je? (¿dónde comes?)',                               correctAnswer: 'Waar',           hint: '"Waar" = dónde' },
+        { id: 'm3l3e-3', type: 'fill_blank',      prompt: '______ eten we? (¿cuándo comemos?)',                           correctAnswer: 'Wanneer',        hint: '"Wanneer" = cuándo' },
+        { id: 'm3l3e-4', type: 'fill_blank',      prompt: 'Nee, ik drink ______ koffie. (respuesta negativa)',            correctAnswer: 'geen',           hint: '"Geen" para negar un sustantivo' },
+        { id: 'm3l3e-5', type: 'multiple_choice', prompt: '¿Cuál es la pregunta correcta para preguntar "¿qué bebes?"?', options: ['Wat drink jij?', 'Wat jij drinkt?', 'Drink wat jij?'], correctAnswer: 'Wat drink jij?', explanation: 'W-vraag: palabra interrogativa + verbo + sujeto.' },
+        { id: 'm3l3e-6', type: 'multiple_choice', prompt: '¿Cuál es la forma correcta de hacer una pregunta sí/no?',     options: ['Jij drinkt koffie?', 'Drink jij koffie?', 'Koffie drink jij?'], correctAnswer: 'Drink jij koffie?', explanation: 'Ja/nee-vraag: verbo + sujeto + complemento.' },
+        { id: 'm3l3e-7', type: 'order_sentence',  prompt: 'Ordena: "¿Cuánta azúcar quieres?" → suiker / hoeveel / wil / je', options: ['suiker', 'hoeveel', 'wil', 'je'], correctAnswer: 'Hoeveel suiker wil je?' },
+        { id: 'm3l3e-8', type: 'fill_blank',      prompt: 'Wil je thee? → Nee, ik wil ______ thee.',                     correctAnswer: 'geen',           hint: '"Geen" + sustantivo = negación' },
+      ],
+    },
+    { type: 'review' },
+  ],
+};
+
+/* ─────────────────────────────────────────────────────────────────────────────
    EXPORT
 ───────────────────────────────────────────────────────────────────────────── */
 
@@ -1415,5 +1607,5 @@ export const LESSONS: Lesson[] = [
   m2_les1, m2_les2, m2_les3, m2_les4, m2_les5, m2_les6,
   m2_extra1, m2_extra2, m2_extra3,
   // Module 3
-  m3_les1,
+  m3_les1, m3_les2, m3_les3,
 ];
