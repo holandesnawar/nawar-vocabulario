@@ -6,6 +6,7 @@ import type { Lesson, CourseModule, VocabularyItem, PhraseItem, ExerciseItem, Di
 import {
   getLessonProgress,
   markLessonStarted,
+  markLessonCompleted,
 } from '@/lib/progress';
 import AudioPlayer from './AudioPlayer';
 
@@ -480,6 +481,22 @@ function ExerciseRunner({ exercises, onDone, onBack, hasBackStep, onSubProgress,
   cacheKey?: string;
 }) {
   const storageKey = cacheKey ? `vp-ex-${cacheKey}` : null;
+  const answersKey = cacheKey ? `vp-ex-${cacheKey}-data` : null;
+
+  const cache = useMemo(() => {
+    if (!answersKey || typeof window === 'undefined') return { answers: {} as Record<number, string>, score: 0, completed: false };
+    try {
+      const raw = sessionStorage.getItem(answersKey);
+      if (!raw) return { answers: {} as Record<number, string>, score: 0, completed: false };
+      const ans = JSON.parse(raw) as Record<number, string>;
+      const completed = exercises.length > 0 && Object.keys(ans).length >= exercises.length;
+      const sc = completed
+        ? exercises.reduce((acc, ex, i) =>
+            ans[i]?.trim().toLowerCase() === ex.correctAnswer?.trim().toLowerCase() ? acc + 1 : acc, 0)
+        : 0;
+      return { answers: ans, score: sc, completed };
+    } catch { return { answers: {} as Record<number, string>, score: 0, completed: false }; }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [index, setIndex] = useState(() => {
     if (!storageKey) return 0;
@@ -488,13 +505,13 @@ function ExerciseRunner({ exercises, onDone, onBack, hasBackStep, onSubProgress,
       return Number.isFinite(n) && n < exercises.length ? n : 0;
     } catch { return 0; }
   });
-  const [score, setScore] = useState(0);
+  const [score, setScore] = useState(cache.score);
   const [answered, setAnswered] = useState(false);
   const [exKey, setExKey] = useState(0);
-  const [answers, setAnswers] = useState<Record<number, string>>({});
-  const [finished, setFinished] = useState(false);
+  const [answers, setAnswers] = useState<Record<number, string>>(cache.answers);
+  const [finished, setFinished] = useState(cache.completed);
   const [reviewMode, setReviewMode] = useState(false);
-  const scoreRef = useRef(0);
+  const scoreRef = useRef(cache.score);
 
   useEffect(() => {
     if (storageKey) try { sessionStorage.setItem(storageKey, String(index)); } catch {}
@@ -508,7 +525,11 @@ function ExerciseRunner({ exercises, onDone, onBack, hasBackStep, onSubProgress,
 
   function handleAnswer(correct: boolean, answer: string) {
     setAnswered(true);
-    setAnswers(prev => ({ ...prev, [index]: answer }));
+    setAnswers(prev => {
+      const next = { ...prev, [index]: answer };
+      if (answersKey) try { sessionStorage.setItem(answersKey, JSON.stringify(next)); } catch {}
+      return next;
+    });
     if (correct) { scoreRef.current += 1; setScore(scoreRef.current); }
     onSubProgress?.(index + 1, exercises.length);
   }
@@ -2096,11 +2117,16 @@ function SectionLanding({
   sections,
   completedSections,
   onEnter,
+  nextLesson,
+  moduleId,
 }: {
   sections: SectionId[];
   completedSections: Set<SectionId>;
   onEnter: (s: SectionId) => void;
+  nextLesson?: Lesson | null;
+  moduleId?: string;
 }) {
+  const allComplete = sections.length > 0 && sections.every(s => completedSections.has(s));
   return (
     <div className="space-y-3">
       {sections.map((id, idx) => {
@@ -2156,6 +2182,18 @@ function SectionLanding({
           </button>
         );
       })}
+      {allComplete && nextLesson && moduleId && (
+        <Link
+          href={`/modulo/${moduleId}/leccion/${nextLesson.id}`}
+          className="w-full flex items-center justify-center gap-3 px-5 py-4 rounded-2xl text-white text-[16px] font-bold transition-colors duration-200 mt-2 hover:opacity-90"
+          style={{ background: 'linear-gradient(90deg, #1D0084 0%, #025dc7 100%)', fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}
+        >
+          Siguiente lección
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </Link>
+      )}
     </div>
   );
 }
@@ -2171,7 +2209,7 @@ interface LessonViewerProps {
   nextLesson?: Lesson | null;
 }
 
-export default function LessonViewer({ lesson, module, prevLesson: _prev, nextLesson: _next }: LessonViewerProps) {
+export default function LessonViewer({ lesson, module, prevLesson: _prev, nextLesson }: LessonViewerProps) {
   const [activeSection, setActiveSection] = useState<SectionId | null>(null);
   const [completedSections, setCompletedSections] = useState<Set<SectionId>>(new Set());
 
@@ -2200,7 +2238,13 @@ export default function LessonViewer({ lesson, module, prevLesson: _prev, nextLe
   })();
 
   function completeSection(id: SectionId) {
-    setCompletedSections(prev => new Set([...prev, id]));
+    setCompletedSections(prev => {
+      const next = new Set([...prev, id]);
+      if (availableSections.length > 0 && availableSections.every(s => next.has(s))) {
+        markLessonCompleted(lesson.id, lesson.moduleId, 0, 0, []);
+      }
+      return next;
+    });
     setActiveSection(null);
   }
 
@@ -2278,6 +2322,8 @@ export default function LessonViewer({ lesson, module, prevLesson: _prev, nextLe
               sections={availableSections}
               completedSections={completedSections}
               onEnter={setActiveSection}
+              nextLesson={nextLesson}
+              moduleId={module.id}
             />
           )}
 
