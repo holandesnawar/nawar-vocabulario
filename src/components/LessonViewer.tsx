@@ -140,7 +140,10 @@ function buildVPSteps(
   phraseItems: PhraseItem[],
   exercises: ExerciseItem[],
 ): VPStep[] {
-  const steps: VPStep[] = [{ type: 'words' }];
+  const steps: VPStep[] = [];
+
+  if (vocabItems.length > 0)
+    steps.push({ type: 'words' });
 
   if (phraseItems.length > 0)
     steps.push({ type: 'phrases', items: phraseItems });
