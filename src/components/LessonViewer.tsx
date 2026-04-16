@@ -1897,6 +1897,65 @@ function LezenSection({
    LUISTEREN (DIALOGUE) SECTION
 ───────────────────────────────────────────────────────────────────────────── */
 
+/**
+ * Botón de audio por TTS (text-to-speech del navegador) para diálogos
+ * que no tienen un archivo de audio grabado. No hay scrubber ni skip
+ * porque TTS no se puede "rebobinar"; hace de fallback honesto.
+ */
+function DialogueTTSButton({
+  lines,
+  rate,
+  accentColor,
+}: {
+  lines: { dutch: string }[];
+  rate: number;
+  accentColor: string;
+}) {
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  function toggle() {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return;
+    if (isPlaying) {
+      window.speechSynthesis.cancel();
+      setIsPlaying(false);
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const fullText = lines.map(l => l.dutch).join('. ');
+    const u = new SpeechSynthesisUtterance(fullText);
+    u.lang = 'nl-NL';
+    u.rate = rate;
+    u.onend = () => setIsPlaying(false);
+    window.speechSynthesis.speak(u);
+    setIsPlaying(true);
+  }
+
+  return (
+    <button
+      onClick={toggle}
+      className="w-full flex items-center gap-3 rounded-xl bg-[#F0F5FF] border border-[#DDE6F5] px-3 py-2 text-left hover:bg-[#e0eaff] transition-colors"
+    >
+      <span
+        className="w-8 h-8 rounded-full flex items-center justify-center text-white shrink-0 shadow-sm"
+        style={{ background: accentColor }}
+      >
+        {isPlaying ? (
+          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+          </svg>
+        ) : (
+          <svg className="w-3 h-3 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M8 5v14l11-7z" />
+          </svg>
+        )}
+      </span>
+      <span className="text-[12px] text-[#5A6480] font-medium">
+        {isPlaying ? 'Pausar' : 'Escuchar (voz del navegador)'}
+      </span>
+    </button>
+  );
+}
+
 function LuisterenSection({
   dialogue,
   practiceExercises,
@@ -1946,27 +2005,29 @@ function LuisterenSection({
           )}
         </div>
 
-        {/* Modern audio players — normal + slow, each with scrubber + skip 5s */}
-        {(dialogue.audio?.url || dialogue.slowAudio?.url) && (
-          <div className="space-y-2">
-            {dialogue.audio?.url && (
-              <div>
-                <p className="text-[11px] font-semibold text-[#1D0084] mb-1 uppercase tracking-wide">
-                  Velocidad normal
-                </p>
-                <AudioPlayer src={dialogue.audio.url} compact />
-              </div>
-            )}
-            {dialogue.slowAudio?.url && (
-              <div>
-                <p className="text-[11px] font-semibold text-[#025dc7] mb-1 uppercase tracking-wide">
-                  🐢 Versión lenta
-                </p>
-                <AudioPlayer src={dialogue.slowAudio.url} compact />
-              </div>
+        {/* Modern audio players — scrubber + skip 5s. Si no hay URL, fallback a TTS */}
+        <div className="space-y-2">
+          <div>
+            <p className="text-[11px] font-semibold text-[#1D0084] mb-1 uppercase tracking-wide">
+              Velocidad normal
+            </p>
+            {dialogue.audio?.url ? (
+              <AudioPlayer src={dialogue.audio.url} compact />
+            ) : (
+              <DialogueTTSButton lines={dialogue.lines} rate={0.9} accentColor="#1D0084" />
             )}
           </div>
-        )}
+          <div>
+            <p className="text-[11px] font-semibold text-[#025dc7] mb-1 uppercase tracking-wide">
+              🐢 Versión lenta
+            </p>
+            {dialogue.slowAudio?.url ? (
+              <AudioPlayer src={dialogue.slowAudio.url} compact />
+            ) : (
+              <DialogueTTSButton lines={dialogue.lines} rate={0.6} accentColor="#025dc7" />
+            )}
+          </div>
+        </div>
 
         {/* Conversation — WhatsApp style, alternating sides, sin avatares */}
         <div className="rounded-2xl bg-[#EFF0F3] p-3 space-y-1.5">

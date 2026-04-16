@@ -146,20 +146,16 @@ async function main() {
   // Necesarios para que la sección "Vocabulario" aparezca en el LessonViewer.
   // La app solo muestra sección si hay vocabulary_items, lezen_texts o dialogues.
   // Los practice_items se renderizan DENTRO de la sección de vocabulario.
+  // Vocabulario reducido: 8 palabras, todas usadas en los ejercicios de abajo.
   await post('vocabulary_items', [
-    { lesson_id: lessonId, sort_order: 1,  word_nl: 'boek',   translation_es: 'libro',  article: 'het' },
-    { lesson_id: lessonId, sort_order: 2,  word_nl: 'tafel',  translation_es: 'mesa',   article: 'de'  },
-    { lesson_id: lessonId, sort_order: 3,  word_nl: 'water',  translation_es: 'agua',   article: 'het' },
-    { lesson_id: lessonId, sort_order: 4,  word_nl: 'kat',    translation_es: 'gato',   article: 'de'  },
-    { lesson_id: lessonId, sort_order: 5,  word_nl: 'huis',   translation_es: 'casa',   article: 'het' },
-    { lesson_id: lessonId, sort_order: 6,  word_nl: 'koffie', translation_es: 'café',   article: 'de'  },
-    { lesson_id: lessonId, sort_order: 7,  word_nl: 'hond',   translation_es: 'perro',  article: 'de'  },
-    { lesson_id: lessonId, sort_order: 8,  word_nl: 'brood',  translation_es: 'pan',    article: 'het' },
-    { lesson_id: lessonId, sort_order: 9,  word_nl: 'melk',   translation_es: 'leche',  article: 'de'  },
-    { lesson_id: lessonId, sort_order: 10, word_nl: 'vriend', translation_es: 'amigo',  article: 'de'  },
-    { lesson_id: lessonId, sort_order: 11, word_nl: 'thee',   translation_es: 'té',     article: 'de'  },
-    { lesson_id: lessonId, sort_order: 12, word_nl: 'vis',    translation_es: 'pez',    article: 'de'  },
-    { lesson_id: lessonId, sort_order: 13, word_nl: 'vogel',  translation_es: 'pájaro', article: 'de'  },
+    { lesson_id: lessonId, sort_order: 1, word_nl: 'water',  translation_es: 'agua',   article: 'het' },
+    { lesson_id: lessonId, sort_order: 2, word_nl: 'koffie', translation_es: 'café',   article: 'de'  },
+    { lesson_id: lessonId, sort_order: 3, word_nl: 'melk',   translation_es: 'leche',  article: 'de'  },
+    { lesson_id: lessonId, sort_order: 4, word_nl: 'kat',    translation_es: 'gato',   article: 'de'  },
+    { lesson_id: lessonId, sort_order: 5, word_nl: 'hond',   translation_es: 'perro',  article: 'de'  },
+    { lesson_id: lessonId, sort_order: 6, word_nl: 'vogel',  translation_es: 'pájaro', article: 'de'  },
+    { lesson_id: lessonId, sort_order: 7, word_nl: 'boek',   translation_es: 'libro',  article: 'het' },
+    { lesson_id: lessonId, sort_order: 8, word_nl: 'huis',   translation_es: 'casa',   article: 'het' },
   ]);
   console.log('✅  vocabulary_items × 10 (necesarios para que la sección aparezca)');
 
@@ -196,19 +192,7 @@ async function main() {
     { practice_item_id: id, sort_order: 2, option_text: 'het', is_correct: false },
   ]);
 
-  id = await insertItem(lessonId, {
-    sort_order: 12,
-    type: 'multiple_choice',
-    question_text: '¿Qué artículo lleva "water" (agua)?',
-    correct_answer: 'het',
-    explanation:
-      '"Het water" — sustantivos que denotan materia/sustancia suelen ser neutros.',
-  });
-  await post('practice_options', [
-    { practice_item_id: id, sort_order: 1, option_text: 'het', is_correct: true },
-    { practice_item_id: id, sort_order: 2, option_text: 'de', is_correct: false },
-  ]);
-  console.log('✅  artículo de/het × 3');
+  console.log('✅  artículo de/het × 2');
 
   // ══════════════════════════════════════════════════════════════════════════
   // 2 ─ TRADUCCIÓN NL → ES (multiple choice) × 2
@@ -228,19 +212,7 @@ async function main() {
     { practice_item_id: id, sort_order: 4, option_text: 'la mesa', is_correct: false },
   ]);
 
-  id = await insertItem(lessonId, {
-    sort_order: 21,
-    type: 'multiple_choice',
-    question_text: '¿Qué significa "de kat"?',
-    correct_answer: 'el gato',
-  });
-  await post('practice_options', [
-    { practice_item_id: id, sort_order: 1, option_text: 'el gato', is_correct: true },
-    { practice_item_id: id, sort_order: 2, option_text: 'la casa', is_correct: false },
-    { practice_item_id: id, sort_order: 3, option_text: 'el café', is_correct: false },
-    { practice_item_id: id, sort_order: 4, option_text: 'el amigo', is_correct: false },
-  ]);
-  console.log('✅  traducción NL→ES × 2');
+  console.log('✅  traducción NL→ES × 1');
 
   // ══════════════════════════════════════════════════════════════════════════
   // 3 ─ TRADUCCIÓN ES → NL (multiple choice) × 2
@@ -259,19 +231,7 @@ async function main() {
     { practice_item_id: id, sort_order: 4, option_text: 'brood', is_correct: false },
   ]);
 
-  id = await insertItem(lessonId, {
-    sort_order: 31,
-    type: 'multiple_choice',
-    question_text: '¿Cómo se dice "amigo" en neerlandés?',
-    correct_answer: 'vriend',
-  });
-  await post('practice_options', [
-    { practice_item_id: id, sort_order: 1, option_text: 'vriend', is_correct: true },
-    { practice_item_id: id, sort_order: 2, option_text: 'hond', is_correct: false },
-    { practice_item_id: id, sort_order: 3, option_text: 'kat', is_correct: false },
-    { practice_item_id: id, sort_order: 4, option_text: 'tafel', is_correct: false },
-  ]);
-  console.log('✅  traducción ES→NL × 2');
+  console.log('✅  traducción ES→NL × 1');
 
   // ══════════════════════════════════════════════════════════════════════════
   // 4 ─ COMPLETA LA FRASE CON LA PALABRA CORRECTA × 2
@@ -310,9 +270,8 @@ async function main() {
     { practice_item_id: id, sort_order: 1, left_text: 'water',  right_text: 'agua'  },
     { practice_item_id: id, sort_order: 2, left_text: 'koffie', right_text: 'café'  },
     { practice_item_id: id, sort_order: 3, left_text: 'melk',   right_text: 'leche' },
-    { practice_item_id: id, sort_order: 4, left_text: 'thee',   right_text: 'té'    },
   ]);
-  console.log('✅  emparejar bebidas × 1');
+  console.log('✅  emparejar bebidas × 1 (3 pares)');
 
   // ══════════════════════════════════════════════════════════════════════════
   // 6 ─ EMPAREJAR PALABRA CON EMOJI × 1
@@ -328,10 +287,9 @@ async function main() {
   await post('match_pair_items', [
     { practice_item_id: id, sort_order: 1, left_text: 'kat',   right_text: '🐈' },
     { practice_item_id: id, sort_order: 2, left_text: 'hond',  right_text: '🐕' },
-    { practice_item_id: id, sort_order: 3, left_text: 'vis',   right_text: '🐟' },
-    { practice_item_id: id, sort_order: 4, left_text: 'vogel', right_text: '🐦' },
+    { practice_item_id: id, sort_order: 3, left_text: 'vogel', right_text: '🐦' },
   ]);
-  console.log('✅  emparejar animales × 1');
+  console.log('✅  emparejar animales × 1 (3 pares)');
 
   // ══════════════════════════════════════════════════════════════════════════
   // 7 ─ DELETREAR PALABRA × 2
@@ -387,17 +345,17 @@ async function main() {
   console.log('\n════════════════════════════════════════════════════════════');
   console.log('🎉  TEST ZONE — VOCABULARIO — listo');
   console.log('════════════════════════════════════════════════════════════');
-  console.log('   • vocabulary_items             × 10 (base léxica)');
-  console.log('   • artículo de/het              × 3');
-  console.log('   • traducción NL→ES             × 2');
-  console.log('   • traducción ES→NL             × 2');
-  console.log('   • completa la frase            × 2');
-  console.log('   • emparejar palabra-traducción × 1');
-  console.log('   • emparejar palabra-emoji      × 1');
-  console.log('   • deletrear palabra            × 2');
-  console.log('   • escribir traducción          × 2');
+  console.log('   • vocabulary_items  × 8');
+  console.log('   • artículo de/het   × 2');
+  console.log('   • traducción NL→ES  × 1');
+  console.log('   • traducción ES→NL  × 1');
+  console.log('   • completa frase    × 2');
+  console.log('   • emparejar bebidas × 1 (3 pares)');
+  console.log('   • emparejar animales× 1 (3 pares)');
+  console.log('   • deletrear         × 2');
+  console.log('   • escribir          × 2');
   console.log('════════════════════════════════════════════════════════════');
-  console.log('   Total: 15 ejercicios en 8 formatos distintos.');
+  console.log('   Total: 12 ejercicios, máx 2 por tipo.');
   console.log('════════════════════════════════════════════════════════════\n');
 }
 
