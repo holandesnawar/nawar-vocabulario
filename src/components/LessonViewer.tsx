@@ -119,18 +119,17 @@ function buildClassifyData(items: VocabularyItem[]): { groups: ClassifyGroup[]; 
       items: eligible.map(i => ({ dutch: i.dutch, groupId: i.category })),
     };
   }
-  // Article-based fallback (article comes directly from Supabase, always reliable)
-  const hasDE   = items.some(i => i.article === 'de');
-  const hasHET  = items.some(i => i.article === 'het');
-  const hasNone = items.some(i => i.article === null);
+  // Article-based fallback — only de/het nouns (skip verbs and items without article)
+  const deHetItems = items.filter(i => i.article === 'de' || i.article === 'het');
+  const hasDE  = deHetItems.some(i => i.article === 'de');
+  const hasHET = deHetItems.some(i => i.article === 'het');
   const groups: ClassifyGroup[] = [];
-  if (hasDE)   groups.push({ id: 'de',   label: 'de ...' });
-  if (hasHET)  groups.push({ id: 'het',  label: 'het ...' });
-  if (hasNone) groups.push({ id: 'geen', label: 'Werkwoord' });
+  if (hasDE)  groups.push({ id: 'de',  label: 'de ...' });
+  if (hasHET) groups.push({ id: 'het', label: 'het ...' });
   if (groups.length >= 2) {
     return {
       groups,
-      items: items.map(i => ({ dutch: i.dutch, groupId: i.article ?? 'geen' })),
+      items: deHetItems.map(i => ({ dutch: i.dutch, groupId: i.article! })),
     };
   }
   return null;
@@ -580,6 +579,17 @@ function ExerciseRunner({ exercises, onDone, onBack, hasBackStep, onSubProgress,
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          {hasBackStep && (
+            <button
+              onClick={onBack}
+              className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-white text-[#5A6480] text-[14px] font-semibold border-2 border-[#DDE6F5] hover:border-[#1D0084]/30 hover:text-[#1D0084] transition-colors duration-200"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+              Paso anterior
+            </button>
+          )}
           <button
             onClick={() => {
               setFinished(false);
@@ -663,28 +673,28 @@ function ExerciseRunner({ exercises, onDone, onBack, hasBackStep, onSubProgress,
         </button>
       </div>
 
-      {/* Mobile: button at bottom, back only when possible */}
-      {(answered || reviewMode) && (
-        <div className="space-y-2 md:hidden">
-          {canGoBack && (
-            <button
-              onClick={handlePrev}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white text-[#9CA3AF] text-[13px] font-semibold border border-[#DDE6F5] hover:text-[#1D0084] hover:border-[#1D0084]/30 transition-colors duration-200"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-              </svg>
-              Pregunta anterior
-            </button>
-          )}
+      {/* Mobile: back button always visible when possible; next only after answering */}
+      <div className="space-y-2 md:hidden">
+        {canGoBack && (
+          <button
+            onClick={handlePrev}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white text-[#9CA3AF] text-[13px] font-semibold border border-[#DDE6F5] hover:text-[#1D0084] hover:border-[#1D0084]/30 transition-colors duration-200"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+            {index === 0 ? 'Paso anterior' : 'Pregunta anterior'}
+          </button>
+        )}
+        {(answered || reviewMode) && (
           <button onClick={handleNext} className="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200">
             {reviewMode && isLast ? 'Continuar' : isLast ? 'Siguiente paso' : 'Siguiente pregunta'}
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
             </svg>
           </button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
@@ -713,8 +723,17 @@ function ClassifyStep({ groups, items, onDone, onBack }: { groups: ClassifyGroup
 
   return (
     <div className="space-y-5">
-      {/* Score badge */}
-      <div className="flex justify-end">
+      {/* Top row: back button (always visible) + score badge */}
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => { if (index > 0) { setIndex(i => i - 1); setResult(null); } else { onBack(); } }}
+          className="flex items-center gap-1.5 text-[12px] font-semibold text-[#9CA3AF] hover:text-[#1D0084] transition-colors duration-200"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+          {index > 0 ? 'Anterior' : 'Paso anterior'}
+        </button>
         <div className="flex items-center gap-1 text-[13px] font-bold text-[#16a34a] bg-green-50 border border-green-200 px-3 py-1 rounded-full">
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -760,23 +779,12 @@ function ClassifyStep({ groups, items, onDone, onBack }: { groups: ClassifyGroup
       )}
 
       {result && (
-        <div className="space-y-2">
-          <button
-            onClick={() => { if (index > 0) { setIndex(i => i - 1); setResult(null); } else { onBack(); } }}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white text-[#9CA3AF] text-[13px] font-semibold border border-[#DDE6F5] hover:text-[#1D0084] hover:border-[#1D0084]/30 transition-colors duration-200"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
-            {index > 0 ? 'Ejercicio anterior' : 'Paso anterior'}
-          </button>
-          <button onClick={handleNext} className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200">
-            {index + 1 < queue.length ? 'Siguiente' : 'Siguiente paso'}
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        </div>
+        <button onClick={handleNext} className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200">
+          {index + 1 < queue.length ? 'Siguiente' : 'Siguiente paso'}
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
       )}
     </div>
   );
@@ -902,6 +910,14 @@ function FlashcardSection({
   const [flipped, setFlipped] = useState(false);
   const [knownCount, setKnownCount] = useState(0);
   const [done, setDone] = useState(false);
+  // Prevent showing next card content before flip-back animation completes
+  const [isAdvancing, setIsAdvancing] = useState(false);
+  const advanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => { if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current); };
+  }, []);
 
   const card = queue[index];
   const front = mode === 'nl-es'
@@ -915,25 +931,39 @@ function FlashcardSection({
   }
 
   function handleRepeat() {
-    setQueue(q => {
-      const next = [...q];
-      const [current] = next.splice(index, 1);
-      next.push(current);
-      return next;
-    });
+    if (isAdvancing) return;
+    setIsAdvancing(true);
     setFlipped(false);
+    // Wait for flip-back animation (0.45s) before moving the card to end of queue
+    advanceTimerRef.current = setTimeout(() => {
+      setQueue(q => {
+        const next = [...q];
+        const [current] = next.splice(index, 1);
+        next.push(current);
+        return next;
+      });
+      setIsAdvancing(false);
+    }, 460);
   }
 
   function advance() {
+    if (isAdvancing) return;
+    setIsAdvancing(true);
     setFlipped(false);
-    if (index + 1 >= queue.length) {
-      setDone(true);
-    } else {
-      setIndex(i => i + 1);
-    }
+    // Wait for flip-back animation (0.45s) before showing the next card
+    advanceTimerRef.current = setTimeout(() => {
+      setIsAdvancing(false);
+      if (index + 1 >= queue.length) {
+        setDone(true);
+      } else {
+        setIndex(i => i + 1);
+      }
+    }, 460);
   }
 
   function handleShuffle() {
+    if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
+    setIsAdvancing(false);
     setQueue(q => [...q].sort(() => Math.random() - 0.5));
     setIndex(0);
     setFlipped(false);
@@ -1051,26 +1081,28 @@ function FlashcardSection({
       </div>
 
       {/* Actions */}
-      {flipped ? (
+      {flipped && !isAdvancing ? (
         <div className="grid grid-cols-2 gap-3">
           <button
             onClick={handleRepeat}
-            className="py-3.5 rounded-xl bg-[#FFF5F5] border border-red-100 text-red-600 text-[15px] font-semibold hover:bg-red-50 transition-colors duration-200"
+            disabled={isAdvancing}
+            className="py-3.5 rounded-xl bg-[#FFF5F5] border border-red-100 text-red-600 text-[15px] font-semibold hover:bg-red-50 transition-colors duration-200 disabled:opacity-40"
           >
             🔄 Repasar
           </button>
           <button
             onClick={handleKnown}
-            className="py-3.5 rounded-xl bg-[#F0FFF4] border border-green-200 text-green-700 text-[15px] font-semibold hover:bg-green-50 transition-colors duration-200"
+            disabled={isAdvancing}
+            className="py-3.5 rounded-xl bg-[#F0FFF4] border border-green-200 text-green-700 text-[15px] font-semibold hover:bg-green-50 transition-colors duration-200 disabled:opacity-40"
           >
             ✓ Ya la sé
           </button>
         </div>
-      ) : (
+      ) : !isAdvancing ? (
         <p className="text-center text-[13px] text-[#9CA3AF]">
           Primero mira la tarjeta, luego decide
         </p>
-      )}
+      ) : null}
 
     </div>
   );
