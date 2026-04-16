@@ -10,8 +10,10 @@ import {
 } from '@/lib/courseService';
 import LessonViewer from '@/components/LessonViewer';
 
-// Always server-render so Supabase is queried at request time, not baked at build time.
-export const dynamic = 'force-dynamic';
+// Cacheamos la página 5 minutos. Las modificaciones de contenido en Supabase
+// tardarán hasta 5 min en verse para alumnos que ya habían cargado la página,
+// pero las navegaciones repetidas se sienten instantáneas.
+export const revalidate = 300;
 
 export function generateStaticParams() {
   return getModules().flatMap((module) =>

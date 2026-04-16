@@ -1914,137 +1914,101 @@ function LuisterenSection({
   const [exKey, setExKey] = useState(0);
   const [showTranslation, setShowTranslation] = useState(false);
   const [exercisesDone, setExercisesDone] = useState(false);
-  const [isPlayingNormal, setIsPlayingNormal] = useState(false);
-  const [isPlayingSlow, setIsPlayingSlow] = useState(false);
-  const normalAudioRef = useRef<HTMLAudioElement | null>(null);
-  const slowAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const exercise = practiceExercises[exerciseIndex];
   const pct = step === 'dialogue' ? 0
     : Math.round(((exerciseIndex + (answered ? 1 : 0)) / Math.max(practiceExercises.length, 1)) * 100);
 
+  // Paleta para nombres de hablantes — teal + ámbar, estilo WhatsApp,
+  // distinta del morado/azul de la UI para que se diferencie visualmente.
   const speakerColors: Record<string, string> = {};
-  const colorList = ['#1D0084', '#025dc7'];
+  const colorList = ['#059669', '#D97706'];
   dialogue.lines.forEach(line => {
     if (!speakerColors[line.speaker]) {
       speakerColors[line.speaker] = colorList[Object.keys(speakerColors).length % colorList.length];
     }
   });
 
-  function playAudio(type: 'normal' | 'slow') {
-    const isNormal = type === 'normal';
-    const audioRef = isNormal ? normalAudioRef : slowAudioRef;
-    const src = isNormal ? dialogue.audio?.url : dialogue.slowAudio?.url;
-    const setPlaying = isNormal ? setIsPlayingNormal : setIsPlayingSlow;
-    const otherRef = isNormal ? slowAudioRef : normalAudioRef;
-    const setOtherPlaying = isNormal ? setIsPlayingSlow : setIsPlayingNormal;
-    const isCurrentlyPlaying = isNormal ? isPlayingNormal : isPlayingSlow;
-
-    if (isCurrentlyPlaying) {
-      audioRef.current?.pause();
-      if (audioRef.current) audioRef.current.currentTime = 0;
-      setPlaying(false);
-      return;
-    }
-    otherRef.current?.pause();
-    if (otherRef.current) otherRef.current.currentTime = 0;
-    setOtherPlaying(false);
-
-    if (src) {
-      const audio = new Audio(src);
-      audioRef.current = audio;
-      audio.onended = () => setPlaying(false);
-      audio.play().catch(() => setPlaying(false));
-      setPlaying(true);
-    } else if (typeof window !== 'undefined' && window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-      const fullText = dialogue.lines.map(l => l.dutch).join('. ');
-      const u = new SpeechSynthesisUtterance(fullText);
-      u.lang = 'nl-NL';
-      u.rate = isNormal ? 0.85 : 0.6;
-      u.onend = () => setPlaying(false);
-      window.speechSynthesis.speak(u);
-      setPlaying(true);
-    }
-  }
-
   /* ── Step 1: dialogue view ─────────────────────────────── */
   if (step === 'dialogue') {
+    const firstSpeaker = dialogue.lines[0]?.speaker;
     return (
       <div className="space-y-4">
         <GradientBar pct={0} />
 
-        {/* Header: title + compact audio controls */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="text-[16px] font-bold text-[#1D0084] leading-snug" style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}>
-              {dialogue.title}
-            </h3>
-            {dialogue.context && (
-              <p className="text-[12px] text-[#9CA3AF] mt-0.5">{dialogue.context}</p>
-            )}
-          </div>
-          <div className="flex gap-2 shrink-0">
-            <button
-              onClick={() => playAudio('normal')}
-              title="Velocidad normal"
-              className={`w-9 h-9 flex items-center justify-center rounded-xl border text-[14px] transition-all duration-200 ${
-                isPlayingNormal
-                  ? 'bg-[#1D0084] border-[#1D0084] text-white'
-                  : 'bg-white border-[#DDE6F5] text-[#1D0084] hover:bg-[#F0F5FF]'
-              }`}
-            >
-              {isPlayingNormal
-                ? <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-                : <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>}
-            </button>
-            <button
-              onClick={() => playAudio('slow')}
-              title="Versión lenta"
-              className={`w-9 h-9 flex items-center justify-center rounded-xl border text-[15px] transition-all duration-200 ${
-                isPlayingSlow
-                  ? 'bg-[#025dc7] border-[#025dc7] text-white'
-                  : 'bg-white border-[#DDE6F5] text-[#1D0084] hover:bg-[#F0F5FF]'
-              }`}
-            >
-              🐢
-            </button>
-          </div>
+        {/* Header: title */}
+        <div>
+          <h3 className="text-[16px] font-bold text-[#1D0084] leading-snug" style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}>
+            {dialogue.title}
+          </h3>
+          {dialogue.context && (
+            <p className="text-[12px] text-[#9CA3AF] mt-0.5">{dialogue.context}</p>
+          )}
         </div>
 
-        {/* Conversation bubbles */}
-        <div className="rounded-2xl border border-[#DDE6F5] bg-[#F8FAFF] p-4">
-          <div className="space-y-3">
-            {dialogue.lines.map(line => (
-              <div key={line.id} className="flex gap-3 items-start">
-                {/* Speaker avatar */}
+        {/* Modern audio players — normal + slow, each with scrubber + skip 5s */}
+        {(dialogue.audio?.url || dialogue.slowAudio?.url) && (
+          <div className="space-y-2">
+            {dialogue.audio?.url && (
+              <div>
+                <p className="text-[11px] font-semibold text-[#1D0084] mb-1 uppercase tracking-wide">
+                  Velocidad normal
+                </p>
+                <AudioPlayer src={dialogue.audio.url} compact />
+              </div>
+            )}
+            {dialogue.slowAudio?.url && (
+              <div>
+                <p className="text-[11px] font-semibold text-[#025dc7] mb-1 uppercase tracking-wide">
+                  🐢 Versión lenta
+                </p>
+                <AudioPlayer src={dialogue.slowAudio.url} compact />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Conversation — WhatsApp style, alternating sides, sin avatares */}
+        <div className="rounded-2xl bg-[#EFF0F3] p-3 space-y-1.5">
+          {dialogue.lines.map((line, idx) => {
+            const isLeft = line.speaker === firstSpeaker;
+            const prev = dialogue.lines[idx - 1];
+            const showName = !prev || prev.speaker !== line.speaker;
+            return (
+              <div key={line.id} className={`flex ${isLeft ? 'justify-start' : 'justify-end'}`}>
                 <div
-                  className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[11px] font-black shrink-0 mt-0.5"
-                  style={{ background: speakerColors[line.speaker] ?? '#1D0084' }}
+                  className={`max-w-[80%] rounded-2xl px-3.5 py-2 shadow-sm ${
+                    isLeft ? 'bg-white' : 'bg-[#DCF8C6]'
+                  }`}
                 >
-                  {line.speaker[0]}
-                </div>
-                {/* Text */}
-                <div className="min-w-0 flex-1">
-                  <p className="text-[13px] font-bold text-[#9CA3AF] uppercase tracking-wide leading-none mb-0.5">
-                    {line.speaker}
+                  {showName && (
+                    <p
+                      className="text-[12px] font-bold leading-tight mb-0.5"
+                      style={{ color: speakerColors[line.speaker] ?? '#059669' }}
+                    >
+                      {line.speaker}
+                    </p>
+                  )}
+                  <p className="text-[15px] text-[#111827] leading-snug">
+                    {line.dutch}
                   </p>
-                  <p className="text-[15px] text-[#1D0084] font-semibold leading-snug">{line.dutch}</p>
                   {showTranslation && (
-                    <p className="text-[13px] text-[#9CA3AF] leading-snug mt-0.5 italic">{line.spanish}</p>
+                    <p className="text-[13px] text-[#1e3a8a] font-medium leading-snug mt-1">
+                      {line.spanish}
+                    </p>
                   )}
                 </div>
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
 
-        {/* Toggle translation */}
+        {/* Toggle translation — etiquetas del mismo tamaño */}
         <button
           onClick={() => setShowTranslation(t => !t)}
           className="w-full py-2.5 rounded-xl bg-white border border-[#DDE6F5] text-[#1D0084] text-[13px] font-semibold hover:bg-[#F0F5FF] transition-colors duration-200"
         >
-          {showTranslation ? 'Ocultar traducción' : 'Ver traducción al español'}
+          {showTranslation ? 'Ocultar traducción' : 'Ver traducción'}
         </button>
 
         {/* Action button */}
@@ -2353,13 +2317,28 @@ export default function LessonViewer({ lesson, module, prevLesson: _prev, nextLe
 
           {/* LANDING */}
           {activeSection === null && (
-            <SectionLanding
-              sections={availableSections}
-              completedSections={completedSections}
-              onEnter={setActiveSection}
-              nextLesson={nextLesson}
-              moduleId={module.id}
-            />
+            <>
+              {/* Recordatorio: apunta tus errores (las respuestas no se guardan) */}
+              <div className="rounded-2xl bg-[#FFF8E1] border border-[#F5D96A]/50 px-4 py-3 mb-6 flex gap-3">
+                <span className="text-xl shrink-0" aria-hidden>📝</span>
+                <div className="min-w-0">
+                  <p className="text-[13px] font-semibold text-[#7A5A0E] leading-tight mb-0.5">
+                    Consejo: apunta las palabras que falles
+                  </p>
+                  <p className="text-[12px] text-[#9C793B] leading-snug">
+                    Tus respuestas no se guardan entre sesiones. Llevar un cuaderno con los errores te ayuda a repasarlos después.
+                  </p>
+                </div>
+              </div>
+
+              <SectionLanding
+                sections={availableSections}
+                completedSections={completedSections}
+                onEnter={setActiveSection}
+                nextLesson={nextLesson}
+                moduleId={module.id}
+              />
+            </>
           )}
 
           {/* VOCABULARY — full practice centre */}

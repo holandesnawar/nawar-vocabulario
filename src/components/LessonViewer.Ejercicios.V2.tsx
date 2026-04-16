@@ -304,18 +304,22 @@ function WordCard({ word }: { word: VocabularyItem }) {
 
 /* ── Words step (paginated grid) ── */
 
-function WordsStep({ items, onDone, onSubProgress }: {
+function WordsStep({ items, onDone, onSubProgress, initialPage = 0, onPageChange }: {
   items: VocabularyItem[];
   onDone: () => void;
   onSubProgress?: (done: number, total: number) => void;
+  initialPage?: number;
+  onPageChange?: (page: number) => void;
 }) {
-  const [page, setPage] = useState(0);
   const totalPages = Math.ceil(items.length / VOCAB_PER_PAGE);
+  const safeInitial = Math.min(Math.max(initialPage, 0), Math.max(totalPages - 1, 0));
+  const [page, setPage] = useState(safeInitial);
   const pageItems = items.slice(page * VOCAB_PER_PAGE, (page + 1) * VOCAB_PER_PAGE);
   const isLastPage = page + 1 >= totalPages;
 
   useEffect(() => {
     onSubProgress?.(page + 1, totalPages);
+    onPageChange?.(page);
   }, [page]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
@@ -471,13 +475,16 @@ function PhrasesStep({ items, onDone, onBack, onSubProgress }: {
 
 /* ── Exercise runner (listen / complete / write steps) ── */
 
-function ExerciseRunner({ exercises, onDone, onBack, onSubProgress }: {
+function ExerciseRunner({ exercises, onDone, onBack, onSubProgress, initialIndex = 0, onIndexChange }: {
   exercises: ExerciseItem[];
   onDone: () => void;
   onBack: () => void;
   onSubProgress?: (done: number, total: number) => void;
+  initialIndex?: number;
+  onIndexChange?: (index: number) => void;
 }) {
-  const [index, setIndex] = useState(0);
+  const safeInitial = Math.min(Math.max(initialIndex, 0), Math.max(exercises.length - 1, 0));
+  const [index, setIndex] = useState(safeInitial);
   const [score, setScore] = useState(0);
   const [answered, setAnswered] = useState(false);
   const [exKey, setExKey] = useState(0);
@@ -485,6 +492,7 @@ function ExerciseRunner({ exercises, onDone, onBack, onSubProgress }: {
 
   useEffect(() => {
     onSubProgress?.(index, exercises.length);
+    onIndexChange?.(index);
   }, [index]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleAnswer(correct: boolean) {
@@ -666,6 +674,8 @@ function VocabPracticeSection({
   const [allDone, setAllDone] = useState(false);
   const [runnerKey, setRunnerKey] = useState(0);
   const [subProgress, setSubProgress] = useState<{ done: number; total: number } | undefined>();
+  // Guarda la última posición vista en cada paso para restaurarla al volver atrás.
+  const stepPositionsRef = useRef<Record<number, number>>({});
 
   function handleStepBack() {
     if (stepIndex > 0) {
@@ -679,6 +689,9 @@ function VocabPracticeSection({
     if (stepIndex + 1 >= steps.length) {
       setAllDone(true);
     } else {
+      // Al avanzar, limpiamos cualquier posición guardada del paso siguiente
+      // para que empiece desde el inicio (no queremos restaurar algo viejo de otra sesión).
+      delete stepPositionsRef.current[stepIndex + 1];
       setStepIndex(i => i + 1);
       setRunnerKey(k => k + 1);
     }
@@ -693,7 +706,7 @@ function VocabPracticeSection({
           <p className="text-white/60 text-[14px]">Has repasado todo el vocabulario</p>
         </div>
         <button
-          onClick={() => { setAllDone(false); setStepIndex(0); setSubProgress(undefined); setRunnerKey(k => k + 1); onComplete(); }}
+          onClick={() => { stepPositionsRef.current = {}; setAllDone(false); setStepIndex(0); setSubProgress(undefined); setRunnerKey(k => k + 1); onComplete(); }}
           className="w-full py-3.5 rounded-xl bg-[#F0F5FF] text-[#1D0084] text-[15px] font-semibold border border-[#DDE6F5] hover:bg-[#e0eaff] transition-colors duration-200"
         >
           🔄 Repetir práctica
@@ -709,8 +722,14 @@ function VocabPracticeSection({
       <StepBar steps={steps} current={stepIndex} subProgress={subProgress} />
 
       {step.type === 'words' && (
-        <WordsStep key={runnerKey} items={vocabItems} onDone={handleStepDone}
-          onSubProgress={(done, total) => setSubProgress({ done, total })} />
+        <WordsStep
+          key={runnerKey}
+          items={vocabItems}
+          onDone={handleStepDone}
+          onSubProgress={(done, total) => setSubProgress({ done, total })}
+          initialPage={stepPositionsRef.current[stepIndex] ?? 0}
+          onPageChange={(p) => { stepPositionsRef.current[stepIndex] = p; }}
+        />
       )}
       {step.type === 'phrases' && (
         <PhrasesStep key={runnerKey} items={step.items} onDone={handleStepDone} onBack={handleStepBack}
@@ -723,6 +742,8 @@ function VocabPracticeSection({
           onDone={handleStepDone}
           onBack={handleStepBack}
           onSubProgress={(done, total) => setSubProgress({ done, total })}
+          initialIndex={stepPositionsRef.current[stepIndex] ?? 0}
+          onIndexChange={(i) => { stepPositionsRef.current[stepIndex] = i; }}
         />
       )}
       {step.type === 'classify' && (
