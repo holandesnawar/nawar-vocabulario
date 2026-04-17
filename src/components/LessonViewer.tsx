@@ -501,7 +501,13 @@ function PhrasesStep({ items, onDone, onBack, onSubProgress }: {
   );
 }
 
-/* ── Exercise runner (listen / complete / write steps) ── */
+/* ─────────────────────────────────────────────────────────────────────────────
+   Exercise runner — navegación libre tipo app moderna
+   Sin "finished" modal ni "reviewMode" secreto. Cada ejercicio es un slide.
+   El usuario puede moverse siempre (Anterior/Siguiente/dots) y las respuestas
+   ya dadas se mantienen. Al terminar TODOS, el boton de "Siguiente paso"
+   pasa al step siguiente.
+───────────────────────────────────────────────────────────────────────────── */
 
 function ExerciseRunner({ exercises, onDone, onBack, hasBackStep, onSubProgress, cacheKey }: {
   exercises: ExerciseItem[];
@@ -511,148 +517,99 @@ function ExerciseRunner({ exercises, onDone, onBack, hasBackStep, onSubProgress,
   onSubProgress?: (done: number, total: number) => void;
   cacheKey?: string;
 }) {
-  const storageKey = cacheKey ? `vp-ex-${cacheKey}` : null;
   const answersKey = cacheKey ? `vp-ex-${cacheKey}-data` : null;
+  const indexKey = cacheKey ? `vp-ex-${cacheKey}` : null;
 
-  const cache = useMemo(() => {
-    if (!answersKey || typeof window === 'undefined') return { answers: {} as Record<number, string>, score: 0, completed: false };
+  // Load cached answers once on mount (sessionStorage-safe)
+  const initialAnswers = useMemo<Record<number, string>>(() => {
+    if (!answersKey || typeof window === 'undefined') return {};
     try {
       const raw = sessionStorage.getItem(answersKey);
-      if (!raw) return { answers: {} as Record<number, string>, score: 0, completed: false };
-      const ans = JSON.parse(raw) as Record<number, string>;
-      const completed = exercises.length > 0 && Object.keys(ans).length >= exercises.length;
-      const sc = completed
-        ? exercises.reduce((acc, ex, i) =>
-            ans[i]?.trim().toLowerCase() === ex.correctAnswer?.trim().toLowerCase() ? acc + 1 : acc, 0)
-        : 0;
-      return { answers: ans, score: sc, completed };
-    } catch { return { answers: {} as Record<number, string>, score: 0, completed: false }; }
+      if (!raw) return {};
+      return JSON.parse(raw) as Record<number, string>;
+    } catch { return {}; }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const [answers, setAnswers] = useState<Record<number, string>>(initialAnswers);
   const [index, setIndex] = useState(() => {
-    if (!storageKey) return 0;
+    if (!indexKey || typeof window === 'undefined') return 0;
     try {
-      const n = parseInt(sessionStorage.getItem(storageKey) ?? '0', 10);
-      return Number.isFinite(n) && n < exercises.length ? n : 0;
+      const n = parseInt(sessionStorage.getItem(indexKey) ?? '0', 10);
+      return Number.isFinite(n) && n >= 0 && n < exercises.length ? n : 0;
     } catch { return 0; }
   });
-  const [score, setScore] = useState(cache.score);
-  const [answered, setAnswered] = useState(false);
   const [exKey, setExKey] = useState(0);
-  const [answers, setAnswers] = useState<Record<number, string>>(cache.answers);
-  const [finished, setFinished] = useState(cache.completed);
-  const [reviewMode, setReviewMode] = useState(false);
-  const scoreRef = useRef(cache.score);
 
+  // Computed score from answers map — single source of truth
+  const score = useMemo(() => {
+    return exercises.reduce((acc, ex, i) => {
+      const a = answers[i];
+      if (!a) return acc;
+      const ca = (ex.correctAnswer ?? '').trim().toLowerCase();
+      return a.trim().toLowerCase() === ca ? acc + 1 : acc;
+    }, 0);
+  }, [answers, exercises]);
+
+  const answeredCount = Object.keys(answers).length;
+  const allAnswered = answeredCount >= exercises.length;
+  const isLast = index + 1 >= exercises.length;
+  const canGoBack = index > 0 || !!hasBackStep;
+
+  // Persist index + report progress on every index change
   useEffect(() => {
-    if (storageKey) try { sessionStorage.setItem(storageKey, String(index)); } catch {}
+    if (indexKey) try { sessionStorage.setItem(indexKey, String(index)); } catch {}
     onSubProgress?.(index, exercises.length);
   }, [index]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // In review mode always allow forward navigation regardless of answered state
-  useEffect(() => {
-    if (reviewMode) setAnswered(true);
-  }, [reviewMode, index]);
-
   function handleAnswer(correct: boolean, answer: string) {
-    setAnswered(true);
     setAnswers(prev => {
       const next = { ...prev, [index]: answer };
       if (answersKey) try { sessionStorage.setItem(answersKey, JSON.stringify(next)); } catch {}
       return next;
     });
-    if (correct) { scoreRef.current += 1; setScore(scoreRef.current); }
-    onSubProgress?.(index + 1, exercises.length);
   }
 
-  function handleNext() {
-    if (index + 1 >= exercises.length) {
-      if (reviewMode) {
-        handleFinish();
-      } else {
-        setFinished(true);
-      }
-    } else {
-      const nextIdx = index + 1;
-      setIndex(nextIdx);
-      // In review mode all questions are answered; otherwise check answers map
-      setAnswered(reviewMode || nextIdx in answers);
-      setExKey(k => k + 1);
+  function go(target: number) {
+    if (target < 0) { if (hasBackStep) onBack(); return; }
+    if (target >= exercises.length) {
+      // Finished this step — clear index storage, advance
+      if (indexKey) try { sessionStorage.removeItem(indexKey); } catch {}
+      onDone();
+      return;
     }
+    if (target === index) return;
+    setIndex(target);
+    setExKey(k => k + 1);
   }
 
-  function handleFinish() {
-    if (storageKey) try { sessionStorage.removeItem(storageKey); } catch {}
-    onDone();
-  }
+  function handleNext() { go(index + 1); }
+  function handlePrev() { go(index - 1); }
 
-  function handlePrev() {
-    if (index > 0) {
-      const prevIdx = index - 1;
-      setIndex(prevIdx);
-      setAnswered(reviewMode || prevIdx in answers);
-      setExKey(k => k + 1);
-    } else if (!reviewMode) {
-      onBack();
-    }
-  }
-
-  const isLast = index + 1 >= exercises.length;
-  const canGoBack = index > 0 || (!!hasBackStep && !reviewMode);
-
-  if (finished) {
-    return (
-      <div className="space-y-6 text-center py-4">
-        <div className="text-5xl">{score >= exercises.length * 0.8 ? '🎉' : '📝'}</div>
-        <div>
-          <p className="text-[22px] font-bold text-[#1D0084]">{score} / {exercises.length} correctas</p>
-          <p className="text-[14px] text-[#9CA3AF] mt-1">
-            {score === exercises.length ? '¡Perfecto!' : score >= exercises.length * 0.8 ? '¡Muy bien!' : 'Sigue practicando'}
-          </p>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          {hasBackStep && (
-            <button
-              onClick={onBack}
-              className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-white text-[#5A6480] text-[14px] font-semibold border-2 border-[#DDE6F5] hover:border-[#1D0084]/30 hover:text-[#1D0084] transition-colors duration-200"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-              </svg>
-              Paso anterior
-            </button>
-          )}
-          <button
-            onClick={() => {
-              setFinished(false);
-              setReviewMode(true);
-              setIndex(0);
-              setAnswered(true);
-              setExKey(k => k + 1);
-            }}
-            className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-white text-[#1D0084] text-[14px] font-semibold border-2 border-[#1D0084]/20 hover:border-[#1D0084]/50 transition-colors duration-200"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
-            Revisar respuestas
-          </button>
-          <button
-            onClick={handleFinish}
-            className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-[#1D0084] text-white text-[14px] font-semibold hover:bg-[#025dc7] transition-colors duration-200"
-          >
-            Continuar
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const currentAnswered = index in answers;
 
   return (
     <div className="space-y-4">
+      {/* Progress dots — tappable, color-coded per answer */}
+      <div className="flex items-center gap-1.5">
+        {exercises.map((ex, i) => {
+          const a = answers[i];
+          let cls = 'bg-[#DDE6F5] hover:bg-[#9CA3AF]';
+          if (a !== undefined) {
+            const correct = a.trim().toLowerCase() === (ex.correctAnswer ?? '').trim().toLowerCase();
+            cls = correct ? 'bg-green-500 hover:bg-green-600' : 'bg-red-400 hover:bg-red-500';
+          }
+          if (i === index) cls += ' ring-2 ring-[#1D0084] ring-offset-2';
+          return (
+            <button
+              key={i}
+              onClick={() => go(i)}
+              aria-label={`Ejercicio ${i + 1}`}
+              className={`h-2.5 flex-1 rounded-full transition-all duration-200 ${cls}`}
+            />
+          );
+        })}
+      </div>
+
       {/* Counter + score */}
       <div className="flex justify-between items-center">
         <span className="text-[12px] text-[#9CA3AF] font-medium tabular-nums">
@@ -666,17 +623,13 @@ function ExerciseRunner({ exercises, onDone, onBack, hasBackStep, onSubProgress,
         </div>
       </div>
 
-      {/* Absolute side-nav on desktop — fixed position, never shifts layout */}
+      {/* Exercise content */}
       <div className="relative md:px-[84px]">
-
-        {/* ← Left (desktop) — ghost when disabled */}
         <button
           onClick={canGoBack ? handlePrev : undefined}
-          aria-label="Pregunta anterior"
+          aria-label="Anterior"
           className={`hidden md:flex absolute left-0 top-5 w-11 h-11 items-center justify-center rounded-2xl transition-all duration-200 ${
-            canGoBack
-              ? 'text-[#9CA3AF] hover:bg-[#F0F5FF] hover:text-[#1D0084] cursor-pointer'
-              : 'text-[#E8ECF4] pointer-events-none'
+            canGoBack ? 'text-[#9CA3AF] hover:bg-[#F0F5FF] hover:text-[#1D0084] cursor-pointer' : 'text-[#E8ECF4] pointer-events-none'
           }`}
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -684,19 +637,15 @@ function ExerciseRunner({ exercises, onDone, onBack, hasBackStep, onSubProgress,
           </svg>
         </button>
 
-        {/* Exercise content */}
         <div key={exKey}>
           <ExerciseStep exercise={exercises[index]} onAnswer={handleAnswer} initialAnswer={answers[index]} />
         </div>
 
-        {/* → Right (desktop) — invisible until answered, then glows */}
         <button
-          onClick={answered || reviewMode ? handleNext : undefined}
-          aria-label={isLast ? 'Siguiente paso' : 'Siguiente pregunta'}
+          onClick={handleNext}
+          aria-label={isLast ? 'Siguiente paso' : 'Siguiente ejercicio'}
           className={`hidden md:flex absolute right-0 top-5 w-11 h-11 items-center justify-center rounded-2xl transition-all duration-300 ${
-            answered || reviewMode
-              ? 'bg-[#1D0084] text-white cursor-pointer hover:bg-[#025dc7]'
-              : 'text-[#E8ECF4] pointer-events-none'
+            (currentAnswered || !isLast) ? 'bg-[#1D0084] text-white cursor-pointer hover:bg-[#025dc7]' : 'bg-[#F0F5FF] text-[#1D0084] cursor-pointer hover:bg-[#e0eaff] border border-[#DDE6F5]'
           }`}
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -705,27 +654,43 @@ function ExerciseRunner({ exercises, onDone, onBack, hasBackStep, onSubProgress,
         </button>
       </div>
 
-      {/* Mobile: back button always visible when possible; next only after answering */}
-      <div className="space-y-2 md:hidden">
-        {canGoBack && (
-          <button
-            onClick={handlePrev}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white text-[#9CA3AF] text-[13px] font-semibold border border-[#DDE6F5] hover:text-[#1D0084] hover:border-[#1D0084]/30 transition-colors duration-200"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
-            {index === 0 ? 'Paso anterior' : 'Pregunta anterior'}
-          </button>
-        )}
-        {(answered || reviewMode) && (
-          <button onClick={handleNext} className="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200">
-            {reviewMode && isLast ? 'Continuar' : isLast ? 'Siguiente paso' : 'Siguiente pregunta'}
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        )}
+      {/* Summary when all answered — inline, not a modal trap */}
+      {allAnswered && (
+        <div className="rounded-xl px-4 py-3 bg-[#F0F5FF] border border-[#DDE6F5] flex items-center gap-3">
+          <div className="text-2xl">{score >= exercises.length * 0.8 ? '🎉' : '📝'}</div>
+          <div className="flex-1">
+            <p className="text-[14px] font-bold text-[#1D0084]">{score} / {exercises.length} correctas</p>
+            <p className="text-[12px] text-[#5A6480]">
+              {score === exercises.length ? '¡Perfecto! Puedes revisar o pasar al siguiente paso.' : 'Puedes revisar cualquier ejercicio tocando los puntos.'}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile buttons — always visible */}
+      <div className="flex items-stretch gap-2 md:hidden">
+        <button
+          onClick={handlePrev}
+          disabled={!canGoBack}
+          className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white text-[#5A6480] text-[13px] font-semibold border border-[#DDE6F5] hover:text-[#1D0084] hover:border-[#1D0084]/30 disabled:opacity-40 transition-colors duration-200 shrink-0"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <button
+          onClick={handleNext}
+          className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[15px] font-semibold transition-colors duration-200 ${
+            (currentAnswered || !isLast)
+              ? 'bg-[#1D0084] text-white hover:bg-[#025dc7]'
+              : 'bg-[#F0F5FF] text-[#1D0084] border border-[#DDE6F5] hover:bg-[#e0eaff]'
+          }`}
+        >
+          {isLast ? (currentAnswered || allAnswered ? 'Siguiente paso' : 'Saltar al siguiente paso') : 'Siguiente'}
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
       </div>
     </div>
   );
