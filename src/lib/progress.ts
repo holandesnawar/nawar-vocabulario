@@ -1,4 +1,5 @@
-import type { CourseProgress, LessonProgress, LessonStatus } from './types';
+import type { CourseProgress, Lesson, LessonProgress, LessonStatus } from './types';
+import { getLessonsForModule, getPreviousLessonInOrder } from './courseService';
 
 const KEY = 'nawar_course_progress';
 
@@ -83,4 +84,31 @@ export function getModuleStats(
 export function resetProgress(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(KEY);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   UNLOCK RULES
+   Lineal por defecto: necesitas terminar la anterior para abrir la siguiente.
+   Las lecciones "extras" (Test Zone, etc.) están siempre disponibles.
+───────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Returns true if the lesson is accessible (completed or next-in-line).
+ * Must be called on the client — reads localStorage.
+ */
+export function isLessonUnlocked(lesson: Lesson): boolean {
+  if (lesson.isExtra) return true;
+  const prev = getPreviousLessonInOrder(lesson);
+  if (!prev) return true; // very first lesson of the course
+  return getLessonProgress(prev.id)?.status === 'completed';
+}
+
+/**
+ * Module is unlocked if its first (non-extra) lesson is unlocked.
+ * Used in the home module grid.
+ */
+export function isModuleUnlocked(moduleId: string): boolean {
+  const lessons = getLessonsForModule(moduleId);
+  if (lessons.length === 0) return true;
+  return isLessonUnlocked(lessons[0]);
 }

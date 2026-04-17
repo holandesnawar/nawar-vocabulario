@@ -7,6 +7,7 @@ import {
   getLessonProgress,
   markLessonStarted,
   markLessonCompleted,
+  isLessonUnlocked,
 } from '@/lib/progress';
 import AudioPlayer from './AudioPlayer';
 
@@ -2700,14 +2701,48 @@ interface LessonViewerProps {
 export default function LessonViewer({ lesson, module, prevLesson: _prev, nextLesson }: LessonViewerProps) {
   const [activeSection, setActiveSection] = useState<SectionId | null>(null);
   const [completedSections, setCompletedSections] = useState<Set<SectionId>>(new Set());
+  // Start as null while we check localStorage on the client. Prevents flashing
+  // the locked screen during SSR (when localStorage isn't available).
+  const [unlocked, setUnlocked] = useState<boolean | null>(null);
 
   useEffect(() => {
-    markLessonStarted(lesson.id, lesson.moduleId);
-    const existing = getLessonProgress(lesson.id);
-    if (existing?.status === 'completed') {
-      // Pre-mark all sections as done for returning students
+    const ok = isLessonUnlocked(lesson);
+    setUnlocked(ok);
+    if (ok) {
+      markLessonStarted(lesson.id, lesson.moduleId);
+      const existing = getLessonProgress(lesson.id);
+      if (existing?.status === 'completed') {
+        // Pre-mark all sections as done for returning students
+      }
     }
-  }, [lesson.id, lesson.moduleId]);
+  }, [lesson.id, lesson.moduleId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (unlocked === false) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-6">
+        <div className="max-w-md w-full text-center space-y-5">
+          <div className="text-6xl">🔒</div>
+          <div>
+            <h1 className="text-[22px] font-bold text-[#1D0084]" style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}>
+              Lección bloqueada
+            </h1>
+            <p className="text-[14px] text-[#5A6480] mt-2 leading-snug">
+              Completa las lecciones anteriores antes de abrir esta. Las lecciones se desbloquean en orden para asegurar la progresión.
+            </p>
+          </div>
+          <Link
+            href={`/modulo/${lesson.moduleId}`}
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#1D0084] text-white text-[14px] font-semibold hover:bg-[#025dc7] transition-colors duration-200"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+            Volver al módulo
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   // Build available sections from blocks
   const availableSections: SectionId[] = (() => {

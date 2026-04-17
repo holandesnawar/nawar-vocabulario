@@ -3,34 +3,45 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { getModules, getLessonsForModule } from '@/lib/courseService';
-import { getModuleStats } from '@/lib/progress';
+import { getModuleStats, isModuleUnlocked } from '@/lib/progress';
 import type { CourseModule } from '@/lib/types';
 
 function ModuleCard({ module }: { module: CourseModule }) {
   const lessons = getLessonsForModule(module.id);
   const lessonIds = lessons.map(l => l.id);
   const [stats, setStats] = useState({ completed: 0, inProgress: 0, total: lessonIds.length });
+  const [unlocked, setUnlocked] = useState(true); // optimistic — server render shows unlocked to avoid flash
 
   useEffect(() => {
     setStats(getModuleStats(module.id, lessonIds));
+    setUnlocked(isModuleUnlocked(module.id));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [module.id]);
 
   const pct = stats.total === 0 ? 0 : Math.round((stats.completed / stats.total) * 100);
 
+  const className = unlocked
+    ? "group flex flex-col rounded-2xl border border-[#DDE6F5] hover:border-[#1D0084]/20 hover:shadow-[0_8px_32px_rgba(29,0,132,0.08)] transition-all duration-300 overflow-hidden bg-white"
+    : "flex flex-col rounded-2xl border border-[#E5E7EB] transition-all duration-300 overflow-hidden bg-[#F8F9FA] opacity-70 cursor-not-allowed";
+
+  const Wrapper = unlocked
+    ? ({ children }: { children: React.ReactNode }) => (
+        <Link href={`/modulo/${module.id}`} className={className}>{children}</Link>
+      )
+    : ({ children }: { children: React.ReactNode }) => (
+        <div className={className} aria-disabled="true">{children}</div>
+      );
+
   return (
-    <Link
-      href={`/modulo/${module.id}`}
-      className="group flex flex-col rounded-2xl border border-[#DDE6F5] hover:border-[#1D0084]/20 hover:shadow-[0_8px_32px_rgba(29,0,132,0.08)] transition-all duration-300 overflow-hidden bg-white"
-    >
+    <Wrapper>
       {/* Emoji header */}
       <div
         className="relative flex items-center justify-center py-8 text-5xl overflow-hidden"
-        style={{ background: module.color }}
+        style={{ background: unlocked ? module.color : '#9CA3AF' }}
       >
         <div aria-hidden className="absolute inset-0 dots-dark pointer-events-none" />
-        <span className="relative select-none" style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.25))' }}>
-          {module.emoji}
+        <span className={`relative select-none ${!unlocked ? 'opacity-60' : ''}`} style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.25))' }}>
+          {unlocked ? module.emoji : '🔒'}
         </span>
       </div>
 
@@ -44,19 +55,25 @@ function ModuleCard({ module }: { module: CourseModule }) {
 
         <div>
           <h2
-            className="text-[18px] font-bold text-[#1D0084] group-hover:text-[#025dc7] transition-colors duration-200"
+            className={`text-[18px] font-bold transition-colors duration-200 ${
+              unlocked ? 'text-[#1D0084] group-hover:text-[#025dc7]' : 'text-[#9CA3AF]'
+            }`}
             style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}
           >
             {module.title}
           </h2>
           {module.subtitle && (
-            <p className="text-[12px] font-semibold text-[#025dc7] mt-0.5">{module.subtitle}</p>
+            <p className={`text-[12px] font-semibold mt-0.5 ${unlocked ? 'text-[#025dc7]' : 'text-[#B0B7C3]'}`}>
+              {module.subtitle}
+            </p>
           )}
-          <p className="text-[13px] text-[#9CA3AF] mt-1 leading-snug">{module.description}</p>
+          <p className={`text-[13px] mt-1 leading-snug ${unlocked ? 'text-[#9CA3AF]' : 'text-[#B0B7C3]'}`}>
+            {unlocked ? module.description : 'Termina el módulo anterior para desbloquearlo.'}
+          </p>
         </div>
 
         {/* Progress */}
-        {stats.completed > 0 && (
+        {unlocked && stats.completed > 0 && (
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-[11px] font-medium text-[#9CA3AF]">
               <span>{stats.completed}/{stats.total} lecciones</span>
@@ -71,14 +88,23 @@ function ModuleCard({ module }: { module: CourseModule }) {
           </div>
         )}
 
-        <div className="flex items-center gap-2 text-[13px] font-semibold text-[#025dc7] group-hover:gap-3 transition-all duration-200 pt-1">
-          {stats.completed === stats.total && stats.total > 0 ? 'Repasar' : stats.completed > 0 ? 'Continuar' : 'Empezar'}
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
-          </svg>
-        </div>
+        {unlocked ? (
+          <div className="flex items-center gap-2 text-[13px] font-semibold text-[#025dc7] group-hover:gap-3 transition-all duration-200 pt-1">
+            {stats.completed === stats.total && stats.total > 0 ? 'Repasar' : stats.completed > 0 ? 'Continuar' : 'Empezar'}
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+            </svg>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 text-[13px] font-semibold text-[#9CA3AF] pt-1">
+            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1s3.1 1.39 3.1 3.1v2z" />
+            </svg>
+            Bloqueado
+          </div>
+        )}
       </div>
-    </Link>
+    </Wrapper>
   );
 }
 
