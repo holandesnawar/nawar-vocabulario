@@ -71,20 +71,27 @@ const SECTION_META: Record<SectionId, { label: string; emoji: string; desc: stri
 
 const VOCAB_PER_PAGE = 8;
 
-type VPStepType = 'words' | 'phrases' | 'listen' | 'truefalse' | 'test' | 'complete' | 'order' | 'classify' | 'write' | 'scramble' | 'pairs';
+type VPStepType =
+  | 'words' | 'phrases' | 'listen' | 'truefalse' | 'test' | 'complete'
+  | 'order' | 'classify' | 'write' | 'scramble' | 'pairs'
+  | 'emoji' | 'intruder' | 'letterdash' | 'memory';
 
 const VP_META: Record<VPStepType, { label: string; emoji: string }> = {
-  words:     { label: 'Diccionario',          emoji: '📖' },
-  phrases:   { label: 'Repaso de frases',      emoji: '💬' },
-  listen:    { label: 'Escucha y elige',       emoji: '🎧' },
-  truefalse: { label: 'Verdadero o falso',     emoji: '✅' },
-  test:      { label: 'Selecciona la correcta',emoji: '🧪' },
-  complete:  { label: 'Completa la frase',     emoji: '✏️' },
-  order:     { label: 'Ordena las palabras',   emoji: '🔤' },
-  classify:  { label: 'Clasifica',             emoji: '🗂️' },
-  write:     { label: 'Escribe en neerlandés', emoji: '✍️' },
-  scramble:  { label: 'Deletrea la palabra',   emoji: '🔡' },
-  pairs:     { label: 'Empareja',              emoji: '🔗' },
+  words:      { label: 'Diccionario',           emoji: '📖' },
+  phrases:    { label: 'Repaso de frases',      emoji: '💬' },
+  listen:     { label: 'Escucha y elige',       emoji: '🎧' },
+  truefalse:  { label: 'Verdadero o falso',     emoji: '✅' },
+  test:       { label: 'Selecciona la correcta',emoji: '🧪' },
+  complete:   { label: 'Completa la frase',     emoji: '✏️' },
+  order:      { label: 'Ordena las palabras',   emoji: '🔤' },
+  classify:   { label: 'Clasifica',             emoji: '🗂️' },
+  write:      { label: 'Escribe en neerlandés', emoji: '✍️' },
+  scramble:   { label: 'Deletrea la palabra',   emoji: '🔡' },
+  pairs:      { label: 'Empareja',              emoji: '🔗' },
+  emoji:      { label: 'Toca el emoji',         emoji: '🎯' },
+  intruder:   { label: 'Elige la intrusa',      emoji: '🔎' },
+  letterdash: { label: 'Letras que faltan',     emoji: '🔠' },
+  memory:     { label: 'Memory cards',          emoji: '🃏' },
 };
 
 interface ClassifyGroup { id: string; label: string }
@@ -92,18 +99,23 @@ interface ClassifyItemData { dutch: string; groupId: string }
 
 type VPStep =
   | { type: 'words' }
-  | { type: 'phrases';   items: PhraseItem[] }
-  | { type: 'listen';    exercises: ExerciseItem[] }
-  | { type: 'truefalse'; exercises: ExerciseItem[] }
-  | { type: 'test';      exercises: ExerciseItem[] }
-  | { type: 'complete';  exercises: ExerciseItem[] }
-  | { type: 'order';     exercises: ExerciseItem[] }
-  | { type: 'classify';  groups: ClassifyGroup[]; items: ClassifyItemData[] }
-  | { type: 'write';     exercises: ExerciseItem[] }
-  | { type: 'scramble';  exercises: ExerciseItem[] }
-  | { type: 'pairs';     exercises: ExerciseItem[] };
+  | { type: 'phrases';    items: PhraseItem[] }
+  | { type: 'listen';     exercises: ExerciseItem[] }
+  | { type: 'truefalse';  exercises: ExerciseItem[] }
+  | { type: 'test';       exercises: ExerciseItem[] }
+  | { type: 'complete';   exercises: ExerciseItem[] }
+  | { type: 'order';      exercises: ExerciseItem[] }
+  | { type: 'classify';   groups: ClassifyGroup[]; items: ClassifyItemData[] }
+  | { type: 'write';      exercises: ExerciseItem[] }
+  | { type: 'scramble';   exercises: ExerciseItem[] }
+  | { type: 'pairs';      exercises: ExerciseItem[] }
+  | { type: 'emoji';      exercises: ExerciseItem[] }
+  | { type: 'intruder';   exercises: ExerciseItem[] }
+  | { type: 'letterdash'; exercises: ExerciseItem[] }
+  | { type: 'memory';     exercises: ExerciseItem[] };
 
 function isTrueFalse(e: ExerciseItem): boolean {
+  if (e.type === 'true_false') return true;
   if (e.type !== 'multiple_choice') return false;
   const opts = (e.options ?? []).map(o => o.toLowerCase().trim());
   return opts.length === 2 && (opts.includes('verdadero') || opts.includes('true')) && (opts.includes('falso') || opts.includes('false'));
@@ -183,6 +195,22 @@ function buildVPSteps(
   const pairsEx = exercises.filter(e => e.type === 'match_pairs');
   if (pairsEx.length > 0)
     steps.push({ type: 'pairs', exercises: pairsEx });
+
+  const emojiEx = exercises.filter(e => e.type === 'emoji_choice');
+  if (emojiEx.length > 0)
+    steps.push({ type: 'emoji', exercises: emojiEx });
+
+  const intruderEx = exercises.filter(e => e.type === 'odd_one_out');
+  if (intruderEx.length > 0)
+    steps.push({ type: 'intruder', exercises: intruderEx });
+
+  const letterDashEx = exercises.filter(e => e.type === 'letter_dash');
+  if (letterDashEx.length > 0)
+    steps.push({ type: 'letterdash', exercises: letterDashEx });
+
+  const memoryEx = exercises.filter(e => e.type === 'pair_memory');
+  if (memoryEx.length > 0)
+    steps.push({ type: 'memory', exercises: memoryEx });
 
   return steps;
 }
@@ -876,7 +904,7 @@ function VocabPracticeSection({
         <PhrasesStep key={runnerKey} items={step.items} onDone={handleStepDone} onBack={handleStepBack}
           onSubProgress={(done, total) => setSubProgress({ done, total })} />
       )}
-      {(step.type === 'listen' || step.type === 'truefalse' || step.type === 'test' || step.type === 'complete' || step.type === 'order' || step.type === 'write' || step.type === 'scramble' || step.type === 'pairs') && (
+      {(step.type === 'listen' || step.type === 'truefalse' || step.type === 'test' || step.type === 'complete' || step.type === 'order' || step.type === 'write' || step.type === 'scramble' || step.type === 'pairs' || step.type === 'emoji' || step.type === 'intruder' || step.type === 'letterdash' || step.type === 'memory') && (
         <ExerciseRunner
           key={runnerKey}
           exercises={step.exercises}
@@ -1356,8 +1384,12 @@ function ListenAndChooseExercise({
 }) {
   const [selected, setSelected] = useState<string | null>(initialAnswer ?? null);
   const isAnswered = selected !== null;
+  // Extract Dutch word in quotes for TTS, but DON'T show it in the prompt
   const match = exercise.prompt.match(/"([^"]+)"/);
   const dutchText = match ? match[1] : exercise.prompt;
+  const visiblePrompt = match
+    ? exercise.prompt.replace(/\s*[:：]?\s*"[^"]+"\s*\.?\s*$/, '').trim() || 'Escucha y elige la respuesta correcta'
+    : exercise.prompt;
 
   // Shuffle options once per exercise
   const shuffledOptions = useMemo(() => {
@@ -1393,7 +1425,7 @@ function ListenAndChooseExercise({
       <div className="rounded-2xl p-5 border border-[#DDE6F5] bg-white space-y-4">
         <div>
           <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-widest mb-2">Escucha y elige</p>
-          <p className="text-[17px] font-semibold text-[#1D0084] leading-snug">{exercise.prompt}</p>
+          <p className="text-[17px] font-semibold text-[#1D0084] leading-snug">{visiblePrompt}</p>
         </div>
         {exercise.audio?.url ? (
           <AudioPlayer src={exercise.audio.url} compact />
@@ -1742,6 +1774,397 @@ function MatchPairsExercise({ exercise, onAnswer }: { exercise: ExerciseItem; on
   );
 }
 
+/* ────────────────────────────────────────────────────────────────────────────
+   Test Lab formats: true_false, emoji_choice, odd_one_out, letter_dash, pair_memory
+──────────────────────────────────────────────────────────────────────────── */
+
+function TrueFalseExercise({
+  exercise,
+  onAnswer,
+  initialAnswer,
+}: {
+  exercise: ExerciseItem;
+  onAnswer: (correct: boolean, answer: string) => void;
+  initialAnswer?: string;
+}) {
+  const correct = (exercise.correctAnswer ?? '').toLowerCase().trim();
+  const init = (initialAnswer ?? '').toLowerCase().trim();
+  const [selected, setSelected] = useState<'verdadero' | 'falso' | null>(
+    init === 'verdadero' || init === 'falso' ? (init as 'verdadero' | 'falso') : null
+  );
+  const isAnswered = selected !== null;
+
+  function pick(ans: 'verdadero' | 'falso') {
+    if (isAnswered) return;
+    setSelected(ans);
+    onAnswer(ans === correct, ans);
+  }
+
+  function styleFor(ans: 'verdadero' | 'falso') {
+    const base = 'py-8 rounded-2xl text-[18px] font-bold border-2 flex flex-col items-center gap-2 transition-all duration-200';
+    const isGreen = ans === 'verdadero';
+    if (!isAnswered) {
+      return `${base} ${isGreen
+        ? 'bg-green-50 border-green-300 text-green-700 hover:bg-green-100 active:scale-[0.98]'
+        : 'bg-red-50 border-red-300 text-red-700 hover:bg-red-100 active:scale-[0.98]'}`;
+    }
+    if (selected === ans && correct === ans) return `${base} bg-green-500 border-green-600 text-white`;
+    if (selected === ans && correct !== ans) return `${base} bg-red-500 border-red-600 text-white`;
+    if (correct === ans) return `${base} bg-green-100 border-green-400 text-green-800`;
+    return `${base} bg-gray-50 border-gray-200 text-gray-400`;
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-2xl p-5 border border-[#DDE6F5] bg-white">
+        <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-widest mb-2">¿Es verdadero o falso?</p>
+        <p className="text-[20px] font-bold text-[#1D0084] leading-snug text-center py-2">{exercise.prompt}</p>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <button onClick={() => pick('verdadero')} disabled={isAnswered} className={styleFor('verdadero')}>
+          <span className="text-3xl">✓</span>
+          Verdadero
+        </button>
+        <button onClick={() => pick('falso')} disabled={isAnswered} className={styleFor('falso')}>
+          <span className="text-3xl">✗</span>
+          Falso
+        </button>
+      </div>
+      {isAnswered && (
+        <div className={`rounded-xl px-4 py-3 text-[14px] font-medium ${
+          selected === correct
+            ? 'bg-green-50 text-green-800 border border-green-200'
+            : 'bg-red-50 text-red-700 border border-red-200'
+        }`}>
+          {selected === correct
+            ? '✓ ¡Correcto!'
+            : `✗ La respuesta correcta era: ${correct === 'verdadero' ? 'Verdadero' : 'Falso'}`}
+          {exercise.explanation && <p className="mt-1 text-[13px] opacity-80">{exercise.explanation}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EmojiChoiceExercise({
+  exercise,
+  onAnswer,
+  initialAnswer,
+}: {
+  exercise: ExerciseItem;
+  onAnswer: (correct: boolean, answer: string) => void;
+  initialAnswer?: string;
+}) {
+  const [selected, setSelected] = useState<string | null>(initialAnswer ?? null);
+  const isAnswered = selected !== null;
+  const options = exercise.options ?? [];
+
+  function pick(opt: string) {
+    if (isAnswered) return;
+    setSelected(opt);
+    onAnswer(opt === exercise.correctAnswer, opt);
+  }
+
+  function styleFor(opt: string) {
+    const base = 'aspect-square rounded-2xl border-2 flex items-center justify-center text-6xl transition-all duration-200';
+    if (!isAnswered) return `${base} bg-[#F0F5FF] border-[#DDE6F5] hover:border-[#025dc7]/50 hover:bg-[#e8f0ff] active:scale-[0.95]`;
+    if (opt === exercise.correctAnswer) return `${base} bg-green-50 border-green-400`;
+    if (opt === selected) return `${base} bg-red-50 border-red-400`;
+    return `${base} bg-gray-50 border-gray-200 opacity-50`;
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-2xl p-5 border border-[#DDE6F5] bg-white">
+        <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-widest mb-2">Toca el emoji que corresponde a:</p>
+        <p className="text-[24px] font-bold text-[#1D0084] leading-snug text-center py-2">{exercise.prompt}</p>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        {options.map(opt => (
+          <button key={opt} onClick={() => pick(opt)} disabled={isAnswered} className={styleFor(opt)}>
+            {opt}
+          </button>
+        ))}
+      </div>
+      {isAnswered && (
+        <div className={`rounded-xl px-4 py-3 text-[14px] font-medium ${
+          selected === exercise.correctAnswer
+            ? 'bg-green-50 text-green-800 border border-green-200'
+            : 'bg-red-50 text-red-700 border border-red-200'
+        }`}>
+          {selected === exercise.correctAnswer
+            ? '✓ ¡Correcto!'
+            : `✗ El correcto era ${exercise.correctAnswer}`}
+          {exercise.explanation && <p className="mt-1 text-[13px] opacity-80">{exercise.explanation}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function OddOneOutExercise({
+  exercise,
+  onAnswer,
+  initialAnswer,
+}: {
+  exercise: ExerciseItem;
+  onAnswer: (correct: boolean, answer: string) => void;
+  initialAnswer?: string;
+}) {
+  const [selected, setSelected] = useState<string | null>(initialAnswer ?? null);
+  const isAnswered = selected !== null;
+  const options = exercise.options ?? [];
+
+  function pick(opt: string) {
+    if (isAnswered) return;
+    setSelected(opt);
+    onAnswer(opt === exercise.correctAnswer, opt);
+  }
+
+  function styleFor(opt: string) {
+    const base = 'py-6 rounded-2xl border-2 text-[17px] font-bold transition-all duration-200';
+    if (!isAnswered) return `${base} bg-[#F0F5FF] border-[#DDE6F5] text-[#1D0084] hover:border-[#025dc7]/50 hover:bg-[#e8f0ff] active:scale-[0.97]`;
+    if (opt === exercise.correctAnswer) return `${base} bg-green-50 border-green-400 text-green-800`;
+    if (opt === selected) return `${base} bg-red-50 border-red-400 text-red-700`;
+    return `${base} bg-gray-50 border-gray-200 text-gray-400`;
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-2xl p-5 border border-[#DDE6F5] bg-white">
+        <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-widest mb-2">Elige la intrusa</p>
+        <p className="text-[17px] font-semibold text-[#1D0084] leading-snug">{exercise.prompt}</p>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        {options.map(opt => (
+          <button key={opt} onClick={() => pick(opt)} disabled={isAnswered} className={styleFor(opt)}>
+            {opt}
+          </button>
+        ))}
+      </div>
+      {isAnswered && (
+        <div className={`rounded-xl px-4 py-3 text-[14px] font-medium ${
+          selected === exercise.correctAnswer
+            ? 'bg-green-50 text-green-800 border border-green-200'
+            : 'bg-red-50 text-red-700 border border-red-200'
+        }`}>
+          {selected === exercise.correctAnswer
+            ? '✓ ¡Correcto!'
+            : `✗ La intrusa era: "${exercise.correctAnswer}"`}
+          {exercise.explanation && <p className="mt-1 text-[13px] opacity-80">{exercise.explanation}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * LetterDashExercise
+ * Muestra la palabra con algunas letras ocultas (k_ff_e). El alumno
+ * escribe SOLO la palabra completa en el input. Pista visual + audio TTS.
+ */
+function LetterDashExercise({
+  exercise,
+  onAnswer,
+  initialAnswer,
+}: {
+  exercise: ExerciseItem;
+  onAnswer: (correct: boolean, answer: string) => void;
+  initialAnswer?: string;
+}) {
+  const target = (exercise.correctAnswer ?? '').trim();
+  const [value, setValue] = useState(initialAnswer ?? '');
+  const [submitted, setSubmitted] = useState(initialAnswer !== undefined && initialAnswer !== '');
+
+  // Compute which letter positions to hide (~40% of letters, deterministic per exercise)
+  const masked = useMemo(() => {
+    if (!target) return '';
+    const seed = exercise.id.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+    const indices: number[] = [];
+    for (let i = 0; i < target.length; i++) {
+      // Skip first letter as a hint, then mask every ~2nd letter using seed
+      if (i === 0) continue;
+      if (((i + seed) % 2) === 0) indices.push(i);
+    }
+    // Ensure at least 1 masked
+    if (indices.length === 0 && target.length > 1) indices.push(target.length - 1);
+    return target.split('').map((ch, i) => (indices.includes(i) ? '_' : ch)).join(' ');
+  }, [exercise.id, target]);
+
+  const isCorrect = value.trim().toLowerCase() === target.toLowerCase();
+
+  function handleSubmit() {
+    if (submitted || !value.trim()) return;
+    setSubmitted(true);
+    onAnswer(isCorrect, value.trim());
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-2xl p-5 border border-[#DDE6F5] bg-white space-y-3">
+        <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-widest">Letras que faltan</p>
+        <p className="text-[15px] text-[#1D0084] font-medium leading-snug">{exercise.prompt}</p>
+        <div className="text-center py-3">
+          <p className="text-[34px] font-bold text-[#1D0084] tracking-[0.4em] tabular-nums" style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}>
+            {masked}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 justify-center">
+          <button
+            onClick={() => speakDutch(target)}
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#F0F5FF] text-[#025dc7] text-[12px] font-semibold border border-[#DDE6F5] hover:bg-[#e0eaff]"
+          >
+            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+            Escuchar pista
+          </button>
+        </div>
+      </div>
+      <input
+        type="text"
+        value={value}
+        onChange={e => setValue(e.target.value)}
+        disabled={submitted}
+        onKeyDown={e => { if (e.key === 'Enter' && !submitted) handleSubmit(); }}
+        placeholder="Escribe la palabra completa…"
+        className={`w-full px-4 py-3.5 rounded-xl text-[16px] font-medium border outline-none transition-colors duration-200 ${
+          submitted
+            ? isCorrect
+              ? 'bg-green-50 border-green-400 text-green-800'
+              : 'bg-red-50 border-red-400 text-red-700'
+            : 'bg-white border-[#DDE6F5] text-[#1D0084] focus:border-[#025dc7]'
+        }`}
+      />
+      {!submitted && (
+        <button
+          onClick={handleSubmit}
+          disabled={!value.trim()}
+          className="w-full py-3 rounded-xl bg-[#1D0084] text-white text-[14px] font-semibold hover:bg-[#025dc7] disabled:bg-[#DDE6F5] disabled:text-[#9CA3AF] transition-colors duration-200"
+        >
+          Comprobar
+        </button>
+      )}
+      {submitted && (
+        <div className={`rounded-xl px-4 py-3 text-[14px] font-medium ${
+          isCorrect
+            ? 'bg-green-50 text-green-800 border border-green-200'
+            : 'bg-red-50 text-red-700 border border-red-200'
+        }`}>
+          {isCorrect ? '✓ ¡Correcto!' : `✗ La palabra era: "${target}"`}
+          {exercise.explanation && <p className="mt-1 text-[13px] opacity-80">{exercise.explanation}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * PairMemoryExercise — clásico juego de memoria.
+ * 2N cartas boca abajo; descubre 2 a la vez; si coinciden (NL↔ES) se quedan
+ * descubiertas. Cuando todas están emparejadas, el ejercicio se completa.
+ * Reutiliza `pairs` (igual que MatchPairs) — left=NL, right=ES.
+ */
+function PairMemoryExercise({ exercise, onAnswer }: { exercise: ExerciseItem; onAnswer: (correct: boolean, answer: string) => void }) {
+  const pairs = exercise.pairs ?? [];
+
+  type Card = { id: string; pairKey: string; text: string; side: 'left' | 'right' };
+  const cards = useMemo<Card[]>(() => {
+    const arr: Card[] = [];
+    pairs.forEach((p, i) => {
+      arr.push({ id: `L-${i}`, pairKey: String(i), text: p.left, side: 'left' });
+      arr.push({ id: `R-${i}`, pairKey: String(i), text: p.right, side: 'right' });
+    });
+    // Fisher-Yates shuffle, deterministic per exercise
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }, [exercise.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const [revealed, setRevealed] = useState<string[]>([]); // currently flipped (max 2)
+  const [matched, setMatched] = useState<Set<string>>(new Set()); // matched pairKeys
+  const [attempts, setAttempts] = useState(0);
+  const [done, setDone] = useState(false);
+
+  function tryFlip(card: Card) {
+    if (done) return;
+    if (matched.has(card.pairKey)) return;
+    if (revealed.includes(card.id)) return;
+    if (revealed.length >= 2) return;
+
+    const next = [...revealed, card.id];
+    setRevealed(next);
+    if (next.length === 2) {
+      setAttempts(a => a + 1);
+      const [aId, bId] = next;
+      const a = cards.find(c => c.id === aId)!;
+      const b = cards.find(c => c.id === bId)!;
+      const isMatch = a.pairKey === b.pairKey && a.side !== b.side;
+      setTimeout(() => {
+        if (isMatch) {
+          const newMatched = new Set(matched);
+          newMatched.add(a.pairKey);
+          setMatched(newMatched);
+          setRevealed([]);
+          if (newMatched.size === pairs.length) {
+            setDone(true);
+            const finalAttempts = attempts + 1;
+            const perfect = finalAttempts === pairs.length;
+            onAnswer(perfect, String(finalAttempts));
+          }
+        } else {
+          setRevealed([]);
+        }
+      }, isMatch ? 350 : 700);
+    }
+  }
+
+  function cardClass(card: Card) {
+    const isRevealed = revealed.includes(card.id) || matched.has(card.pairKey);
+    const isMatched = matched.has(card.pairKey);
+    const base = 'aspect-[3/4] rounded-xl border-2 flex items-center justify-center text-center px-2 text-[13px] font-semibold transition-all duration-300 select-none';
+    if (isMatched) return `${base} bg-green-50 border-green-300 text-green-800`;
+    if (isRevealed) return `${base} bg-white border-[#1D0084] text-[#1D0084] shadow-sm`;
+    return `${base} bg-[#1D0084] border-[#1D0084] text-white hover:bg-[#025dc7] active:scale-[0.97] cursor-pointer`;
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-2xl p-5 border border-[#DDE6F5] bg-white">
+        <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-widest mb-1">Memory cards</p>
+        <p className="text-[17px] font-semibold text-[#1D0084]">{exercise.prompt}</p>
+        <p className="text-[12px] text-[#9CA3AF] mt-1">{matched.size}/{pairs.length} encontradas · {attempts} intentos</p>
+      </div>
+      <div className="grid grid-cols-4 gap-2">
+        {cards.map(card => {
+          const isRevealed = revealed.includes(card.id) || matched.has(card.pairKey);
+          return (
+            <button
+              key={card.id}
+              onClick={() => tryFlip(card)}
+              disabled={matched.has(card.pairKey) || done}
+              className={cardClass(card)}
+            >
+              {isRevealed ? card.text : '?'}
+            </button>
+          );
+        })}
+      </div>
+      {done && (
+        <div className={`rounded-xl px-4 py-3 text-[14px] font-medium ${
+          attempts === pairs.length
+            ? 'bg-green-50 text-green-800 border border-green-200'
+            : 'bg-[#FFF7ED] text-orange-700 border border-orange-200'
+        }`}>
+          {attempts === pairs.length
+            ? `🎉 ¡Perfecto, sin errores! (${attempts} intentos)`
+            : `✓ Completado con ${attempts} intentos (mínimo: ${pairs.length})`}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ExerciseStep({
   exercise,
   onAnswer,
@@ -1758,6 +2181,11 @@ function ExerciseStep({
   if (exercise.type === 'order_sentence') return <OrderSentenceExercise exercise={exercise} onAnswer={onAnswer} />;
   if (exercise.type === 'word_scramble') return <WordScrambleExercise exercise={exercise} onAnswer={onAnswer} />;
   if (exercise.type === 'match_pairs') return <MatchPairsExercise exercise={exercise} onAnswer={onAnswer} />;
+  if (exercise.type === 'true_false') return <TrueFalseExercise exercise={exercise} onAnswer={onAnswer} initialAnswer={initialAnswer} />;
+  if (exercise.type === 'emoji_choice') return <EmojiChoiceExercise exercise={exercise} onAnswer={onAnswer} initialAnswer={initialAnswer} />;
+  if (exercise.type === 'odd_one_out') return <OddOneOutExercise exercise={exercise} onAnswer={onAnswer} initialAnswer={initialAnswer} />;
+  if (exercise.type === 'letter_dash') return <LetterDashExercise exercise={exercise} onAnswer={onAnswer} initialAnswer={initialAnswer} />;
+  if (exercise.type === 'pair_memory') return <PairMemoryExercise exercise={exercise} onAnswer={onAnswer} />;
   return null;
 }
 

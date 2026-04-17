@@ -1,23 +1,10 @@
 /**
  * seed-test-zone-vocab.mjs
  *
- * Crea la lección "🧪 Test Zone — Vocabulario" con muestras de varios
- * formatos de ejercicio centrados en vocabulario (palabras sueltas).
- *
- * Objetivo: que puedas probar cada formato y decidir cuál es mejor
- * pedagógicamente para tus alumnos.
- *
- * Formatos incluidos:
- *   1. Artículo correcto (de/het) × 3
- *   2. Traducción NL→ES (multiple choice) × 2
- *   3. Traducción ES→NL (multiple choice) × 2
- *   4. Completa la frase con la palabra correcta × 2
- *   5. Emparejar palabra con traducción × 1
- *   6. Emparejar palabra con emoji × 1
- *   7. Deletrear palabra × 2
- *   8. Escribir traducción × 2
- *
- * Total: 15 ejercicios, 8 formatos distintos.
+ * Crea la lección "🧪 Test Zone — Vocabulario" con UN ejercicio por formato
+ * para que se pueda valorar cada uno sin repetición. Algunos formatos tienen
+ * 2 si el contenido es claramente diferente (p.ej. emparejar bebidas vs
+ * emparejar animales).
  *
  * Idempotente — borra y recrea si ya existe.
  *
@@ -126,7 +113,6 @@ async function main() {
       await del('practice_options', `practice_item_id=in.(${ids})`);
       await del('practice_items', `lesson_id=eq.${lessonId}`);
     }
-    // Vocabulary items también se limpian para recrear desde cero
     await del('vocabulary_items', `lesson_id=eq.${lessonId}`);
     console.log(`✅  Lección existente, ID: ${lessonId} — limpiada\n`);
   } else {
@@ -143,10 +129,6 @@ async function main() {
   }
 
   // ── 3. Vocabulary items ───────────────────────────────────────────────────
-  // Necesarios para que la sección "Vocabulario" aparezca en el LessonViewer.
-  // La app solo muestra sección si hay vocabulary_items, lezen_texts o dialogues.
-  // Los practice_items se renderizan DENTRO de la sección de vocabulario.
-  // Vocabulario reducido: 8 palabras, todas usadas en los ejercicios de abajo.
   await post('vocabulary_items', [
     { lesson_id: lessonId, sort_order: 1, word_nl: 'water',  translation_es: 'agua',   article: 'het' },
     { lesson_id: lessonId, sort_order: 2, word_nl: 'koffie', translation_es: 'café',   article: 'de'  },
@@ -157,303 +139,17 @@ async function main() {
     { lesson_id: lessonId, sort_order: 7, word_nl: 'boek',   translation_es: 'libro',  article: 'het' },
     { lesson_id: lessonId, sort_order: 8, word_nl: 'huis',   translation_es: 'casa',   article: 'het' },
   ]);
-  console.log('✅  vocabulary_items × 10 (necesarios para que la sección aparezca)');
+  console.log('✅  vocabulary_items × 8');
 
   let id;
 
   // ══════════════════════════════════════════════════════════════════════════
-  // 1 ─ ARTÍCULO CORRECTO (de / het) × 3
-  //     Para cada sustantivo, elige el artículo
+  // 1 ─ ESCUCHA Y ELIGE  (TTS, sin revelar la palabra en el prompt)
+  //     El componente lee la palabra entre comillas pero la oculta del texto
+  //     visible. Por eso el prompt incluye "hond" (TTS la usa).
   // ══════════════════════════════════════════════════════════════════════════
-
   id = await insertItem(lessonId, {
     sort_order: 10,
-    type: 'multiple_choice',
-    question_text: '¿Qué artículo lleva "boek" (libro)?',
-    correct_answer: 'het',
-    explanation:
-      '"Het boek" — los sustantivos neutros (diminutivos, palabras que acaban en -je, -um, muchas palabras abstractas) suelen llevar "het".',
-  });
-  await post('practice_options', [
-    { practice_item_id: id, sort_order: 1, option_text: 'het', is_correct: true },
-    { practice_item_id: id, sort_order: 2, option_text: 'de', is_correct: false },
-  ]);
-
-  id = await insertItem(lessonId, {
-    sort_order: 11,
-    type: 'multiple_choice',
-    question_text: '¿Qué artículo lleva "tafel" (mesa)?',
-    correct_answer: 'de',
-    explanation:
-      '"De tafel" — la mayoría de sustantivos en neerlandés llevan "de" (aproximadamente el 75%).',
-  });
-  await post('practice_options', [
-    { practice_item_id: id, sort_order: 1, option_text: 'de', is_correct: true },
-    { practice_item_id: id, sort_order: 2, option_text: 'het', is_correct: false },
-  ]);
-
-  console.log('✅  artículo de/het × 2');
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // 2 ─ TRADUCCIÓN NL → ES (multiple choice) × 2
-  // ══════════════════════════════════════════════════════════════════════════
-
-  id = await insertItem(lessonId, {
-    sort_order: 20,
-    type: 'multiple_choice',
-    question_text: '¿Qué significa "het boek"?',
-    correct_answer: 'el libro',
-    hint: 'Piensa en palabras parecidas en alemán o inglés.',
-  });
-  await post('practice_options', [
-    { practice_item_id: id, sort_order: 1, option_text: 'el libro', is_correct: true },
-    { practice_item_id: id, sort_order: 2, option_text: 'el perro', is_correct: false },
-    { practice_item_id: id, sort_order: 3, option_text: 'el agua', is_correct: false },
-    { practice_item_id: id, sort_order: 4, option_text: 'la mesa', is_correct: false },
-  ]);
-
-  console.log('✅  traducción NL→ES × 1');
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // 3 ─ TRADUCCIÓN ES → NL (multiple choice) × 2
-  // ══════════════════════════════════════════════════════════════════════════
-
-  id = await insertItem(lessonId, {
-    sort_order: 30,
-    type: 'multiple_choice',
-    question_text: '¿Cómo se dice "agua" en neerlandés?',
-    correct_answer: 'water',
-  });
-  await post('practice_options', [
-    { practice_item_id: id, sort_order: 1, option_text: 'water', is_correct: true },
-    { practice_item_id: id, sort_order: 2, option_text: 'melk', is_correct: false },
-    { practice_item_id: id, sort_order: 3, option_text: 'koffie', is_correct: false },
-    { practice_item_id: id, sort_order: 4, option_text: 'brood', is_correct: false },
-  ]);
-
-  console.log('✅  traducción ES→NL × 1');
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // 4 ─ COMPLETA LA FRASE CON LA PALABRA CORRECTA × 2
-  // ══════════════════════════════════════════════════════════════════════════
-
-  await insertItem(lessonId, {
-    sort_order: 40,
-    type: 'fill_blank',
-    question_text: '☕ Ik drink _____ in de ochtend.',
-    correct_answer: 'koffie',
-    hint: 'Una bebida oscura y amarga muy común.',
-    explanation: '"Koffie" = café. "In de ochtend" = por la mañana.',
-  });
-
-  await insertItem(lessonId, {
-    sort_order: 41,
-    type: 'fill_blank',
-    question_text: '🐾 De _____ slaapt op de bank.',
-    correct_answer: 'kat',
-    hint: 'Felino doméstico.',
-    explanation: '"De kat" = el gato. "Op de bank" = en el sofá.',
-  });
-  console.log('✅  completa frase × 2');
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // 5 ─ EMPAREJAR PALABRA CON TRADUCCIÓN × 1
-  // ══════════════════════════════════════════════════════════════════════════
-
-  id = await insertItem(lessonId, {
-    sort_order: 50,
-    type: 'match_pairs',
-    question_text: 'Une cada bebida con su traducción. Todas son bebidas, ¡ojo!',
-    correct_answer: '',
-  });
-  await post('match_pair_items', [
-    { practice_item_id: id, sort_order: 1, left_text: 'water',  right_text: 'agua'  },
-    { practice_item_id: id, sort_order: 2, left_text: 'koffie', right_text: 'café'  },
-    { practice_item_id: id, sort_order: 3, left_text: 'melk',   right_text: 'leche' },
-  ]);
-  console.log('✅  emparejar bebidas × 1 (3 pares)');
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // 6 ─ EMPAREJAR PALABRA CON EMOJI × 1
-  //     Versión visual — memoria asociativa
-  // ══════════════════════════════════════════════════════════════════════════
-
-  id = await insertItem(lessonId, {
-    sort_order: 51,
-    type: 'match_pairs',
-    question_text: 'Une cada animal con su emoji. Todos son animales.',
-    correct_answer: '',
-  });
-  await post('match_pair_items', [
-    { practice_item_id: id, sort_order: 1, left_text: 'kat',   right_text: '🐈' },
-    { practice_item_id: id, sort_order: 2, left_text: 'hond',  right_text: '🐕' },
-    { practice_item_id: id, sort_order: 3, left_text: 'vogel', right_text: '🐦' },
-  ]);
-  console.log('✅  emparejar animales × 1 (3 pares)');
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // 7 ─ DELETREAR PALABRA × 2
-  // ══════════════════════════════════════════════════════════════════════════
-
-  await insertItem(lessonId, {
-    sort_order: 60,
-    type: 'word_scramble',
-    question_text:
-      'Ordena estas letras para formar una bebida:\nI - F - K - E - O - F',
-    correct_answer: 'koffie',
-    hint: 'Empieza por "k". Bebida oscura muy popular.',
-    explanation: '"De koffie" — artículo "de".',
-  });
-
-  await insertItem(lessonId, {
-    sort_order: 61,
-    type: 'word_scramble',
-    question_text:
-      'Ordena las letras para formar una persona:\nE - D - R - V - N - I',
-    correct_answer: 'vriend',
-    hint: 'Relación cercana fuera de la familia.',
-    explanation: '"De vriend" — artículo "de". Femenino: "de vriendin".',
-  });
-  console.log('✅  deletrear × 2');
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // 8 ─ ESCRIBIR TRADUCCIÓN × 2
-  //     Producción libre — más difícil, exige memoria activa
-  // ══════════════════════════════════════════════════════════════════════════
-
-  await insertItem(lessonId, {
-    sort_order: 70,
-    type: 'write_answer',
-    question_text: 'Escribe en neerlandés (con artículo):\n"el libro"',
-    correct_answer: 'het boek',
-    hint: 'Recuerda incluir el artículo correcto.',
-    explanation: '"Het boek" — los sustantivos neutros llevan "het".',
-  });
-
-  await insertItem(lessonId, {
-    sort_order: 71,
-    type: 'write_answer',
-    question_text: 'Escribe en neerlandés (con artículo):\n"la casa"',
-    correct_answer: 'het huis',
-    hint: 'No olvides el artículo. Ojo: en neerlandés puede ser distinto al español.',
-    explanation:
-      '"Het huis" — aunque en español es femenino, en neerlandés es neutro.',
-  });
-  console.log('✅  escribir traducción × 2');
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // 9 ─ VERDADERO / FALSO × 2
-  //     Dos botones grandes, ritmo rápido
-  // ══════════════════════════════════════════════════════════════════════════
-
-  await insertItem(lessonId, {
-    sort_order: 80,
-    type: 'true_false',
-    question_text: '"De kat" significa "el gato"',
-    correct_answer: 'verdadero',
-    explanation: '"De kat" = "el gato". Correcto.',
-  });
-
-  await insertItem(lessonId, {
-    sort_order: 81,
-    type: 'true_false',
-    question_text: '"Het water" significa "la leche"',
-    correct_answer: 'falso',
-    explanation: '"Het water" = "el agua". "La leche" sería "de melk".',
-  });
-  console.log('✅  verdadero/falso × 2');
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // 10 ─ TOCA EL EMOJI × 2
-  //      Grid 2x2 con emojis grandes
-  // ══════════════════════════════════════════════════════════════════════════
-
-  id = await insertItem(lessonId, {
-    sort_order: 82,
-    type: 'emoji_choice',
-    question_text: 'hond',
-    correct_answer: '🐕',
-    explanation: '"De hond" = el perro.',
-  });
-  await post('practice_options', [
-    { practice_item_id: id, sort_order: 1, option_text: '🐕', is_correct: true  },
-    { practice_item_id: id, sort_order: 2, option_text: '🐈', is_correct: false },
-    { practice_item_id: id, sort_order: 3, option_text: '🐦', is_correct: false },
-    { practice_item_id: id, sort_order: 4, option_text: '🐟', is_correct: false },
-  ]);
-
-  id = await insertItem(lessonId, {
-    sort_order: 83,
-    type: 'emoji_choice',
-    question_text: 'koffie',
-    correct_answer: '☕',
-    explanation: '"De koffie" = el café.',
-  });
-  await post('practice_options', [
-    { practice_item_id: id, sort_order: 1, option_text: '☕', is_correct: true  },
-    { practice_item_id: id, sort_order: 2, option_text: '🥛', is_correct: false },
-    { practice_item_id: id, sort_order: 3, option_text: '💧', is_correct: false },
-    { practice_item_id: id, sort_order: 4, option_text: '🍵', is_correct: false },
-  ]);
-  console.log('✅  toca el emoji × 2');
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // 11 ─ ELIGE LA INTRUSA × 2
-  //      4 palabras, 3 del mismo tipo, 1 no pertenece
-  // ══════════════════════════════════════════════════════════════════════════
-
-  id = await insertItem(lessonId, {
-    sort_order: 84,
-    type: 'odd_one_out',
-    question_text: 'Tres de estas palabras son bebidas. Una no. Toca la intrusa.',
-    correct_answer: 'kat',
-    explanation: '"Kat" = gato. Las otras son water (agua), koffie (café) y melk (leche).',
-  });
-  await post('practice_options', [
-    { practice_item_id: id, sort_order: 1, option_text: 'water',  is_correct: false },
-    { practice_item_id: id, sort_order: 2, option_text: 'koffie', is_correct: false },
-    { practice_item_id: id, sort_order: 3, option_text: 'kat',    is_correct: true  },
-    { practice_item_id: id, sort_order: 4, option_text: 'melk',   is_correct: false },
-  ]);
-
-  id = await insertItem(lessonId, {
-    sort_order: 85,
-    type: 'odd_one_out',
-    question_text: 'Tres de estas palabras son animales. Una no. Toca la intrusa.',
-    correct_answer: 'boek',
-    explanation: '"Boek" = libro. Las otras son hond (perro), vogel (pájaro) y kat (gato).',
-  });
-  await post('practice_options', [
-    { practice_item_id: id, sort_order: 1, option_text: 'hond',  is_correct: false },
-    { practice_item_id: id, sort_order: 2, option_text: 'vogel', is_correct: false },
-    { practice_item_id: id, sort_order: 3, option_text: 'boek',  is_correct: true  },
-    { practice_item_id: id, sort_order: 4, option_text: 'kat',   is_correct: false },
-  ]);
-  console.log('✅  elige la intrusa × 2');
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // 12 ─ ESCUCHA Y ELIGE × 2
-  //      Audio TTS del navegador (SpeechSynthesis). El componente extrae
-  //      la palabra NL entre comillas del prompt y la reproduce.
-  // ══════════════════════════════════════════════════════════════════════════
-
-  id = await insertItem(lessonId, {
-    sort_order: 86,
-    type: 'listen_and_choose',
-    question_text: 'Escucha en neerlandés y elige la traducción: "koffie"',
-    correct_answer: 'café',
-    hint: 'Bebida caliente, oscura, muy popular en los Países Bajos.',
-    explanation: '"Koffie" = café. Se lee aproximadamente como "kófi".',
-  });
-  await post('practice_options', [
-    { practice_item_id: id, sort_order: 1, option_text: 'café',  is_correct: true  },
-    { practice_item_id: id, sort_order: 2, option_text: 'leche', is_correct: false },
-    { practice_item_id: id, sort_order: 3, option_text: 'agua',  is_correct: false },
-    { practice_item_id: id, sort_order: 4, option_text: 'té',    is_correct: false },
-  ]);
-
-  id = await insertItem(lessonId, {
-    sort_order: 87,
     type: 'listen_and_choose',
     question_text: 'Escucha y elige el animal correcto: "hond"',
     correct_answer: 'perro',
@@ -465,28 +161,233 @@ async function main() {
     { practice_item_id: id, sort_order: 3, option_text: 'pájaro', is_correct: false },
     { practice_item_id: id, sort_order: 4, option_text: 'pez',    is_correct: false },
   ]);
-  console.log('✅  escucha y elige × 2');
+  console.log('✅  listen_and_choose × 1');
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 2 ─ VERDADERO / FALSO
+  // ══════════════════════════════════════════════════════════════════════════
+  await insertItem(lessonId, {
+    sort_order: 20,
+    type: 'true_false',
+    question_text: '"De kat" significa "el gato"',
+    correct_answer: 'verdadero',
+    explanation: '"De kat" = "el gato". Correcto.',
+  });
+  console.log('✅  true_false × 1');
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 3 ─ SELECCIONA LA CORRECTA (multiple_choice — 3 sub-preguntas distintas)
+  // ══════════════════════════════════════════════════════════════════════════
+  id = await insertItem(lessonId, {
+    sort_order: 30,
+    type: 'multiple_choice',
+    question_text: '¿Qué artículo lleva "boek" (libro)?',
+    correct_answer: 'het',
+    explanation: '"Het boek" — los sustantivos neutros suelen llevar "het".',
+  });
+  await post('practice_options', [
+    { practice_item_id: id, sort_order: 1, option_text: 'het', is_correct: true  },
+    { practice_item_id: id, sort_order: 2, option_text: 'de',  is_correct: false },
+  ]);
+
+  id = await insertItem(lessonId, {
+    sort_order: 31,
+    type: 'multiple_choice',
+    question_text: '¿Qué significa "het boek"?',
+    correct_answer: 'el libro',
+    hint: 'Piensa en palabras parecidas en alemán o inglés.',
+  });
+  await post('practice_options', [
+    { practice_item_id: id, sort_order: 1, option_text: 'el libro', is_correct: true  },
+    { practice_item_id: id, sort_order: 2, option_text: 'el perro', is_correct: false },
+    { practice_item_id: id, sort_order: 3, option_text: 'el agua',  is_correct: false },
+    { practice_item_id: id, sort_order: 4, option_text: 'la mesa',  is_correct: false },
+  ]);
+
+  id = await insertItem(lessonId, {
+    sort_order: 32,
+    type: 'multiple_choice',
+    question_text: '¿Cómo se dice "agua" en neerlandés?',
+    correct_answer: 'water',
+  });
+  await post('practice_options', [
+    { practice_item_id: id, sort_order: 1, option_text: 'water',  is_correct: true  },
+    { practice_item_id: id, sort_order: 2, option_text: 'melk',   is_correct: false },
+    { practice_item_id: id, sort_order: 3, option_text: 'koffie', is_correct: false },
+    { practice_item_id: id, sort_order: 4, option_text: 'brood',  is_correct: false },
+  ]);
+  console.log('✅  multiple_choice × 3');
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 4 ─ COMPLETA LA FRASE (fill_blank)
+  // ══════════════════════════════════════════════════════════════════════════
+  await insertItem(lessonId, {
+    sort_order: 40,
+    type: 'fill_blank',
+    question_text: '☕ Ik drink _____ in de ochtend.',
+    correct_answer: 'koffie',
+    hint: 'Una bebida oscura y amarga muy común.',
+    explanation: '"Koffie" = café. "In de ochtend" = por la mañana.',
+  });
+  console.log('✅  fill_blank × 1');
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 5 ─ ORDENA LAS PALABRAS (order_sentence) — NUEVO en el Test Zone
+  //     Tap-to-build estilo Duolingo. correct_answer = frase completa.
+  //     Las opciones contienen las palabras correctas + algunos distractores.
+  // ══════════════════════════════════════════════════════════════════════════
+  id = await insertItem(lessonId, {
+    sort_order: 50,
+    type: 'order_sentence',
+    question_text: 'Forma la frase: "Bebo agua por la mañana."',
+    correct_answer: 'Ik drink water in de ochtend',
+    explanation: '"Ik drink water in de ochtend" = "Bebo agua por la mañana".',
+  });
+  await post('practice_options', [
+    { practice_item_id: id, sort_order: 1, option_text: 'Ik',       is_correct: false },
+    { practice_item_id: id, sort_order: 2, option_text: 'drink',    is_correct: false },
+    { practice_item_id: id, sort_order: 3, option_text: 'water',    is_correct: false },
+    { practice_item_id: id, sort_order: 4, option_text: 'in',       is_correct: false },
+    { practice_item_id: id, sort_order: 5, option_text: 'de',       is_correct: false },
+    { practice_item_id: id, sort_order: 6, option_text: 'ochtend',  is_correct: false },
+    { practice_item_id: id, sort_order: 7, option_text: 'koffie',   is_correct: false }, // distractor
+    { practice_item_id: id, sort_order: 8, option_text: 'avond',    is_correct: false }, // distractor
+  ]);
+  console.log('✅  order_sentence × 1 (NUEVO)');
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 6 ─ ESCRIBE EN NEERLANDÉS (write_answer)
+  // ══════════════════════════════════════════════════════════════════════════
+  await insertItem(lessonId, {
+    sort_order: 60,
+    type: 'write_answer',
+    question_text: 'Escribe en neerlandés (con artículo):\n"el libro"',
+    correct_answer: 'het boek',
+    hint: 'Recuerda incluir el artículo correcto.',
+    explanation: '"Het boek" — los sustantivos neutros llevan "het".',
+  });
+  console.log('✅  write_answer × 1');
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 7 ─ DELETREA LA PALABRA (word_scramble)
+  // ══════════════════════════════════════════════════════════════════════════
+  await insertItem(lessonId, {
+    sort_order: 70,
+    type: 'word_scramble',
+    question_text:
+      'Ordena estas letras para formar una bebida:\nI - F - K - E - O - F',
+    correct_answer: 'koffie',
+    hint: 'Empieza por "k". Bebida oscura muy popular.',
+    explanation: '"De koffie" — artículo "de".',
+  });
+  console.log('✅  word_scramble × 1');
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 8 ─ LETRAS QUE FALTAN (letter_dash) — NUEVO
+  //     correct_answer = palabra completa. El componente decide qué letras
+  //     ocultar mostrando "_" en su lugar (k_ff_e). El alumno escribe la
+  //     palabra entera en el input.
+  // ══════════════════════════════════════════════════════════════════════════
+  await insertItem(lessonId, {
+    sort_order: 80,
+    type: 'letter_dash',
+    question_text: 'Bebida oscura y amarga muy popular en los Países Bajos.',
+    correct_answer: 'koffie',
+    hint: 'Empieza por "k".',
+    explanation: '"De koffie" = el café. Pronunciado "kófi".',
+  });
+  console.log('✅  letter_dash × 1 (NUEVO)');
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 9 ─ EMPAREJA — bebidas (match_pairs)
+  // ══════════════════════════════════════════════════════════════════════════
+  id = await insertItem(lessonId, {
+    sort_order: 90,
+    type: 'match_pairs',
+    question_text: 'Une cada bebida con su traducción.',
+    correct_answer: '',
+  });
+  await post('match_pair_items', [
+    { practice_item_id: id, sort_order: 1, left_text: 'water',  right_text: 'agua'  },
+    { practice_item_id: id, sort_order: 2, left_text: 'koffie', right_text: 'café'  },
+    { practice_item_id: id, sort_order: 3, left_text: 'melk',   right_text: 'leche' },
+  ]);
+  console.log('✅  match_pairs × 1');
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 10 ─ MEMORY CARDS (pair_memory) — NUEVO
+  //      Reusa match_pair_items. Render en grid 2x4 con cartas boca abajo.
+  // ══════════════════════════════════════════════════════════════════════════
+  id = await insertItem(lessonId, {
+    sort_order: 100,
+    type: 'pair_memory',
+    question_text: 'Encuentra las parejas NL ↔ ES girando las cartas.',
+    correct_answer: '',
+  });
+  await post('match_pair_items', [
+    { practice_item_id: id, sort_order: 1, left_text: 'kat',   right_text: 'gato'   },
+    { practice_item_id: id, sort_order: 2, left_text: 'hond',  right_text: 'perro'  },
+    { practice_item_id: id, sort_order: 3, left_text: 'vogel', right_text: 'pájaro' },
+    { practice_item_id: id, sort_order: 4, left_text: 'huis',  right_text: 'casa'   },
+  ]);
+  console.log('✅  pair_memory × 1 (NUEVO, 4 pares)');
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 11 ─ TOCA EL EMOJI (emoji_choice)
+  // ══════════════════════════════════════════════════════════════════════════
+  id = await insertItem(lessonId, {
+    sort_order: 110,
+    type: 'emoji_choice',
+    question_text: 'koffie',
+    correct_answer: '☕',
+    explanation: '"De koffie" = el café.',
+  });
+  await post('practice_options', [
+    { practice_item_id: id, sort_order: 1, option_text: '☕', is_correct: true  },
+    { practice_item_id: id, sort_order: 2, option_text: '🥛', is_correct: false },
+    { practice_item_id: id, sort_order: 3, option_text: '💧', is_correct: false },
+    { practice_item_id: id, sort_order: 4, option_text: '🍵', is_correct: false },
+  ]);
+  console.log('✅  emoji_choice × 1');
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 12 ─ ELIGE LA INTRUSA (odd_one_out)
+  // ══════════════════════════════════════════════════════════════════════════
+  id = await insertItem(lessonId, {
+    sort_order: 120,
+    type: 'odd_one_out',
+    question_text: 'Tres de estas palabras son bebidas. Una no. Toca la intrusa.',
+    correct_answer: 'kat',
+    explanation: '"Kat" = gato. Las otras son water (agua), koffie (café) y melk (leche).',
+  });
+  await post('practice_options', [
+    { practice_item_id: id, sort_order: 1, option_text: 'water',  is_correct: false },
+    { practice_item_id: id, sort_order: 2, option_text: 'koffie', is_correct: false },
+    { practice_item_id: id, sort_order: 3, option_text: 'kat',    is_correct: true  },
+    { practice_item_id: id, sort_order: 4, option_text: 'melk',   is_correct: false },
+  ]);
+  console.log('✅  odd_one_out × 1');
 
   // ── Resumen ───────────────────────────────────────────────────────────────
   console.log('\n════════════════════════════════════════════════════════════');
   console.log('🎉  TEST ZONE — VOCABULARIO — listo');
   console.log('════════════════════════════════════════════════════════════');
-  console.log('   • vocabulary_items    × 8');
-  console.log('   • artículo de/het     × 2');
-  console.log('   • traducción NL→ES    × 1');
-  console.log('   • traducción ES→NL    × 1');
-  console.log('   • completa frase      × 2');
-  console.log('   • emparejar bebidas   × 1 (3 pares)');
-  console.log('   • emparejar animales  × 1 (3 pares)');
-  console.log('   • deletrear           × 2');
-  console.log('   • escribir            × 2');
-  console.log('   • verdadero / falso   × 2');
-  console.log('   • toca el emoji       × 2');
-  console.log('   • elige la intrusa    × 2');
-  console.log('   ─── FORMATO NUEVO ──────────────');
-  console.log('   • escucha y elige     × 2 (TTS del navegador)');
+  console.log('   • vocabulary_items     × 8');
+  console.log('   • listen_and_choose    × 1');
+  console.log('   • true_false           × 1');
+  console.log('   • multiple_choice      × 3');
+  console.log('   • fill_blank           × 1');
+  console.log('   • order_sentence       × 1   (NUEVO)');
+  console.log('   • write_answer         × 1');
+  console.log('   • word_scramble        × 1');
+  console.log('   • letter_dash          × 1   (NUEVO)');
+  console.log('   • match_pairs          × 1');
+  console.log('   • pair_memory          × 1   (NUEVO)');
+  console.log('   • emoji_choice         × 1');
+  console.log('   • odd_one_out          × 1');
+  console.log('   ─── classify (auto, de/het) — generado por la app');
   console.log('════════════════════════════════════════════════════════════');
-  console.log('   Total: 20 ejercicios en 12 formatos distintos.');
+  console.log('   Total: 14 ejercicios en 13 formatos distintos.');
   console.log('════════════════════════════════════════════════════════════\n');
 }
 

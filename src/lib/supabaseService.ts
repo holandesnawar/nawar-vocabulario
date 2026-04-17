@@ -415,7 +415,7 @@ async function assembleLessonBlocks(lessonRow: DbLesson, moduleSlug: string): Pr
     if (localDialogue) blocks.push(localDialogue);
   }
   if (practiceRows?.length) {
-    const knownTypes = ['multiple_choice', 'write_answer', 'listen_and_choose', 'order_sentence', 'fill_blank', 'word_scramble', 'match_pairs', 'true_false', 'emoji_choice', 'odd_one_out'];
+    const knownTypes = ['multiple_choice', 'write_answer', 'listen_and_choose', 'order_sentence', 'fill_blank', 'word_scramble', 'match_pairs', 'true_false', 'emoji_choice', 'odd_one_out', 'letter_dash', 'pair_memory'];
     const exercises = (practiceRows as DbPracticeItem[])
       .map(r => mapExercise(r, (optionRows ?? []) as DbPracticeOption[], (matchPairRows ?? []) as DbMatchPairItem[]))
       .filter(e => e.prompt && knownTypes.includes(e.type));

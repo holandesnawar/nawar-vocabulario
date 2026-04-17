@@ -52,7 +52,9 @@ export type ExerciseType =
   | 'match_pairs'
   | 'true_false'   // declaración V/F con 2 botones grandes
   | 'emoji_choice' // elegir el emoji correcto entre 4
-  | 'odd_one_out'; // 4 palabras, una no pertenece
+  | 'odd_one_out'  // 4 palabras, una no pertenece
+  | 'letter_dash'  // palabra con letras faltantes (k_ff_e → koffie)
+  | 'pair_memory'; // memory cards: emparejar NL↔ES girando cartas
 
 export interface ExerciseItem {
   id: string;
