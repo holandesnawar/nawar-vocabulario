@@ -49,7 +49,14 @@ export default function AudioPlayer({ src, title, compact = false }: AudioPlayer
   const skip = useCallback((secs: number) => {
     const audio = audioRef.current;
     if (!audio) return;
-    audio.currentTime = Math.max(0, Math.min(audio.currentTime + secs, audio.duration || 0));
+    // El bug anterior: si audio.duration aún era NaN (no había cargado metadata),
+    // `|| 0` devolvía 0 y Math.min(X, 0) mandaba currentTime al 0 siempre. Ahora
+    // usamos una cota alta segura y el navegador la clampa internamente a la
+    // duración real cuando reproduce.
+    const upperBound = isFinite(audio.duration) && audio.duration > 0
+      ? audio.duration
+      : Number.MAX_SAFE_INTEGER;
+    audio.currentTime = Math.max(0, Math.min(audio.currentTime + secs, upperBound));
   }, []);
 
   const handleSeek = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {

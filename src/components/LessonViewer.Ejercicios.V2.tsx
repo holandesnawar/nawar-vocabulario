@@ -495,6 +495,42 @@ function ExerciseRunner({ exercises, onDone, onBack, onSubProgress, initialIndex
     onIndexChange?.(index);
   }, [index]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Atajos de teclado ← → para navegar en desktop
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      // Ignorar si el usuario está escribiendo en un input/textarea
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+      if (e.key === 'ArrowLeft') { e.preventDefault(); handlePrev(); }
+      else if (e.key === 'ArrowRight') { e.preventDefault(); handleNext(); }
+    }
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index, answered, exercises.length]);
+
+  // Gestos swipe en móvil para navegar
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+  function onTouchStart(e: React.TouchEvent) {
+    if (e.touches.length !== 1) return;
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  }
+  function onTouchEnd(e: React.TouchEvent) {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+    const endX = e.changedTouches[0].clientX;
+    const endY = e.changedTouches[0].clientY;
+    const dx = endX - touchStartX.current;
+    const dy = endY - touchStartY.current;
+    touchStartX.current = null;
+    touchStartY.current = null;
+    // Solo activa swipe horizontal, ignora scrolls verticales
+    if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx)) return;
+    if (dx < 0) handleNext(); // swipe izquierda → siguiente
+    else handlePrev();        // swipe derecha → anterior
+  }
+
   function handleAnswer(correct: boolean) {
     setAnswered(true);
     if (correct) { scoreRef.current += 1; setScore(scoreRef.current); }
@@ -521,36 +557,79 @@ function ExerciseRunner({ exercises, onDone, onBack, onSubProgress, initialIndex
     }
   }
 
+  function handleJumpTo(target: number) {
+    if (target < 0 || target >= exercises.length || target === index) return;
+    setIndex(target);
+    setAnswered(false);
+    setExKey(k => k + 1);
+  }
+
   return (
     <div className="space-y-5">
-      {/* Score badge */}
-      <div className="flex justify-end">
-        <div className="flex items-center gap-1.5 text-[13px] font-bold text-[#16a34a] bg-green-50 border border-green-200 px-3 py-1 rounded-full">
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+      {/* Header: dots navegables + contador + botón salir */}
+      <div className="flex items-center gap-3">
+        {/* Dots de cada ejercicio (tappables para saltar) */}
+        <div className="flex items-center gap-1.5 flex-1">
+          {exercises.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => handleJumpTo(i)}
+              aria-label={`Ir al ejercicio ${i + 1}`}
+              className={`rounded-full transition-all duration-200 ${
+                i === index
+                  ? 'w-5 h-2 bg-[#1D0084]'
+                  : 'w-2 h-2 bg-[#DDE6F5] hover:bg-[#9CA3AF]'
+              }`}
+            />
+          ))}
+        </div>
+        {/* Posición + score + salir */}
+        <span className="text-[12px] font-semibold text-[#5A6480] tabular-nums">
+          {index + 1} / {exercises.length}
+        </span>
+        <div className="flex items-center gap-1 text-[13px] font-bold text-[#16a34a] bg-green-50 border border-green-200 px-2 py-0.5 rounded-full">
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>
           {score}
         </div>
+        <button
+          onClick={onBack}
+          aria-label="Salir del paso"
+          title="Salir al menú anterior"
+          className="w-7 h-7 rounded-full flex items-center justify-center text-[#9CA3AF] hover:text-[#1D0084] hover:bg-[#F0F5FF] transition-colors duration-200"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       </div>
 
-      <div key={exKey}>
+      {/* Contenedor del ejercicio con gestos swipe */}
+      <div
+        key={exKey}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+        className="touch-pan-y"
+      >
         <ExerciseStep exercise={exercises[index]} onAnswer={handleAnswer} />
       </div>
 
-      {/* Navegación siempre disponible (no es un examen — el alumno puede moverse libremente) */}
-      <div className="space-y-2">
+      {/* Navegación: botones siempre visibles + dots arriba para saltar */}
+      <div className="flex items-stretch gap-2">
         <button
           onClick={handlePrev}
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white text-[#9CA3AF] text-[13px] font-semibold border border-[#DDE6F5] hover:text-[#1D0084] hover:border-[#1D0084]/30 transition-colors duration-200"
+          title={index > 0 ? 'Ejercicio anterior' : 'Volver al paso anterior'}
+          className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white text-[#5A6480] text-[13px] font-semibold border border-[#DDE6F5] hover:text-[#1D0084] hover:border-[#1D0084]/30 transition-colors duration-200 shrink-0"
         >
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
-          {index > 0 ? 'Ejercicio anterior' : 'Paso anterior'}
+          <span className="hidden sm:inline">{index > 0 ? 'Anterior' : 'Paso anterior'}</span>
         </button>
         <button
           onClick={handleNext}
-          className={`w-full flex items-center justify-center gap-2 py-4 rounded-xl text-[15px] font-semibold transition-colors duration-200 ${
+          className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[15px] font-semibold transition-colors duration-200 ${
             answered
               ? 'bg-[#1D0084] text-white hover:bg-[#025dc7]'
               : 'bg-white text-[#1D0084] border border-[#DDE6F5] hover:bg-[#F0F5FF]'
