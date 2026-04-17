@@ -70,7 +70,7 @@ const SECTION_META: Record<SectionId, { label: string; emoji: string; desc: stri
 
 const VOCAB_PER_PAGE = 8;
 
-type VPStepType = 'words' | 'phrases' | 'listen' | 'truefalse' | 'test' | 'complete' | 'order' | 'classify' | 'write' | 'scramble' | 'pairs';
+type VPStepType = 'words' | 'phrases' | 'listen' | 'truefalse' | 'test' | 'complete' | 'order' | 'classify' | 'write' | 'scramble' | 'pairs' | 'emoji' | 'intruder';
 
 const VP_META: Record<VPStepType, { label: string; emoji: string }> = {
   words:     { label: 'Diccionario',          emoji: '📖' },
@@ -84,6 +84,8 @@ const VP_META: Record<VPStepType, { label: string; emoji: string }> = {
   write:     { label: 'Escribe en neerlandés', emoji: '✍️' },
   scramble:  { label: 'Deletrea la palabra',   emoji: '🔡' },
   pairs:     { label: 'Empareja',              emoji: '🔗' },
+  emoji:     { label: 'Toca el emoji',         emoji: '🎯' },
+  intruder:  { label: 'Elige la intrusa',      emoji: '🔎' },
 };
 
 interface ClassifyGroup { id: string; label: string }
@@ -100,9 +102,12 @@ type VPStep =
   | { type: 'classify';  groups: ClassifyGroup[]; items: ClassifyItemData[] }
   | { type: 'write';     exercises: ExerciseItem[] }
   | { type: 'scramble';  exercises: ExerciseItem[] }
-  | { type: 'pairs';     exercises: ExerciseItem[] };
+  | { type: 'pairs';     exercises: ExerciseItem[] }
+  | { type: 'emoji';     exercises: ExerciseItem[] }
+  | { type: 'intruder';  exercises: ExerciseItem[] };
 
 function isTrueFalse(e: ExerciseItem): boolean {
+  if (e.type === 'true_false') return true;
   if (e.type !== 'multiple_choice') return false;
   const opts = (e.options ?? []).map(o => o.toLowerCase().trim());
   return opts.length === 2 && (opts.includes('verdadero') || opts.includes('true')) && (opts.includes('falso') || opts.includes('false'));
@@ -180,6 +185,14 @@ function buildVPSteps(
   const pairsEx = exercises.filter(e => e.type === 'match_pairs');
   if (pairsEx.length > 0)
     steps.push({ type: 'pairs', exercises: pairsEx });
+
+  const emojiEx = exercises.filter(e => e.type === 'emoji_choice');
+  if (emojiEx.length > 0)
+    steps.push({ type: 'emoji', exercises: emojiEx });
+
+  const intruderEx = exercises.filter(e => e.type === 'odd_one_out');
+  if (intruderEx.length > 0)
+    steps.push({ type: 'intruder', exercises: intruderEx });
 
   return steps;
 }
@@ -822,7 +835,7 @@ function VocabPracticeSection({
         <PhrasesStep key={runnerKey} items={step.items} onDone={handleStepDone} onBack={handleStepBack}
           onSubProgress={(done, total) => setSubProgress({ done, total })} />
       )}
-      {(step.type === 'listen' || step.type === 'truefalse' || step.type === 'test' || step.type === 'complete' || step.type === 'order' || step.type === 'write' || step.type === 'scramble' || step.type === 'pairs') && (
+      {(step.type === 'listen' || step.type === 'truefalse' || step.type === 'test' || step.type === 'complete' || step.type === 'order' || step.type === 'write' || step.type === 'scramble' || step.type === 'pairs' || step.type === 'emoji' || step.type === 'intruder') && (
         <ExerciseRunner
           key={runnerKey}
           exercises={step.exercises}
@@ -1634,6 +1647,181 @@ function MatchPairsExercise({ exercise, onAnswer }: { exercise: ExerciseItem; on
   );
 }
 
+/* ────────────────────────────────────────────────────────────────────────────
+   NUEVOS FORMATOS — Test Lab (true_false, emoji_choice, odd_one_out)
+──────────────────────────────────────────────────────────────────────────── */
+
+function TrueFalseExercise({
+  exercise,
+  onAnswer,
+}: {
+  exercise: ExerciseItem;
+  onAnswer: (correct: boolean) => void;
+}) {
+  const [selected, setSelected] = useState<'verdadero' | 'falso' | null>(null);
+  const correct = exercise.correctAnswer.toLowerCase().trim() as 'verdadero' | 'falso';
+  const isAnswered = selected !== null;
+
+  function pick(ans: 'verdadero' | 'falso') {
+    if (isAnswered) return;
+    setSelected(ans);
+    onAnswer(ans === correct);
+  }
+
+  function styleFor(ans: 'verdadero' | 'falso') {
+    const base = 'py-8 rounded-2xl text-[18px] font-bold border-2 flex flex-col items-center gap-2 transition-all duration-200';
+    const isColorGreen = ans === 'verdadero';
+    if (!isAnswered) {
+      return `${base} ${isColorGreen
+        ? 'bg-green-50 border-green-300 text-green-700 hover:bg-green-100 active:scale-[0.98]'
+        : 'bg-red-50 border-red-300 text-red-700 hover:bg-red-100 active:scale-[0.98]'}`;
+    }
+    if (selected === ans && correct === ans) return `${base} bg-green-500 border-green-600 text-white`;
+    if (selected === ans && correct !== ans) return `${base} bg-red-500 border-red-600 text-white`;
+    if (correct === ans) return `${base} bg-green-100 border-green-400 text-green-800`;
+    return `${base} bg-gray-50 border-gray-200 text-gray-400`;
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-2xl p-5 border border-[#DDE6F5] bg-white">
+        <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-widest mb-2">¿Es verdadero o falso?</p>
+        <p className="text-[20px] font-bold text-[#1D0084] leading-snug text-center py-2">{exercise.prompt}</p>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <button onClick={() => pick('verdadero')} disabled={isAnswered} className={styleFor('verdadero')}>
+          <span className="text-3xl">✓</span>
+          Verdadero
+        </button>
+        <button onClick={() => pick('falso')} disabled={isAnswered} className={styleFor('falso')}>
+          <span className="text-3xl">✗</span>
+          Falso
+        </button>
+      </div>
+      {isAnswered && (
+        <div className={`rounded-xl px-4 py-3 text-[14px] font-medium ${
+          selected === correct
+            ? 'bg-green-50 text-green-800 border border-green-200'
+            : 'bg-red-50 text-red-700 border border-red-200'
+        }`}>
+          {selected === correct
+            ? '✓ ¡Correcto!'
+            : `✗ La respuesta correcta era: ${correct === 'verdadero' ? 'Verdadero' : 'Falso'}`}
+          {exercise.explanation && <p className="mt-1 text-[13px] opacity-80">{exercise.explanation}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EmojiChoiceExercise({
+  exercise,
+  onAnswer,
+}: {
+  exercise: ExerciseItem;
+  onAnswer: (correct: boolean) => void;
+}) {
+  const [selected, setSelected] = useState<string | null>(null);
+  const isAnswered = selected !== null;
+  const options = exercise.options ?? [];
+
+  function pick(opt: string) {
+    if (isAnswered) return;
+    setSelected(opt);
+    onAnswer(opt === exercise.correctAnswer);
+  }
+
+  function styleFor(opt: string) {
+    const base = 'aspect-square rounded-2xl border-2 flex items-center justify-center text-6xl transition-all duration-200';
+    if (!isAnswered) return `${base} bg-[#F0F5FF] border-[#DDE6F5] hover:border-[#025dc7]/50 hover:bg-[#e8f0ff] active:scale-[0.95]`;
+    if (opt === exercise.correctAnswer) return `${base} bg-green-50 border-green-400`;
+    if (opt === selected) return `${base} bg-red-50 border-red-400`;
+    return `${base} bg-gray-50 border-gray-200 opacity-50`;
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-2xl p-5 border border-[#DDE6F5] bg-white">
+        <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-widest mb-2">Toca el emoji que corresponde a:</p>
+        <p className="text-[24px] font-bold text-[#1D0084] leading-snug text-center py-2">{exercise.prompt}</p>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        {options.map(opt => (
+          <button key={opt} onClick={() => pick(opt)} disabled={isAnswered} className={styleFor(opt)}>
+            {opt}
+          </button>
+        ))}
+      </div>
+      {isAnswered && (
+        <div className={`rounded-xl px-4 py-3 text-[14px] font-medium ${
+          selected === exercise.correctAnswer
+            ? 'bg-green-50 text-green-800 border border-green-200'
+            : 'bg-red-50 text-red-700 border border-red-200'
+        }`}>
+          {selected === exercise.correctAnswer
+            ? '✓ ¡Correcto!'
+            : `✗ El correcto era ${exercise.correctAnswer}`}
+          {exercise.explanation && <p className="mt-1 text-[13px] opacity-80">{exercise.explanation}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function OddOneOutExercise({
+  exercise,
+  onAnswer,
+}: {
+  exercise: ExerciseItem;
+  onAnswer: (correct: boolean) => void;
+}) {
+  const [selected, setSelected] = useState<string | null>(null);
+  const isAnswered = selected !== null;
+  const options = exercise.options ?? [];
+
+  function pick(opt: string) {
+    if (isAnswered) return;
+    setSelected(opt);
+    onAnswer(opt === exercise.correctAnswer);
+  }
+
+  function styleFor(opt: string) {
+    const base = 'py-6 rounded-2xl border-2 text-[17px] font-bold transition-all duration-200';
+    if (!isAnswered) return `${base} bg-[#F0F5FF] border-[#DDE6F5] text-[#1D0084] hover:border-[#025dc7]/50 hover:bg-[#e8f0ff] active:scale-[0.97]`;
+    if (opt === exercise.correctAnswer) return `${base} bg-green-50 border-green-400 text-green-800`;
+    if (opt === selected) return `${base} bg-red-50 border-red-400 text-red-700`;
+    return `${base} bg-gray-50 border-gray-200 text-gray-400`;
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-2xl p-5 border border-[#DDE6F5] bg-white">
+        <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-widest mb-2">Elige la intrusa</p>
+        <p className="text-[17px] font-semibold text-[#1D0084] leading-snug">{exercise.prompt}</p>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        {options.map(opt => (
+          <button key={opt} onClick={() => pick(opt)} disabled={isAnswered} className={styleFor(opt)}>
+            {opt}
+          </button>
+        ))}
+      </div>
+      {isAnswered && (
+        <div className={`rounded-xl px-4 py-3 text-[14px] font-medium ${
+          selected === exercise.correctAnswer
+            ? 'bg-green-50 text-green-800 border border-green-200'
+            : 'bg-red-50 text-red-700 border border-red-200'
+        }`}>
+          {selected === exercise.correctAnswer
+            ? '✓ ¡Correcto!'
+            : `✗ La intrusa era: "${exercise.correctAnswer}"`}
+          {exercise.explanation && <p className="mt-1 text-[13px] opacity-80">{exercise.explanation}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ExerciseStep({
   exercise,
   onAnswer,
@@ -1648,6 +1836,9 @@ function ExerciseStep({
   if (exercise.type === 'fill_blank') return <FillBlankExercise exercise={exercise} onAnswer={onAnswer} />;
   if (exercise.type === 'word_scramble') return <WordScrambleExercise exercise={exercise} onAnswer={onAnswer} />;
   if (exercise.type === 'match_pairs') return <MatchPairsExercise exercise={exercise} onAnswer={onAnswer} />;
+  if (exercise.type === 'true_false') return <TrueFalseExercise exercise={exercise} onAnswer={onAnswer} />;
+  if (exercise.type === 'emoji_choice') return <EmojiChoiceExercise exercise={exercise} onAnswer={onAnswer} />;
+  if (exercise.type === 'odd_one_out') return <OddOneOutExercise exercise={exercise} onAnswer={onAnswer} />;
   return null;
 }
 

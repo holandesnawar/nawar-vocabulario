@@ -341,21 +341,115 @@ async function main() {
   });
   console.log('✅  escribir traducción × 2');
 
+  // ══════════════════════════════════════════════════════════════════════════
+  // 9 ─ VERDADERO / FALSO × 2
+  //     Dos botones grandes, ritmo rápido
+  // ══════════════════════════════════════════════════════════════════════════
+
+  await insertItem(lessonId, {
+    sort_order: 80,
+    type: 'true_false',
+    question_text: '"De kat" significa "el gato"',
+    correct_answer: 'verdadero',
+    explanation: '"De kat" = "el gato". Correcto.',
+  });
+
+  await insertItem(lessonId, {
+    sort_order: 81,
+    type: 'true_false',
+    question_text: '"Het water" significa "la leche"',
+    correct_answer: 'falso',
+    explanation: '"Het water" = "el agua". "La leche" sería "de melk".',
+  });
+  console.log('✅  verdadero/falso × 2');
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 10 ─ TOCA EL EMOJI × 2
+  //      Grid 2x2 con emojis grandes
+  // ══════════════════════════════════════════════════════════════════════════
+
+  id = await insertItem(lessonId, {
+    sort_order: 82,
+    type: 'emoji_choice',
+    question_text: 'hond',
+    correct_answer: '🐕',
+    explanation: '"De hond" = el perro.',
+  });
+  await post('practice_options', [
+    { practice_item_id: id, sort_order: 1, option_text: '🐕', is_correct: true  },
+    { practice_item_id: id, sort_order: 2, option_text: '🐈', is_correct: false },
+    { practice_item_id: id, sort_order: 3, option_text: '🐦', is_correct: false },
+    { practice_item_id: id, sort_order: 4, option_text: '🐟', is_correct: false },
+  ]);
+
+  id = await insertItem(lessonId, {
+    sort_order: 83,
+    type: 'emoji_choice',
+    question_text: 'koffie',
+    correct_answer: '☕',
+    explanation: '"De koffie" = el café.',
+  });
+  await post('practice_options', [
+    { practice_item_id: id, sort_order: 1, option_text: '☕', is_correct: true  },
+    { practice_item_id: id, sort_order: 2, option_text: '🥛', is_correct: false },
+    { practice_item_id: id, sort_order: 3, option_text: '💧', is_correct: false },
+    { practice_item_id: id, sort_order: 4, option_text: '🍵', is_correct: false },
+  ]);
+  console.log('✅  toca el emoji × 2');
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 11 ─ ELIGE LA INTRUSA × 2
+  //      4 palabras, 3 del mismo tipo, 1 no pertenece
+  // ══════════════════════════════════════════════════════════════════════════
+
+  id = await insertItem(lessonId, {
+    sort_order: 84,
+    type: 'odd_one_out',
+    question_text: 'Tres de estas palabras son bebidas. Una no. Toca la intrusa.',
+    correct_answer: 'kat',
+    explanation: '"Kat" = gato. Las otras son water (agua), koffie (café) y melk (leche).',
+  });
+  await post('practice_options', [
+    { practice_item_id: id, sort_order: 1, option_text: 'water',  is_correct: false },
+    { practice_item_id: id, sort_order: 2, option_text: 'koffie', is_correct: false },
+    { practice_item_id: id, sort_order: 3, option_text: 'kat',    is_correct: true  },
+    { practice_item_id: id, sort_order: 4, option_text: 'melk',   is_correct: false },
+  ]);
+
+  id = await insertItem(lessonId, {
+    sort_order: 85,
+    type: 'odd_one_out',
+    question_text: 'Tres de estas palabras son animales. Una no. Toca la intrusa.',
+    correct_answer: 'boek',
+    explanation: '"Boek" = libro. Las otras son hond (perro), vogel (pájaro) y kat (gato).',
+  });
+  await post('practice_options', [
+    { practice_item_id: id, sort_order: 1, option_text: 'hond',  is_correct: false },
+    { practice_item_id: id, sort_order: 2, option_text: 'vogel', is_correct: false },
+    { practice_item_id: id, sort_order: 3, option_text: 'boek',  is_correct: true  },
+    { practice_item_id: id, sort_order: 4, option_text: 'kat',   is_correct: false },
+  ]);
+  console.log('✅  elige la intrusa × 2');
+
   // ── Resumen ───────────────────────────────────────────────────────────────
   console.log('\n════════════════════════════════════════════════════════════');
   console.log('🎉  TEST ZONE — VOCABULARIO — listo');
   console.log('════════════════════════════════════════════════════════════');
-  console.log('   • vocabulary_items  × 8');
-  console.log('   • artículo de/het   × 2');
-  console.log('   • traducción NL→ES  × 1');
-  console.log('   • traducción ES→NL  × 1');
-  console.log('   • completa frase    × 2');
-  console.log('   • emparejar bebidas × 1 (3 pares)');
-  console.log('   • emparejar animales× 1 (3 pares)');
-  console.log('   • deletrear         × 2');
-  console.log('   • escribir          × 2');
+  console.log('   • vocabulary_items    × 8');
+  console.log('   • artículo de/het     × 2');
+  console.log('   • traducción NL→ES    × 1');
+  console.log('   • traducción ES→NL    × 1');
+  console.log('   • completa frase      × 2');
+  console.log('   • emparejar bebidas   × 1 (3 pares)');
+  console.log('   • emparejar animales  × 1 (3 pares)');
+  console.log('   • deletrear           × 2');
+  console.log('   • escribir            × 2');
+  console.log('   ─── FORMATOS NUEVOS ────────────');
+  console.log('   • verdadero / falso   × 2');
+  console.log('   • toca el emoji       × 2');
+  console.log('   • elige la intrusa    × 2');
   console.log('════════════════════════════════════════════════════════════');
-  console.log('   Total: 12 ejercicios, máx 2 por tipo.');
+  console.log('   Total: 18 ejercicios en 11 formatos distintos.');
   console.log('════════════════════════════════════════════════════════════\n');
 }
 

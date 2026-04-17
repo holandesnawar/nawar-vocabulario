@@ -49,7 +49,10 @@ export type ExerciseType =
   | 'write_answer'
   | 'fill_blank'
   | 'word_scramble'
-  | 'match_pairs';
+  | 'match_pairs'
+  | 'true_false'   // declaración V/F con 2 botones grandes
+  | 'emoji_choice' // elegir el emoji correcto entre 4
+  | 'odd_one_out'; // 4 palabras, una no pertenece
 
 export interface ExerciseItem {
   id: string;
