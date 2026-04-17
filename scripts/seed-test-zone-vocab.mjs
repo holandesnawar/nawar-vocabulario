@@ -431,6 +431,42 @@ async function main() {
   ]);
   console.log('✅  elige la intrusa × 2');
 
+  // ══════════════════════════════════════════════════════════════════════════
+  // 12 ─ ESCUCHA Y ELIGE × 2
+  //      Audio TTS del navegador (SpeechSynthesis). El componente extrae
+  //      la palabra NL entre comillas del prompt y la reproduce.
+  // ══════════════════════════════════════════════════════════════════════════
+
+  id = await insertItem(lessonId, {
+    sort_order: 86,
+    type: 'listen_and_choose',
+    question_text: 'Escucha en neerlandés y elige la traducción: "koffie"',
+    correct_answer: 'café',
+    hint: 'Bebida caliente, oscura, muy popular en los Países Bajos.',
+    explanation: '"Koffie" = café. Se lee aproximadamente como "kófi".',
+  });
+  await post('practice_options', [
+    { practice_item_id: id, sort_order: 1, option_text: 'café',  is_correct: true  },
+    { practice_item_id: id, sort_order: 2, option_text: 'leche', is_correct: false },
+    { practice_item_id: id, sort_order: 3, option_text: 'agua',  is_correct: false },
+    { practice_item_id: id, sort_order: 4, option_text: 'té',    is_correct: false },
+  ]);
+
+  id = await insertItem(lessonId, {
+    sort_order: 87,
+    type: 'listen_and_choose',
+    question_text: 'Escucha y elige el animal correcto: "hond"',
+    correct_answer: 'perro',
+    explanation: '"De hond" = el perro.',
+  });
+  await post('practice_options', [
+    { practice_item_id: id, sort_order: 1, option_text: 'perro',  is_correct: true  },
+    { practice_item_id: id, sort_order: 2, option_text: 'gato',   is_correct: false },
+    { practice_item_id: id, sort_order: 3, option_text: 'pájaro', is_correct: false },
+    { practice_item_id: id, sort_order: 4, option_text: 'pez',    is_correct: false },
+  ]);
+  console.log('✅  escucha y elige × 2');
+
   // ── Resumen ───────────────────────────────────────────────────────────────
   console.log('\n════════════════════════════════════════════════════════════');
   console.log('🎉  TEST ZONE — VOCABULARIO — listo');
@@ -444,12 +480,13 @@ async function main() {
   console.log('   • emparejar animales  × 1 (3 pares)');
   console.log('   • deletrear           × 2');
   console.log('   • escribir            × 2');
-  console.log('   ─── FORMATOS NUEVOS ────────────');
   console.log('   • verdadero / falso   × 2');
   console.log('   • toca el emoji       × 2');
   console.log('   • elige la intrusa    × 2');
+  console.log('   ─── FORMATO NUEVO ──────────────');
+  console.log('   • escucha y elige     × 2 (TTS del navegador)');
   console.log('════════════════════════════════════════════════════════════');
-  console.log('   Total: 18 ejercicios en 11 formatos distintos.');
+  console.log('   Total: 20 ejercicios en 12 formatos distintos.');
   console.log('════════════════════════════════════════════════════════════\n');
 }
 
