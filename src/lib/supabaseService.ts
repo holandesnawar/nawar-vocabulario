@@ -103,9 +103,8 @@ interface DbDialogue {
   id: DbId;
   lesson_id: DbId;
   title: string;
-  context: string;
-  audio_url: string | null;
-  slow_audio_url: string | null;
+  audio_normal_url: string | null;
+  audio_slow_url: string | null;
 }
 
 interface DbDialogueLine {
@@ -271,9 +270,9 @@ function mapDialogue(row: DbDialogue, lines: DbDialogueLine[]): Dialogue {
   return {
     id: String(row.id),
     title: row.title,
-    context: row.context,
-    audio: row.audio_url ? { url: row.audio_url } : undefined,
-    slowAudio: row.slow_audio_url ? { url: row.slow_audio_url } : undefined,
+    context: '',
+    audio: row.audio_normal_url ? { url: row.audio_normal_url } : undefined,
+    slowAudio: row.audio_slow_url ? { url: row.audio_slow_url } : undefined,
     lines: lines
       .filter(l => l.dialogue_id === row.id)
       .sort((a, b) => a.sort_order - b.sort_order)
