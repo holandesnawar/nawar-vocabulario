@@ -112,3 +112,35 @@ export function isModuleUnlocked(moduleId: string): boolean {
   if (lessons.length === 0) return true;
   return isLessonUnlocked(lessons[0]);
 }
+
+/**
+ * When a student lands on a lesson via direct URL (typically embedded from
+ * Circle), assume all prior non-extra lessons have been completed. This
+ * keeps the in-app module list coherent for students who progress primarily
+ * through the host platform (Circle) and open our app lesson-by-lesson.
+ *
+ * No-op for extra lessons — they never imply progression.
+ */
+export function markPreviousAsCompleted(lesson: Lesson): void {
+  if (lesson.isExtra) return;
+  // Walk backwards up the ordered chain, marking each predecessor complete
+  // (only if not already completed — preserves real completion timestamps).
+  let cursor: Lesson | undefined = getPreviousLessonInOrder(lesson);
+  let guard = 0;
+  while (cursor && guard < 500) {
+    const p = getLessonProgress(cursor.id);
+    if (p?.status !== 'completed') {
+      updateLessonProgress({
+        lessonId: cursor.id,
+        moduleId: cursor.moduleId,
+        status: 'completed',
+        score: 0,
+        total: 0,
+        completedAt: new Date().toISOString(),
+        errorIds: [],
+      });
+    }
+    cursor = getPreviousLessonInOrder(cursor);
+    guard++;
+  }
+}
