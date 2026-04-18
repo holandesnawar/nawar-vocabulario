@@ -47,12 +47,13 @@ const args = process.argv.slice(2);
 const dryRun = args.includes('--dry');
 const scopeArg = args.find(a => a.startsWith('--scope='))?.split('=')[1] ?? 'test';
 const voiceOverride = args.find(a => a.startsWith('--voice='))?.split('=')[1];
-// --re-record=lunch,ham,yoghurt → borra audio_url + MP3 de esas palabras y
-// las regenera con la pronunciación IPA actualizada
+const useDict = args.includes('--use-dict'); // Marianne no lo necesita; off por defecto
+const forceAll = args.includes('--force');   // Regenera TODO el scope, ignora audio existente
+// --re-record=lunch,ham,yoghurt → borra audio_url + MP3 de esas palabras específicas
 const reRecordWords = (args.find(a => a.startsWith('--re-record='))?.split('=')[1] ?? '')
   .split(',').map(w => w.trim().toLowerCase()).filter(Boolean);
 
-const VOICE_ID = voiceOverride ?? 'XB0fDUnXU5powFXDhCwa'; // Charlotte
+const VOICE_ID = voiceOverride ?? 'tfweP7lGJyLeNV9dH1Rm'; // Marianne (NL nativa)
 const MODEL_ID = 'eleven_multilingual_v2';
 const BUCKET = 'nawar-audio';
 
@@ -118,7 +119,9 @@ async function synthesize(text, opts = {}) {
     },
     language_code: 'nl',
   };
-  if (DICT_ID && DICT_VERSION) {
+  // Dict solo si explícitamente se pide con --use-dict. Con voz nativa NL
+  // (Marianne) el dict puede romper la sintesis de algunas palabras.
+  if (useDict && DICT_ID && DICT_VERSION) {
     body.pronunciation_dictionary_locators = [
       { pronunciation_dictionary_id: DICT_ID, version_id: DICT_VERSION },
     ];
@@ -182,6 +185,46 @@ async function main() {
     if (!r.ok && r.status !== 400 && r.status !== 404) {
       console.warn(`  ⚠ DELETE ${path}: ${r.status} ${await r.text()}`);
     }
+  }
+
+  // ── Force: limpia TODO el scope (vocab+phrases+practice+options) antes de regenerar ─
+  if (forceAll && !dryRun) {
+    console.log(`♻️  FORCE: borrando todo el audio del scope antes de regenerar`);
+    // Vocab: clear audio_url + delete MP3s
+    const vocabAll = await sbGet('vocabulary_items', `lesson_id=in.(${lessonIds})&select=id,word_nl,lesson_id`);
+    for (const v of vocabAll) {
+      const base = `vocab/${v.lesson_id}-${slug(v.word_nl)}.mp3`;
+      const art = `vocab/${v.lesson_id}-${slug(v.word_nl)}-art.mp3`;
+      await deleteStorage(base);
+      await deleteStorage(art);
+      await sbPatch('vocabulary_items', `id=eq.${v.id}`, { audio_url: null });
+    }
+    // Phrases: clear audio_url + delete MP3s
+    const phrasesAll = await sbGet('phrases', `lesson_id=in.(${lessonIds})&select=id,phrase_nl,lesson_id`);
+    for (const p of phrasesAll) {
+      await deleteStorage(`phrases/${p.lesson_id}-${slug(p.phrase_nl)}.mp3`);
+      await sbPatch('phrases', `id=eq.${p.id}`, { audio_url: null });
+    }
+    // Practice items (listen_*): delete MP3s
+    const practiceAll = await sbGet('practice_items', `lesson_id=in.(${lessonIds})&select=id,type`);
+    for (const p of practiceAll) {
+      if (p.type === 'listen_and_choose' || p.type === 'listen_translate') {
+        await deleteStorage(`practice/${p.id}.mp3`);
+      }
+    }
+    // Options de fill_blank: delete MP3s
+    const fillBlankIds2 = practiceAll.filter(p => p.type === 'fill_blank').map(p => p.id);
+    if (fillBlankIds2.length > 0) {
+      const opts = await sbGet('practice_options', `practice_item_id=in.(${fillBlankIds2.join(',')})&select=option_text`);
+      const seen = new Set();
+      for (const o of opts) {
+        const s = slug(o.option_text || '');
+        if (!s || seen.has(s)) continue;
+        seen.add(s);
+        await deleteStorage(`options/${s}.mp3`);
+      }
+    }
+    console.log(`   Scope limpio — listo para regenerar\n`);
   }
 
   if (reRecordWords.length > 0 && !dryRun) {
