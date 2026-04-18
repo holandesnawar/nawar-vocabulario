@@ -229,21 +229,21 @@ function StepBar({ steps, current }: {
   current: number;
 }) {
   const meta = VP_META[steps[current].type];
+  // Total de "tarjetas" (steps no-content) y posición actual entre ellas
+  const cardSteps = steps.filter(s => s.type !== 'words' && s.type !== 'phrases');
   const isContentStep = steps[current].type === 'words' || steps[current].type === 'phrases';
-  const exerciseNum = isContentStep ? null : steps.slice(0, current + 1).filter(s => s.type !== 'words' && s.type !== 'phrases').length;
+  const cardNum = isContentStep ? null : steps.slice(0, current + 1).filter(s => s.type !== 'words' && s.type !== 'phrases').length;
 
   return (
-    <div className="mb-4">
-      <div>
-        <p className="text-[18px] font-bold text-[#1D0084] leading-tight">
-          {isContentStep ? `${meta.emoji} ${meta.label}` : `Ejercicio ${exerciseNum}`}
-        </p>
-        {!isContentStep && (
-          <p className="text-[12px] text-[#9CA3AF] font-medium leading-tight mt-0.5">
-            {meta.emoji} {meta.label}
-          </p>
-        )}
-      </div>
+    <div className="mb-4 flex items-center justify-between gap-3">
+      <p className="text-[20px] font-bold text-[#1D0084] leading-tight" style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}>
+        {meta.emoji} {meta.label}
+      </p>
+      {!isContentStep && (
+        <span className="text-[11px] text-[#9CA3AF] font-medium tabular-nums shrink-0">
+          {cardNum} / {cardSteps.length}
+        </span>
+      )}
     </div>
   );
 }
@@ -513,13 +513,25 @@ function ExerciseRunner({ exercises, onDone, onBack, hasBackStep, onSubProgress,
   const answersKey = cacheKey ? `vp-ex-${cacheKey}-data` : null;
   const indexKey = cacheKey ? `vp-ex-${cacheKey}` : null;
 
-  // Load cached answers once on mount (sessionStorage-safe)
+  // Load cached answers once on mount (sessionStorage-safe).
+  // Filtra entries con indices fuera del rango actual (cache obsoleto si
+  // el seed cambió de tamaño).
   const initialAnswers = useMemo<Record<number, string>>(() => {
     if (!answersKey || typeof window === 'undefined') return {};
     try {
       const raw = sessionStorage.getItem(answersKey);
       if (!raw) return {};
-      return JSON.parse(raw) as Record<number, string>;
+      const parsed = JSON.parse(raw) as Record<string, string>;
+      const cleaned: Record<number, string> = {};
+      for (const [k, v] of Object.entries(parsed)) {
+        const n = Number(k);
+        if (Number.isFinite(n) && n >= 0 && n < exercises.length && typeof v === 'string') {
+          cleaned[n] = v;
+        }
+      }
+      // Re-persist cleaned version to evict stale entries from storage
+      sessionStorage.setItem(answersKey, JSON.stringify(cleaned));
+      return cleaned;
     } catch { return {}; }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -533,7 +545,8 @@ function ExerciseRunner({ exercises, onDone, onBack, hasBackStep, onSubProgress,
   });
   const [exKey, setExKey] = useState(0);
 
-  // Computed score from answers map — single source of truth
+  // Computed score from answers map — single source of truth.
+  // Filtra índices fuera del rango actual (cache obsoleto de seeds antiguos).
   const score = useMemo(() => {
     return exercises.reduce((acc, ex, i) => {
       const a = answers[i];
@@ -543,7 +556,11 @@ function ExerciseRunner({ exercises, onDone, onBack, hasBackStep, onSubProgress,
     }, 0);
   }, [answers, exercises]);
 
-  const answeredCount = Object.keys(answers).length;
+  // Solo cuenta respuestas dentro del rango actual del step
+  const answeredCount = Object.keys(answers).filter(k => {
+    const n = Number(k);
+    return Number.isFinite(n) && n >= 0 && n < exercises.length;
+  }).length;
   const allAnswered = answeredCount >= exercises.length;
   const isLast = index + 1 >= exercises.length;
   const canGoBack = index > 0 || !!hasBackStep;
@@ -613,7 +630,7 @@ function ExerciseRunner({ exercises, onDone, onBack, hasBackStep, onSubProgress,
             })}
           </div>
           <span className="text-[13px] font-bold text-[#025dc7] bg-[#EEF4FF] px-2.5 py-0.5 rounded-full shrink-0 tabular-nums">
-            {Math.round((answeredCount / exercises.length) * 100)}%
+            {Math.min(100, Math.round((answeredCount / Math.max(exercises.length, 1)) * 100))}%
           </span>
         </div>
         <div className="flex items-center justify-between">
@@ -845,18 +862,41 @@ function VocabPracticeSection({
   }
 
   if (allDone) {
+    function handleReset() {
+      // Borra TODO el cache de esta lección — respuestas, índices, step actual
+      try {
+        const keys: string[] = [];
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const k = sessionStorage.key(i);
+          if (k && (k.startsWith('vp-ex-') || k.startsWith('vp-step-'))) keys.push(k);
+        }
+        keys.forEach(k => sessionStorage.removeItem(k));
+      } catch {}
+      setAllDone(false);
+      setStepIndex(0);
+      setSubProgress(undefined);
+      setRunnerKey(k => k + 1);
+      onComplete();
+    }
+
     return (
-      <div className="space-y-6">
+      <div className="space-y-4">
         <div className="flex flex-col items-center text-center rounded-2xl py-12 px-6 gap-3" style={{ background: 'linear-gradient(135deg, #1D0084 0%, #025dc7 100%)' }}>
           <span className="text-5xl">⭐</span>
           <p className="text-white font-bold text-[22px]" style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}>¡Práctica completada!</p>
           <p className="text-white/60 text-[14px]">Has repasado todo el vocabulario</p>
         </div>
         <button
-          onClick={() => { setAllDone(false); setStepIndex(0); setSubProgress(undefined); setRunnerKey(k => k + 1); onComplete(); }}
-          className="w-full py-3.5 rounded-xl bg-[#F0F5FF] text-[#1D0084] text-[15px] font-semibold border border-[#DDE6F5] hover:bg-[#e0eaff] transition-colors duration-200"
+          onClick={handleReset}
+          className="w-full py-3.5 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200"
         >
-          🔄 Repetir práctica
+          🔄 Reiniciar la lección desde cero
+        </button>
+        <button
+          onClick={() => { setAllDone(false); setStepIndex(0); setSubProgress(undefined); setRunnerKey(k => k + 1); onComplete(); }}
+          className="w-full py-3 rounded-xl bg-[#F0F5FF] text-[#1D0084] text-[14px] font-semibold border border-[#DDE6F5] hover:bg-[#e0eaff] transition-colors duration-200"
+        >
+          Volver al inicio sin borrar respuestas
         </button>
       </div>
     );

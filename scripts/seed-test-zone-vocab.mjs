@@ -286,18 +286,9 @@ async function main() {
   ]);
   console.log('✅  order_sentence × 1 (NUEVO)');
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // 6 ─ ESCRIBE EN NEERLANDÉS (write_answer)
-  // ══════════════════════════════════════════════════════════════════════════
-  await insertItem(lessonId, {
-    sort_order: 60,
-    type: 'write_answer',
-    question_text: 'Escribe en neerlandés (con artículo):\n"el libro"',
-    correct_answer: 'het boek',
-    hint: 'Recuerda incluir el artículo correcto.',
-    explanation: '"Het boek" — los sustantivos neutros llevan "het".',
-  });
-  console.log('✅  write_answer × 1');
+  // ── write_answer eliminado: muy "tipo examen" (escribir a mano).
+  //    El alumno tiene letterdash + word_scramble que cubren el aspecto
+  //    de producción activa con menos fricción.
 
   // ══════════════════════════════════════════════════════════════════════════
   // 7 ─ DELETREA LA PALABRA (word_scramble)
@@ -410,7 +401,6 @@ async function main() {
   console.log('   • multiple_choice      × 3');
   console.log('   • fill_blank           × 1   (mejorado: opciones + TTS)');
   console.log('   • order_sentence       × 1');
-  console.log('   • write_answer         × 1');
   console.log('   • word_scramble        × 1');
   console.log('   • letter_dash          × 1');
   console.log('   • match_pairs          × 1');
@@ -419,7 +409,7 @@ async function main() {
   console.log('   • odd_one_out          × 1');
   console.log('   ─── classify (auto, de/het) — generado por la app');
   console.log('════════════════════════════════════════════════════════════');
-  console.log('   Total: 15 ejercicios en 14 formatos distintos.');
+  console.log('   Total: 14 tarjetas en 13 formatos distintos.');
   console.log('════════════════════════════════════════════════════════════\n');
 }
 

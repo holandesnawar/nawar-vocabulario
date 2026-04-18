@@ -8,9 +8,8 @@ import {
 } from "@/lib/courseService"
 import LessonList from '@/components/LessonList';
 
-// Cacheamos la página 5 minutos. Navegaciones repetidas entre m\u00f3dulos se sienten
-// instant\u00e1neas. Cambios de contenido en Supabase se reflejan en m\u00e1ximo 5 min.
-export const revalidate = 300;
+// Cache 60s — balance entre frescura y rendimiento.
+export const revalidate = 60;
 
 export function generateStaticParams() {
   return getModules().map((module) => ({

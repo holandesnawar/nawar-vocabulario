@@ -10,10 +10,9 @@ import {
 } from '@/lib/courseService';
 import LessonViewer from '@/components/LessonViewer';
 
-// Cacheamos la página 5 minutos. Las modificaciones de contenido en Supabase
-// tardarán hasta 5 min en verse para alumnos que ya habían cargado la página,
-// pero las navegaciones repetidas se sienten instantáneas.
-export const revalidate = 300;
+// Cache 60s: balance entre frescura (audio/contenido nuevo de Supabase visible
+// rápido tras cambios) y rendimiento (navegaciones repetidas sin re-fetch).
+export const revalidate = 60;
 
 export function generateStaticParams() {
   return getModules().flatMap((module) =>
