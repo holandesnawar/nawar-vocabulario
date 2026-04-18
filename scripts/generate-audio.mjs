@@ -98,53 +98,31 @@ async function uploadMp3(path, bytes) {
 
 // ─── ElevenLabs ────────────────────────────────────────────────────────────
 
-/**
- * Diccionario fonético IPA (alfabeto fonético internacional) para palabras
- * que ElevenLabs pronuncia mal en holandés (típicamente loanwords que
- * parecen inglesas/francesas/españolas).
- *
- * Cómo añadir una palabra:
- * 1. Encuentra su IPA holandés (Wiktionary "Sinaasappel" → /ˈsi.naːsˌɑ.pəl/).
- * 2. Añádela aquí en minúscula como key (texto exacto que aparece en el seed).
- * 3. Re-graba con: node scripts/generate-audio.mjs --re-record=palabra
- *
- * Las claves deben coincidir EXACTAMENTE (case-insensitive) con el texto a
- * sintetizar. Ej: para "de yoghurt" añade tanto "yoghurt" como "de yoghurt"
- * si quieres forzar ambos.
- */
-const PHONETICS_NL = {
-  'lunch':       'lʏntʃ',
-  'ham':         'ɦɑm',
-  'yoghurt':     'ˈjɔːɣʏrt',
-  'sinaasappel': 'ˈsiː.naːs.ɑ.pəl',
-  'pasta':       'ˈpɑs.taː',
-  'pinnen':      'ˈpɪ.nə(n)',
-  'kaas':        'kaːs',
-  'sap':         'sɑp',
-  'klant':       'klɑnt',
-  // Añade más aquí según las vayas detectando.
-};
-
-/**
- * Envuelve cada palabra del diccionario en SSML <phoneme> para que
- * ElevenLabs use la pronunciación IPA forzada en lugar de la auto-detectada.
- * Funciona case-insensitive y respeta límites de palabra.
- */
-function applyPhonetics(text) {
-  let result = text;
-  for (const [word, ipa] of Object.entries(PHONETICS_NL)) {
-    // \b solo funciona con ASCII; usamos lookbehind/lookahead para letras
-    const regex = new RegExp(`(?<![\\p{L}])(${word})(?![\\p{L}])`, 'giu');
-    result = result.replace(regex, (match) =>
-      `<phoneme alphabet="ipa" ph="${ipa}">${match}</phoneme>`
-    );
-  }
-  return result;
-}
+// Pronunciation dictionary uploaded por scripts/setup-pronunciation-dictionary.mjs
+// Si está configurado, ElevenLabs aplica las reglas IPA antes de sintetizar.
+// El diccionario se mantiene en .env.local; correr el setup script lo actualiza.
+const DICT_ID = env['ELEVENLABS_DICT_ID'];
+const DICT_VERSION = env['ELEVENLABS_DICT_VERSION'];
 
 async function synthesize(text, opts = {}) {
   const speed = opts.speed ?? 1.0;
-  const phonemed = applyPhonetics(text);
+  const body = {
+    text,
+    model_id: MODEL_ID,
+    voice_settings: {
+      stability: 0.5,
+      similarity_boost: 0.75,
+      style: 0,
+      use_speaker_boost: true,
+      speed,
+    },
+    language_code: 'nl',
+  };
+  if (DICT_ID && DICT_VERSION) {
+    body.pronunciation_dictionary_locators = [
+      { pronunciation_dictionary_id: DICT_ID, version_id: DICT_VERSION },
+    ];
+  }
   const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}?output_format=mp3_44100_128`, {
     method: 'POST',
     headers: {
@@ -152,19 +130,7 @@ async function synthesize(text, opts = {}) {
       'Content-Type': 'application/json',
       Accept: 'audio/mpeg',
     },
-    body: JSON.stringify({
-      text: phonemed,
-      model_id: MODEL_ID,
-      voice_settings: {
-        stability: 0.5,
-        similarity_boost: 0.75,
-        style: 0,
-        use_speaker_boost: true,
-        speed,
-      },
-      language_code: 'nl',
-      apply_text_normalization: 'off', // crítico: si está 'auto', ElevenLabs ignora SSML
-    }),
+    body: JSON.stringify(body),
   });
   if (!r.ok) {
     const errText = await r.text();
