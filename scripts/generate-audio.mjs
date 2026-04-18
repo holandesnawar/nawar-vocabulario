@@ -209,11 +209,7 @@ async function main() {
     });
   }
 
-  // 3) practice_items: la tabla no tiene columna audio_url, así que usamos
-  //    URL determinista por id: practice/{id}.mp3. El cliente reconstruye
-  //    la URL y la intenta — si 404, cae a TTS.
-  //    Procesa listen_and_choose y listen_translate (texto entre comillas).
-  //    NO actualiza ninguna tabla (la URL se computa client-side).
+  // 3) practice_items: URL determinista por id para listen_* (texto entre comillas).
   const practice = await sbGet('practice_items', `lesson_id=in.(${lessonIds})&select=id,type,question_text`);
   for (const p of practice) {
     if (p.type !== 'listen_and_choose' && p.type !== 'listen_translate') continue;
@@ -221,16 +217,29 @@ async function main() {
     const text = m ? m[1] : null;
     if (!text) continue;
     const filename = `practice/${p.id}.mp3`;
-    // Skip si el MP3 ya existe en Storage
     const head = await fetch(`${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${filename}`, { method: 'HEAD' });
     if (head.ok) continue;
-    tasks.push({
-      table: '__storage_only__', // marca: no actualizar DB, solo subir
-      id: p.id,
-      column: null,
-      text,
-      filename,
-    });
+    tasks.push({ table: '__storage_only__', id: p.id, column: null, text, filename });
+  }
+
+  // 3b) practice_options para fill_blank: URL determinista por slug(text).
+  //     Conjugaciones de verbos (eet, drink...) no están en vocab; necesitan
+  //     su propio MP3. URL: options/{slug(text)}.mp3 (compartida entre lecciones).
+  const practiceItemIds = practice.filter(p => p.type === 'fill_blank').map(p => p.id);
+  if (practiceItemIds.length > 0) {
+    const options = await sbGet('practice_options', `practice_item_id=in.(${practiceItemIds.join(',')})&select=option_text`);
+    const seen = new Set();
+    for (const o of options) {
+      const text = (o.option_text ?? '').trim();
+      if (!text) continue;
+      const s = slug(text);
+      if (!s || seen.has(s)) continue;
+      seen.add(s);
+      const filename = `options/${s}.mp3`;
+      const head = await fetch(`${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${filename}`, { method: 'HEAD' });
+      if (head.ok) continue;
+      tasks.push({ table: '__storage_only__', id: text, column: null, text, filename });
+    }
   }
 
   // 4) dialogue_lines + dialogues (normal + slow)

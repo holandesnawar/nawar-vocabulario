@@ -618,15 +618,8 @@ function ExerciseRunner({ exercises, onDone, onBack, hasBackStep, onSubProgress,
   function go(target: number) {
     // Atrás: siempre permitido (incluyendo a paso anterior)
     if (target < 0) { if (hasBackStep) onBack(); return; }
-    if (target < index) {
-      setIndex(target);
-      setExKey(k => k + 1);
-      return;
-    }
-    // Adelante (incluido pasar al siguiente paso): requiere haber respondido el actual
-    if (target > index && !currentAnswered) return;
+    // Adelante libre (skip permitido — se endurecerá más adelante)
     if (target >= exercises.length) {
-      // Finished this step — clear index storage, advance
       if (indexKey) try { sessionStorage.removeItem(indexKey); } catch {}
       onDone();
       return;
@@ -709,13 +702,12 @@ function ExerciseRunner({ exercises, onDone, onBack, hasBackStep, onSubProgress,
         </div>
 
         <button
-          onClick={currentAnswered ? handleNext : undefined}
+          onClick={handleNext}
           aria-label={isLast ? 'Siguiente paso' : 'Siguiente ejercicio'}
-          title={!currentAnswered ? 'Responde para continuar' : undefined}
           className={`hidden md:flex absolute right-0 top-5 w-11 h-11 items-center justify-center rounded-2xl transition-all duration-300 ${
             currentAnswered
               ? 'bg-[#1D0084] text-white cursor-pointer hover:bg-[#025dc7]'
-              : 'bg-[#F0F5FF] text-[#DDE6F5] cursor-not-allowed border border-[#DDE6F5]'
+              : 'bg-[#F0F5FF] text-[#1D0084] cursor-pointer hover:bg-[#e0eaff] border border-[#DDE6F5]'
           }`}
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -737,14 +729,13 @@ function ExerciseRunner({ exercises, onDone, onBack, hasBackStep, onSubProgress,
         </button>
         <button
           onClick={handleNext}
-          disabled={!currentAnswered}
           className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[15px] font-semibold transition-colors duration-200 ${
             currentAnswered
               ? 'bg-[#1D0084] text-white hover:bg-[#025dc7]'
-              : 'bg-[#F0F5FF] text-[#9CA3AF] border border-[#DDE6F5] cursor-not-allowed'
+              : 'bg-[#F0F5FF] text-[#1D0084] border border-[#DDE6F5] hover:bg-[#e0eaff]'
           }`}
         >
-          {currentAnswered ? (isLast ? 'Siguiente paso' : 'Siguiente') : 'Responde para continuar'}
+          {currentAnswered ? (isLast ? 'Siguiente paso' : 'Siguiente') : (isLast ? 'Saltar al siguiente paso' : 'Saltar')}
           <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
           </svg>
@@ -3034,16 +3025,26 @@ export default function LessonViewer({ lesson, module, prevLesson: _prev, nextLe
       }
       if (block.type === 'practice' && supabaseUrl) {
         for (const ex of block.exercises) {
-          if (ex.type !== 'listen_and_choose' && ex.type !== 'listen_translate') continue;
-          const m = ex.prompt.match(/"([^"]+)"/);
-          if (!m) continue;
-          const text = m[1].trim().toLowerCase();
-          map[text] = `${supabaseUrl}/storage/v1/object/public/nawar-audio/practice/${ex.id}.mp3`;
+          // Listen_* → practice/{id}.mp3
+          if (ex.type === 'listen_and_choose' || ex.type === 'listen_translate') {
+            const m = ex.prompt.match(/"([^"]+)"/);
+            if (m) {
+              map[m[1].trim().toLowerCase()] = `${supabaseUrl}/storage/v1/object/public/nawar-audio/practice/${ex.id}.mp3`;
+            }
+          }
+          // Fill_blank options → options/{slug(text)}.mp3 (compartido global)
+          if (ex.type === 'fill_blank' && ex.options) {
+            for (const opt of ex.options) {
+              const text = opt.trim();
+              if (!text) continue;
+              const s = slug(text);
+              if (!s) continue;
+              map[text.toLowerCase()] = `${supabaseUrl}/storage/v1/object/public/nawar-audio/options/${s}.mp3`;
+            }
+          }
         }
       }
     }
-    // Suprime warning de slug no usado (lo dejo porque podríamos necesitarlo)
-    void slug;
     setWordAudioMap(map);
     return () => setWordAudioMap({});
   }, [lesson]);
