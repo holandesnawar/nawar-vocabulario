@@ -47,6 +47,10 @@ const args = process.argv.slice(2);
 const dryRun = args.includes('--dry');
 const scopeArg = args.find(a => a.startsWith('--scope='))?.split('=')[1] ?? 'test';
 const voiceOverride = args.find(a => a.startsWith('--voice='))?.split('=')[1];
+// --re-record=lunch,ham,yoghurt → borra audio_url + MP3 de esas palabras y
+// las regenera con la pronunciación IPA actualizada
+const reRecordWords = (args.find(a => a.startsWith('--re-record='))?.split('=')[1] ?? '')
+  .split(',').map(w => w.trim().toLowerCase()).filter(Boolean);
 
 const VOICE_ID = voiceOverride ?? 'XB0fDUnXU5powFXDhCwa'; // Charlotte
 const MODEL_ID = 'eleven_multilingual_v2';
@@ -94,8 +98,53 @@ async function uploadMp3(path, bytes) {
 
 // ─── ElevenLabs ────────────────────────────────────────────────────────────
 
+/**
+ * Diccionario fonético IPA (alfabeto fonético internacional) para palabras
+ * que ElevenLabs pronuncia mal en holandés (típicamente loanwords que
+ * parecen inglesas/francesas/españolas).
+ *
+ * Cómo añadir una palabra:
+ * 1. Encuentra su IPA holandés (Wiktionary "Sinaasappel" → /ˈsi.naːsˌɑ.pəl/).
+ * 2. Añádela aquí en minúscula como key (texto exacto que aparece en el seed).
+ * 3. Re-graba con: node scripts/generate-audio.mjs --re-record=palabra
+ *
+ * Las claves deben coincidir EXACTAMENTE (case-insensitive) con el texto a
+ * sintetizar. Ej: para "de yoghurt" añade tanto "yoghurt" como "de yoghurt"
+ * si quieres forzar ambos.
+ */
+const PHONETICS_NL = {
+  'lunch':       'lʏntʃ',
+  'ham':         'ɦɑm',
+  'yoghurt':     'ˈjɔːɣʏrt',
+  'sinaasappel': 'ˈsiː.naːs.ɑ.pəl',
+  'pasta':       'ˈpɑs.taː',
+  'pinnen':      'ˈpɪ.nə(n)',
+  'kaas':        'kaːs',
+  'sap':         'sɑp',
+  'klant':       'klɑnt',
+  // Añade más aquí según las vayas detectando.
+};
+
+/**
+ * Envuelve cada palabra del diccionario en SSML <phoneme> para que
+ * ElevenLabs use la pronunciación IPA forzada en lugar de la auto-detectada.
+ * Funciona case-insensitive y respeta límites de palabra.
+ */
+function applyPhonetics(text) {
+  let result = text;
+  for (const [word, ipa] of Object.entries(PHONETICS_NL)) {
+    // \b solo funciona con ASCII; usamos lookbehind/lookahead para letras
+    const regex = new RegExp(`(?<![\\p{L}])(${word})(?![\\p{L}])`, 'giu');
+    result = result.replace(regex, (match) =>
+      `<phoneme alphabet="ipa" ph="${ipa}">${match}</phoneme>`
+    );
+  }
+  return result;
+}
+
 async function synthesize(text, opts = {}) {
   const speed = opts.speed ?? 1.0;
+  const phonemed = applyPhonetics(text);
   const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}?output_format=mp3_44100_128`, {
     method: 'POST',
     headers: {
@@ -104,7 +153,7 @@ async function synthesize(text, opts = {}) {
       Accept: 'audio/mpeg',
     },
     body: JSON.stringify({
-      text,
+      text: phonemed,
       model_id: MODEL_ID,
       voice_settings: {
         stability: 0.5,
@@ -114,6 +163,7 @@ async function synthesize(text, opts = {}) {
         speed,
       },
       language_code: 'nl',
+      apply_text_normalization: 'off', // crítico: si está 'auto', ElevenLabs ignora SSML
     }),
   });
   if (!r.ok) {
@@ -155,6 +205,47 @@ async function main() {
   console.log();
 
   const lessonIds = lessons.map(l => l.id).join(',');
+
+  // ── Re-record: limpiar audio_url y borrar MP3s de palabras especificadas ─
+  async function deleteStorage(path) {
+    const r = await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET}/${path}`, {
+      method: 'DELETE',
+      headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` },
+    });
+    // 200 = deleted, 400/404 = not exists (OK), other = error
+    if (!r.ok && r.status !== 400 && r.status !== 404) {
+      console.warn(`  ⚠ DELETE ${path}: ${r.status} ${await r.text()}`);
+    }
+  }
+
+  if (reRecordWords.length > 0 && !dryRun) {
+    console.log(`♻️  Re-record solicitado para: ${reRecordWords.join(', ')}`);
+    const allVocab = await sbGet('vocabulary_items', `lesson_id=in.(${lessonIds})&select=id,word_nl,lesson_id`);
+    let cleared = 0;
+    for (const v of allVocab) {
+      if (!reRecordWords.includes((v.word_nl || '').trim().toLowerCase())) continue;
+      const baseName = `vocab/${v.lesson_id}-${slug(v.word_nl)}.mp3`;
+      const articleName = `vocab/${v.lesson_id}-${slug(v.word_nl)}-art.mp3`;
+      await deleteStorage(baseName);
+      await deleteStorage(articleName);
+      await sbPatch('vocabulary_items', `id=eq.${v.id}`, { audio_url: null });
+      cleared++;
+    }
+    // Opciones de fill_blank con esos textos
+    const fillBlankIds = (await sbGet('practice_items', `lesson_id=in.(${lessonIds})&type=eq.fill_blank&select=id`)).map(p => p.id);
+    if (fillBlankIds.length > 0) {
+      const allOptions = await sbGet('practice_options', `practice_item_id=in.(${fillBlankIds.join(',')})&select=id,option_text`);
+      const seenOptionTexts = new Set();
+      for (const o of allOptions) {
+        const text = (o.option_text || '').trim().toLowerCase();
+        if (!reRecordWords.includes(text) || seenOptionTexts.has(text)) continue;
+        seenOptionTexts.add(text);
+        await deleteStorage(`options/${slug(o.option_text)}.mp3`);
+        cleared++;
+      }
+    }
+    console.log(`   Limpieza: ${cleared} item(s)\n`);
+  }
 
   // ── Recoger todo lo que falta audio ──────────────────────────────────────
   const tasks = [];
