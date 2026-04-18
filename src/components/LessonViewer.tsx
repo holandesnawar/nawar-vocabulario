@@ -2667,7 +2667,8 @@ function LuisterenSection({
   onComplete: () => void;
 }) {
   const hasExercises = practiceExercises.length > 0;
-  const [step, setStep] = useState<'dialogue' | 'exercises'>('dialogue');
+  // Tres vistas: landing (solo audios + CTAs) → dialogue (transcript) → exercises
+  const [view, setView] = useState<'landing' | 'dialogue' | 'exercises'>('landing');
   const [exerciseIndex, setExerciseIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [answered, setAnswered] = useState(false);
@@ -2676,110 +2677,137 @@ function LuisterenSection({
   const [exercisesDone, setExercisesDone] = useState(false);
 
   const exercise = practiceExercises[exerciseIndex];
-  const pct = step === 'dialogue' ? 0
+  const pct = view !== 'exercises' ? 0
     : Math.round(((exerciseIndex + (answered ? 1 : 0)) / Math.max(practiceExercises.length, 1)) * 100);
 
-  // Paleta para nombres de hablantes — teal + ámbar, estilo WhatsApp,
-  // distinta del morado/azul de la UI para que se diferencie visualmente.
-  const speakerColors: Record<string, string> = {};
-  const colorList = ['#059669', '#D97706'];
-  dialogue.lines.forEach(line => {
-    if (!speakerColors[line.speaker]) {
-      speakerColors[line.speaker] = colorList[Object.keys(speakerColors).length % colorList.length];
-    }
-  });
-
-  /* ── Step 1: dialogue view ─────────────────────────────── */
-  if (step === 'dialogue') {
-    const firstSpeaker = dialogue.lines[0]?.speaker;
+  /* ── Vista 1: Landing — solo audios + 2 CTAs, texto oculto ─────────── */
+  if (view === 'landing') {
     return (
-      <div className="space-y-4">
-        <GradientBar pct={0} />
-
-        {/* Header: title */}
-        <div>
-          <h3 className="text-[16px] font-bold text-[#1D0084] leading-snug" style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}>
+      <div className="space-y-5">
+        <div className="text-center space-y-1">
+          <h3 className="text-[22px] font-bold text-[#1D0084] leading-tight" style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}>
             {dialogue.title}
           </h3>
-          {dialogue.context && (
-            <p className="text-[12px] text-[#9CA3AF] mt-0.5">{dialogue.context}</p>
-          )}
+          <p className="text-[13px] text-[#5A6480]">Escucha primero el audio antes de leer el texto.</p>
         </div>
 
-        {/* Modern audio players — scrubber + skip 5s. Si no hay URL, fallback a TTS */}
-        <div className="space-y-2">
+        {/* Dos audios: normal y lento */}
+        <div className="space-y-4">
           <div>
-            <p className="text-[11px] font-semibold text-[#1D0084] mb-1 uppercase tracking-wide">
-              Velocidad normal
-            </p>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[12px] font-bold text-[#1D0084] uppercase tracking-wide">Velocidad normal</p>
+            </div>
             {dialogue.audio?.url ? (
-              <AudioPlayer src={dialogue.audio.url} compact />
+              <AudioPlayer src={dialogue.audio.url} />
             ) : (
-              <DialogueTTSButton lines={dialogue.lines} rate={0.9} accentColor="#1D0084" />
+              <DialogueTTSButton lines={dialogue.lines} rate={0.95} accentColor="#1D0084" />
             )}
           </div>
           <div>
-            <p className="text-[11px] font-semibold text-[#025dc7] mb-1 uppercase tracking-wide">
-              🐢 Versión lenta
-            </p>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[12px] font-bold text-[#025dc7] uppercase tracking-wide">🐢 Versión lenta</p>
+            </div>
             {dialogue.slowAudio?.url ? (
-              <AudioPlayer src={dialogue.slowAudio.url} compact />
+              <AudioPlayer src={dialogue.slowAudio.url} />
             ) : (
               <DialogueTTSButton lines={dialogue.lines} rate={0.6} accentColor="#025dc7" />
             )}
           </div>
         </div>
 
-        {/* Conversation — WhatsApp style, alternating sides, sin avatares */}
-        <div className="rounded-2xl bg-[#EFF0F3] p-3 space-y-1.5">
-          {dialogue.lines.map((line, idx) => {
-            const isLeft = line.speaker === firstSpeaker;
-            const prev = dialogue.lines[idx - 1];
-            const showName = !prev || prev.speaker !== line.speaker;
-            return (
-              <div key={line.id} className={`flex ${isLeft ? 'justify-start' : 'justify-end'}`}>
-                <div
-                  className={`max-w-[80%] rounded-2xl px-3.5 py-2 shadow-sm ${
-                    isLeft ? 'bg-white' : 'bg-[#DCF8C6]'
-                  }`}
-                >
-                  {showName && (
-                    <p
-                      className="text-[12px] font-bold leading-tight mb-0.5"
-                      style={{ color: speakerColors[line.speaker] ?? '#059669' }}
-                    >
-                      {line.speaker}
-                    </p>
-                  )}
-                  <p className="text-[15px] text-[#111827] leading-snug">
-                    {line.dutch}
-                  </p>
-                  {showTranslation && (
-                    <p className="text-[13px] text-[#1e3a8a] font-medium leading-snug mt-1">
-                      {line.spanish}
-                    </p>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+        {/* Dos botones: ver el diálogo / ir a los ejercicios */}
+        <div className="space-y-2 pt-2">
+          <button
+            onClick={() => setView('dialogue')}
+            className="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+            </svg>
+            Ver el diálogo
+          </button>
+          {hasExercises && (
+            <button
+              onClick={() => setView('exercises')}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-white border border-[#DDE6F5] text-[#1D0084] text-[14px] font-semibold hover:bg-[#F0F5FF] transition-colors duration-200"
+            >
+              Ir directamente a los ejercicios
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Vista 2: Diálogo — transcript estilo guión con traducción togglable ─ */
+  if (view === 'dialogue') {
+    return (
+      <div className="space-y-4">
+        {/* Cabecera: volver + toggle traducción */}
+        <div className="flex items-center justify-between gap-2">
+          <button
+            onClick={() => setView('landing')}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold text-[#5A6480] hover:text-[#1D0084] hover:bg-[#F0F5FF] transition-colors duration-200"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+            Volver
+          </button>
+          <button
+            onClick={() => setShowTranslation(t => !t)}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-colors duration-200 ${
+              showTranslation
+                ? 'bg-[#1D0084] text-white hover:bg-[#025dc7]'
+                : 'bg-white border border-[#DDE6F5] text-[#1D0084] hover:bg-[#F0F5FF]'
+            }`}
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+            </svg>
+            {showTranslation ? 'Ocultar traducción' : 'Ver traducción'}
+          </button>
         </div>
 
-        {/* Toggle translation — etiquetas del mismo tamaño */}
-        <button
-          onClick={() => setShowTranslation(t => !t)}
-          className="w-full py-2.5 rounded-xl bg-white border border-[#DDE6F5] text-[#1D0084] text-[13px] font-semibold hover:bg-[#F0F5FF] transition-colors duration-200"
-        >
-          {showTranslation ? 'Ocultar traducción' : 'Ver traducción'}
-        </button>
+        {/* Título arriba */}
+        <div className="border-b border-[#DDE6F5] pb-3">
+          <h3 className="text-[18px] font-bold text-[#1D0084] leading-snug" style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}>
+            {dialogue.title}
+          </h3>
+        </div>
 
-        {/* Action button */}
+        {/* Transcript — estilo limpio tipo guión de libro */}
+        <div className="space-y-4">
+          {dialogue.lines.map(line => (
+            <div key={line.id} className="space-y-1">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-[#9CA3AF]">
+                {line.speaker}
+              </p>
+              <p className="text-[16px] text-[#1D0084] leading-relaxed font-medium">
+                {line.dutch}
+              </p>
+              {showTranslation && (
+                <p className="text-[14px] text-[#5A6480] italic leading-relaxed">
+                  {line.spanish}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* CTA a ejercicios */}
         {hasExercises && (
           <button
-            onClick={() => setStep('exercises')}
-            className="w-full py-3.5 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200"
+            onClick={() => setView('exercises')}
+            className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200 mt-6"
           >
-            Practicar →
+            Ir a los ejercicios
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
           </button>
         )}
       </div>
@@ -2804,7 +2832,7 @@ function LuisterenSection({
         </div>
         <button
           onClick={() => {
-            setStep('dialogue');
+            setView('landing');
             setExerciseIndex(0);
             setScore(0);
             setAnswered(false);
@@ -2824,7 +2852,7 @@ function LuisterenSection({
       <GradientBar pct={pct} />
       <div className="flex items-center justify-between">
         <button
-          onClick={() => { setStep('dialogue'); setExerciseIndex(0); setScore(0); setAnswered(false); setExKey(k => k + 1); }}
+          onClick={() => { setView('landing'); setExerciseIndex(0); setScore(0); setAnswered(false); setExKey(k => k + 1); }}
           className="flex items-center gap-1.5 text-[13px] font-semibold text-[#9CA3AF] hover:text-[#1D0084] transition-colors duration-200"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
