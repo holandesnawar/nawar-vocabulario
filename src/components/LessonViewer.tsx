@@ -15,7 +15,21 @@ import AudioPlayer from './AudioPlayer';
    HELPERS
 ───────────────────────────────────────────────────────────────────────────── */
 
-function speakDutch(text: string) {
+/**
+ * Mapa global word_nl -> audio_url poblado por LessonViewer cuando carga la
+ * lección. speakDutch lo consulta primero antes de caer a TTS del navegador.
+ *
+ * Esto hace que cualquier ejercicio que diga speakDutch("koffie") use
+ * automáticamente el MP3 de ElevenLabs si existe — sin tocar cada componente.
+ */
+let _wordAudioMap: Record<string, string> = {};
+let _currentAudio: HTMLAudioElement | null = null;
+
+export function setWordAudioMap(map: Record<string, string>) {
+  _wordAudioMap = map;
+}
+
+function _ttsFallback(text: string) {
   if (typeof window === 'undefined' || !window.speechSynthesis) return;
   window.speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
@@ -23,6 +37,27 @@ function speakDutch(text: string) {
   u.rate = 0.78;
   u.pitch = 1;
   window.speechSynthesis.speak(u);
+}
+
+function speakDutch(text: string) {
+  // Para parar cualquier audio previo (TTS o MP3)
+  if (_currentAudio) { try { _currentAudio.pause(); } catch {} _currentAudio = null; }
+  if (typeof window !== 'undefined' && window.speechSynthesis) window.speechSynthesis.cancel();
+
+  const key = text.trim().toLowerCase();
+  const url = _wordAudioMap[key];
+  if (url) {
+    try {
+      const audio = new Audio(url);
+      _currentAudio = audio;
+      audio.onerror = () => _ttsFallback(text);
+      audio.play().catch(() => _ttsFallback(text));
+      return;
+    } catch {
+      // fallthrough to TTS
+    }
+  }
+  _ttsFallback(text);
 }
 
 
@@ -2923,6 +2958,48 @@ export default function LessonViewer({ lesson, module, prevLesson: _prev, nextLe
       // Pre-mark all sections as done for returning students
     }
   }, [lesson.id, lesson.moduleId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Construye el mapa texto->audio_url para que los ejercicios usen MP3
+  // de ElevenLabs en vez de TTS cuando hagan speakDutch().
+  // Fuentes:
+  //   - vocabulary_items.audio_url (con y sin artículo)
+  //   - phrases.audio_url
+  //   - practice_items con texto entre comillas (URL determinista en Storage)
+  useEffect(() => {
+    const map: Record<string, string> = {};
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+    for (const block of lesson.blocks) {
+      if (block.type === 'vocabulary') {
+        for (const v of block.items) {
+          if (v.audio?.url) {
+            map[v.dutch.trim().toLowerCase()] = v.audio.url;
+            if (v.article) {
+              map[`${v.article} ${v.dutch}`.trim().toLowerCase()] = v.audio.url;
+            }
+          }
+        }
+      }
+      if (block.type === 'phrases') {
+        for (const p of block.items) {
+          if (p.audio?.url) {
+            map[p.dutch.trim().toLowerCase()] = p.audio.url;
+          }
+        }
+      }
+      if (block.type === 'practice' && supabaseUrl) {
+        for (const ex of block.exercises) {
+          if (ex.type !== 'listen_and_choose' && ex.type !== 'listen_translate') continue;
+          const m = ex.prompt.match(/"([^"]+)"/);
+          if (!m) continue;
+          const text = m[1].trim().toLowerCase();
+          // URL determinista; si el MP3 no existe, audio.onerror cae a TTS
+          map[text] = `${supabaseUrl}/storage/v1/object/public/nawar-audio/practice/${ex.id}.mp3`;
+        }
+      }
+    }
+    setWordAudioMap(map);
+    return () => setWordAudioMap({});
+  }, [lesson]);
 
   // Build available sections from blocks
   const availableSections: SectionId[] = (() => {

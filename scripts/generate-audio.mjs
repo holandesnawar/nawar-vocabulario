@@ -184,11 +184,29 @@ async function main() {
     });
   }
 
-  // 3) practice_items: SKIP por ahora — la tabla no tiene columna audio_url.
-  //    Los ejercicios listen_* funcionan con speakDutch (TTS browser) hasta
-  //    que añadamos la columna. Para vocab que aparece en estos ejercicios,
-  //    el audio MP3 se reproducirá vía vocabulary_items.audio_url cuando
-  //    actualicemos los componentes para hacer lookup por palabra.
+  // 3) practice_items: la tabla no tiene columna audio_url, así que usamos
+  //    URL determinista por id: practice/{id}.mp3. El cliente reconstruye
+  //    la URL y la intenta — si 404, cae a TTS.
+  //    Procesa listen_and_choose y listen_translate (texto entre comillas).
+  //    NO actualiza ninguna tabla (la URL se computa client-side).
+  const practice = await sbGet('practice_items', `lesson_id=in.(${lessonIds})&select=id,type,question_text`);
+  for (const p of practice) {
+    if (p.type !== 'listen_and_choose' && p.type !== 'listen_translate') continue;
+    const m = p.question_text?.match(/"([^"]+)"/);
+    const text = m ? m[1] : null;
+    if (!text) continue;
+    const filename = `practice/${p.id}.mp3`;
+    // Skip si el MP3 ya existe en Storage
+    const head = await fetch(`${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${filename}`, { method: 'HEAD' });
+    if (head.ok) continue;
+    tasks.push({
+      table: '__storage_only__', // marca: no actualizar DB, solo subir
+      id: p.id,
+      column: null,
+      text,
+      filename,
+    });
+  }
 
   // 4) dialogue_lines + dialogues (normal + slow)
   const dialogues = await sbGet('dialogues', `lesson_id=in.(${lessonIds})&select=id,title,audio_normal_url,audio_slow_url,lesson_id`);
@@ -254,7 +272,10 @@ async function main() {
       process.stdout.write(`   [${ok + fail + 1}/${tasks.length}] ${t.filename}... `);
       const audio = await synthesize(t.text, { speed: t.speed });
       const url = await uploadMp3(t.filename, audio);
-      await sbPatch(t.table, `id=eq.${t.id}`, { [t.column]: url });
+      // Actualiza DB solo si la tarea apunta a una columna real
+      if (t.table !== '__storage_only__' && t.column) {
+        await sbPatch(t.table, `id=eq.${t.id}`, { [t.column]: url });
+      }
       ok++;
       console.log(`✓ (${audio.length} bytes)`);
     } catch (e) {
