@@ -159,17 +159,42 @@ async function main() {
   // ── Recoger todo lo que falta audio ──────────────────────────────────────
   const tasks = [];
 
-  // 1) vocabulary_items
-  const vocab = await sbGet('vocabulary_items', `lesson_id=in.(${lessonIds})&audio_url=is.null&select=id,word_nl,article,lesson_id`);
+  // 1) vocabulary_items: 2 versiones por palabra
+  //    - vocab/{lesson_id}-{slug}.mp3       → palabra sin artículo (uso en ejercicios)
+  //    - vocab/{lesson_id}-{slug}-art.mp3   → con artículo (uso en Diccionario)
+  //    audio_url en DB guarda la versión SIN artículo. La versión con artículo
+  //    se computa client-side via URL determinista.
+  const vocab = await sbGet('vocabulary_items', `lesson_id=in.(${lessonIds})&select=id,word_nl,article,audio_url,lesson_id`);
   for (const v of vocab) {
-    const text = (v.article ? `${v.article} ` : '') + v.word_nl;
-    tasks.push({
-      table: 'vocabulary_items',
-      id: v.id,
-      column: 'audio_url',
-      text,
-      filename: `vocab/${v.lesson_id}-${slug(v.word_nl)}.mp3`,
-    });
+    const word = v.word_nl;
+    if (!word) continue;
+    const baseName = `vocab/${v.lesson_id}-${slug(word)}.mp3`;
+    const articleName = `vocab/${v.lesson_id}-${slug(word)}-art.mp3`;
+
+    // Sin artículo (palabra sola) — para ejercicios
+    if (!v.audio_url) {
+      tasks.push({
+        table: 'vocabulary_items',
+        id: v.id,
+        column: 'audio_url',
+        text: word,
+        filename: baseName,
+      });
+    }
+
+    // Con artículo — para Diccionario. Solo si hay artículo y el MP3 no existe ya.
+    if (v.article) {
+      const head = await fetch(`${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${articleName}`, { method: 'HEAD' });
+      if (!head.ok) {
+        tasks.push({
+          table: '__storage_only__',
+          id: v.id,
+          column: null,
+          text: `${v.article} ${word}`,
+          filename: articleName,
+        });
+      }
+    }
   }
 
   // 2) phrases

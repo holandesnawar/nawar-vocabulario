@@ -288,33 +288,21 @@ function StepBar({ steps, current }: {
 
 function WordCard({ word }: { word: VocabularyItem }) {
   const [isPlaying, setIsPlaying] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   function handlePlay() {
     if (isPlaying) {
-      audioRef.current?.pause();
-      if (audioRef.current) audioRef.current.currentTime = 0;
+      // speakDutch maneja stop interno
       window.speechSynthesis?.cancel();
       setIsPlaying(false);
       return;
     }
+    // Texto con artículo → speakDutch enruta automáticamente al MP3 -art.mp3
+    // si está en el mapa global, o cae a TTS.
     const text = (word.article ? `${word.article} ` : '') + word.dutch;
     setIsPlaying(true);
-    if (word.audio?.url) {
-      const audio = new Audio(word.audio.url);
-      audioRef.current = audio;
-      audio.onended = () => setIsPlaying(false);
-      audio.onerror = () => { speakDutch(text); };
-      audio.play().catch(() => { speakDutch(text); setIsPlaying(false); });
-    } else {
-      if (typeof window !== 'undefined' && window.speechSynthesis) {
-        window.speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance(text);
-        u.lang = 'nl-NL'; u.rate = 0.78; u.pitch = 1;
-        u.onend = () => setIsPlaying(false);
-        window.speechSynthesis.speak(u);
-      }
-    }
+    speakDutch(text);
+    // Resetear estado tras una pausa razonable (no tenemos onended del helper)
+    setTimeout(() => setIsPlaying(false), 2500);
   }
 
   return (
@@ -573,11 +561,23 @@ function ExerciseRunner({ exercises, onDone, onBack, hasBackStep, onSubProgress,
 
   const [answers, setAnswers] = useState<Record<number, string>>(initialAnswers);
   const [index, setIndex] = useState(() => {
-    if (!indexKey || typeof window === 'undefined') return 0;
-    try {
-      const n = parseInt(sessionStorage.getItem(indexKey) ?? '0', 10);
-      return Number.isFinite(n) && n >= 0 && n < exercises.length ? n : 0;
-    } catch { return 0; }
+    if (typeof window === 'undefined') return 0;
+    // Si hay un index guardado de una sesión en curso, úsalo
+    if (indexKey) {
+      try {
+        const stored = sessionStorage.getItem(indexKey);
+        if (stored !== null) {
+          const n = parseInt(stored, 10);
+          if (Number.isFinite(n) && n >= 0 && n < exercises.length) return n;
+        }
+      } catch {}
+    }
+    // Sin index guardado pero con respuestas previas → step ya completado:
+    // aterriza en el ÚLTIMO ejercicio (como pasar páginas atrás en un libro).
+    if (Object.keys(initialAnswers).length > 0 && exercises.length > 0) {
+      return exercises.length - 1;
+    }
+    return 0;
   });
   const [exKey, setExKey] = useState(0);
 
@@ -616,7 +616,15 @@ function ExerciseRunner({ exercises, onDone, onBack, hasBackStep, onSubProgress,
   }
 
   function go(target: number) {
+    // Atrás: siempre permitido (incluyendo a paso anterior)
     if (target < 0) { if (hasBackStep) onBack(); return; }
+    if (target < index) {
+      setIndex(target);
+      setExKey(k => k + 1);
+      return;
+    }
+    // Adelante (incluido pasar al siguiente paso): requiere haber respondido el actual
+    if (target > index && !currentAnswered) return;
     if (target >= exercises.length) {
       // Finished this step — clear index storage, advance
       if (indexKey) try { sessionStorage.removeItem(indexKey); } catch {}
@@ -701,10 +709,13 @@ function ExerciseRunner({ exercises, onDone, onBack, hasBackStep, onSubProgress,
         </div>
 
         <button
-          onClick={handleNext}
+          onClick={currentAnswered ? handleNext : undefined}
           aria-label={isLast ? 'Siguiente paso' : 'Siguiente ejercicio'}
+          title={!currentAnswered ? 'Responde para continuar' : undefined}
           className={`hidden md:flex absolute right-0 top-5 w-11 h-11 items-center justify-center rounded-2xl transition-all duration-300 ${
-            (currentAnswered || !isLast) ? 'bg-[#1D0084] text-white cursor-pointer hover:bg-[#025dc7]' : 'bg-[#F0F5FF] text-[#1D0084] cursor-pointer hover:bg-[#e0eaff] border border-[#DDE6F5]'
+            currentAnswered
+              ? 'bg-[#1D0084] text-white cursor-pointer hover:bg-[#025dc7]'
+              : 'bg-[#F0F5FF] text-[#DDE6F5] cursor-not-allowed border border-[#DDE6F5]'
           }`}
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -726,13 +737,14 @@ function ExerciseRunner({ exercises, onDone, onBack, hasBackStep, onSubProgress,
         </button>
         <button
           onClick={handleNext}
+          disabled={!currentAnswered}
           className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[15px] font-semibold transition-colors duration-200 ${
-            (currentAnswered || !isLast)
+            currentAnswered
               ? 'bg-[#1D0084] text-white hover:bg-[#025dc7]'
-              : 'bg-[#F0F5FF] text-[#1D0084] border border-[#DDE6F5] hover:bg-[#e0eaff]'
+              : 'bg-[#F0F5FF] text-[#9CA3AF] border border-[#DDE6F5] cursor-not-allowed'
           }`}
         >
-          {isLast ? (currentAnswered || allAnswered ? 'Siguiente paso' : 'Saltar al siguiente paso') : 'Siguiente'}
+          {currentAnswered ? (isLast ? 'Siguiente paso' : 'Siguiente') : 'Responde para continuar'}
           <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
           </svg>
@@ -1129,7 +1141,7 @@ function FlashcardSection({
         >
           {/* Front */}
           <div
-            className="rounded-2xl border border-[#DDE6F5] bg-white flex flex-col items-center justify-center gap-4 p-8 absolute inset-0"
+            className="rounded-2xl border border-[#DDE6F5] bg-white flex flex-col items-center justify-center gap-3 p-8 absolute inset-0"
             style={{ backfaceVisibility: 'hidden' }}
           >
             <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-widest">
@@ -1141,11 +1153,23 @@ function FlashcardSection({
             >
               {front}
             </p>
-            <p className="text-[12px] text-[#9CA3AF]">Toca para ver la traducción</p>
+            {mode === 'nl-es' && (
+              <button
+                onClick={(e) => { e.stopPropagation(); speakDutch(front); }}
+                aria-label="Escuchar pronunciación"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#F0F5FF] text-[#025dc7] text-[12px] font-semibold border border-[#DDE6F5] hover:bg-[#e0eaff] transition-colors duration-200"
+              >
+                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 00-2.5-4.03v8.06A4.5 4.5 0 0016.5 12z" />
+                </svg>
+                Escuchar
+              </button>
+            )}
+            <p className="text-[11px] text-[#9CA3AF]">Toca la tarjeta para girarla</p>
           </div>
           {/* Back */}
           <div
-            className="rounded-2xl border border-[#025dc7]/30 bg-[#F8FAFF] flex flex-col items-center justify-center gap-4 p-8 absolute inset-0"
+            className="rounded-2xl border border-[#025dc7]/30 bg-[#F8FAFF] flex flex-col items-center justify-center gap-3 p-8 absolute inset-0"
             style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
           >
             <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-widest">
@@ -1157,6 +1181,18 @@ function FlashcardSection({
             >
               {back}
             </p>
+            {mode === 'es-nl' && (
+              <button
+                onClick={(e) => { e.stopPropagation(); speakDutch(back); }}
+                aria-label="Escuchar pronunciación"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#F0F5FF] text-[#025dc7] text-[12px] font-semibold border border-[#DDE6F5] hover:bg-[#e0eaff] transition-colors duration-200"
+              >
+                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 00-2.5-4.03v8.06A4.5 4.5 0 0016.5 12z" />
+                </svg>
+                Escuchar
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -2968,14 +3004,24 @@ export default function LessonViewer({ lesson, module, prevLesson: _prev, nextLe
   useEffect(() => {
     const map: Record<string, string> = {};
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+    // slug local para reconstruir URLs deterministas (debe coincidir con generate-audio.mjs)
+    const slug = (s: string) => s.toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
+
     for (const block of lesson.blocks) {
       if (block.type === 'vocabulary') {
         for (const v of block.items) {
+          // Palabra SIN artículo → audio_url en DB
           if (v.audio?.url) {
             map[v.dutch.trim().toLowerCase()] = v.audio.url;
-            if (v.article) {
-              map[`${v.article} ${v.dutch}`.trim().toLowerCase()] = v.audio.url;
-            }
+          }
+          // CON artículo → URL determinista (vocab/{lessonId}-{slug}-art.mp3)
+          // El lesson_id no llega al cliente directamente; usamos un selector basado en
+          // el patrón de la audio_url existente (extraemos {lessonId}-{slug}).
+          if (v.article && supabaseUrl && v.audio?.url) {
+            const articleUrl = v.audio.url.replace(/\.mp3$/, '-art.mp3');
+            map[`${v.article} ${v.dutch}`.trim().toLowerCase()] = articleUrl;
           }
         }
       }
@@ -2992,11 +3038,12 @@ export default function LessonViewer({ lesson, module, prevLesson: _prev, nextLe
           const m = ex.prompt.match(/"([^"]+)"/);
           if (!m) continue;
           const text = m[1].trim().toLowerCase();
-          // URL determinista; si el MP3 no existe, audio.onerror cae a TTS
           map[text] = `${supabaseUrl}/storage/v1/object/public/nawar-audio/practice/${ex.id}.mp3`;
         }
       }
     }
+    // Suprime warning de slug no usado (lo dejo porque podríamos necesitarlo)
+    void slug;
     setWordAudioMap(map);
     return () => setWordAudioMap({});
   }, [lesson]);
