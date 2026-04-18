@@ -8,8 +8,8 @@ import {
 } from "@/lib/courseService"
 import LessonList from '@/components/LessonList';
 
-// Cache 60s — balance entre frescura y rendimiento.
-export const revalidate = 60;
+// Dinámico: cada visita re-fetch. Misma razón que en la página de lección.
+export const dynamic = 'force-dynamic';
 
 export function generateStaticParams() {
   return getModules().map((module) => ({
