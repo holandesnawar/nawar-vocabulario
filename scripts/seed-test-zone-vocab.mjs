@@ -113,9 +113,19 @@ async function main() {
       await del('practice_options', `practice_item_id=in.(${ids})`);
       await del('practice_items', `lesson_id=eq.${lessonId}`);
     }
+    // PRESERVAR audio_url por word_nl antes de borrar — para no perder
+    // los MP3 generados por scripts/generate-audio.mjs.
+    const oldVocab = await get('vocabulary_items', `lesson_id=eq.${lessonId}&select=word_nl,audio_url`);
+    globalThis.__preservedAudioByWord = Object.fromEntries(
+      oldVocab.filter(v => v.audio_url).map(v => [v.word_nl, v.audio_url])
+    );
+    const preservedCount = Object.keys(globalThis.__preservedAudioByWord).length;
+    if (preservedCount > 0) console.log(`💾  Preservados ${preservedCount} audio_url por palabra`);
+
     await del('vocabulary_items', `lesson_id=eq.${lessonId}`);
     console.log(`✅  Lección existente, ID: ${lessonId} — limpiada\n`);
   } else {
+    globalThis.__preservedAudioByWord = {};
     const [lesson] = await post('lessons', {
       module_id: moduleId,
       slug: 'test-zone-vocab',
@@ -129,17 +139,20 @@ async function main() {
   }
 
   // ── 3. Vocabulary items ───────────────────────────────────────────────────
-  await post('vocabulary_items', [
-    { lesson_id: lessonId, sort_order: 1, word_nl: 'water',  translation_es: 'agua',   article: 'het' },
-    { lesson_id: lessonId, sort_order: 2, word_nl: 'koffie', translation_es: 'café',   article: 'de'  },
-    { lesson_id: lessonId, sort_order: 3, word_nl: 'melk',   translation_es: 'leche',  article: 'de'  },
-    { lesson_id: lessonId, sort_order: 4, word_nl: 'kat',    translation_es: 'gato',   article: 'de'  },
-    { lesson_id: lessonId, sort_order: 5, word_nl: 'hond',   translation_es: 'perro',  article: 'de'  },
-    { lesson_id: lessonId, sort_order: 6, word_nl: 'vogel',  translation_es: 'pájaro', article: 'de'  },
-    { lesson_id: lessonId, sort_order: 7, word_nl: 'boek',   translation_es: 'libro',  article: 'het' },
-    { lesson_id: lessonId, sort_order: 8, word_nl: 'huis',   translation_es: 'casa',   article: 'het' },
-  ]);
-  console.log('✅  vocabulary_items × 8');
+  const preserved = globalThis.__preservedAudioByWord ?? {};
+  const vocabRows = [
+    { lesson_id: lessonId, sort_order: 1, word_nl: 'water',  translation_es: 'agua',   article: 'het', audio_url: preserved['water']  ?? null },
+    { lesson_id: lessonId, sort_order: 2, word_nl: 'koffie', translation_es: 'café',   article: 'de',  audio_url: preserved['koffie'] ?? null },
+    { lesson_id: lessonId, sort_order: 3, word_nl: 'melk',   translation_es: 'leche',  article: 'de',  audio_url: preserved['melk']   ?? null },
+    { lesson_id: lessonId, sort_order: 4, word_nl: 'kat',    translation_es: 'gato',   article: 'de',  audio_url: preserved['kat']    ?? null },
+    { lesson_id: lessonId, sort_order: 5, word_nl: 'hond',   translation_es: 'perro',  article: 'de',  audio_url: preserved['hond']   ?? null },
+    { lesson_id: lessonId, sort_order: 6, word_nl: 'vogel',  translation_es: 'pájaro', article: 'de',  audio_url: preserved['vogel']  ?? null },
+    { lesson_id: lessonId, sort_order: 7, word_nl: 'boek',   translation_es: 'libro',  article: 'het', audio_url: preserved['boek']   ?? null },
+    { lesson_id: lessonId, sort_order: 8, word_nl: 'huis',   translation_es: 'casa',   article: 'het', audio_url: preserved['huis']   ?? null },
+  ];
+  await post('vocabulary_items', vocabRows);
+  const restored = vocabRows.filter(v => v.audio_url).length;
+  console.log(`✅  vocabulary_items × 8 (audio_url restaurado en ${restored})`);
 
   let id;
 
@@ -336,23 +349,7 @@ async function main() {
   ]);
   console.log('✅  match_pairs × 1');
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // 10 ─ MEMORY CARDS (pair_memory) — NUEVO
-  //      Reusa match_pair_items. Render en grid 2x4 con cartas boca abajo.
-  // ══════════════════════════════════════════════════════════════════════════
-  id = await insertItem(lessonId, {
-    sort_order: 100,
-    type: 'pair_memory',
-    question_text: 'Encuentra las parejas NL ↔ ES girando las cartas.',
-    correct_answer: '',
-  });
-  await post('match_pair_items', [
-    { practice_item_id: id, sort_order: 1, left_text: 'kat',   right_text: 'gato'   },
-    { practice_item_id: id, sort_order: 2, left_text: 'hond',  right_text: 'perro'  },
-    { practice_item_id: id, sort_order: 3, left_text: 'vogel', right_text: 'pájaro' },
-    { practice_item_id: id, sort_order: 4, left_text: 'huis',  right_text: 'casa'   },
-  ]);
-  console.log('✅  pair_memory × 1 (NUEVO, 4 pares)');
+  // pair_memory eliminado por feedback del usuario (no encajaba).
 
   // ══════════════════════════════════════════════════════════════════════════
   // 11 ─ TOCA EL EMOJI (emoji_choice) — sin pista (explanation), tal cual
@@ -404,12 +401,10 @@ async function main() {
   console.log('   • word_scramble        × 1');
   console.log('   • letter_dash          × 1');
   console.log('   • match_pairs          × 1');
-  console.log('   • pair_memory          × 1');
   console.log('   • emoji_choice         × 1   (sin pista)');
   console.log('   • odd_one_out          × 1');
-  console.log('   ─── classify (auto, de/het) — generado por la app');
   console.log('════════════════════════════════════════════════════════════');
-  console.log('   Total: 14 tarjetas en 13 formatos distintos.');
+  console.log('   Total: 12 tarjetas en 11 formatos distintos.');
   console.log('════════════════════════════════════════════════════════════\n');
 }
 

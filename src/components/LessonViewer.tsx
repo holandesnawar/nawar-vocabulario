@@ -187,9 +187,10 @@ function buildVPSteps(
   if (orderEx.length > 0)
     steps.push({ type: 'order', exercises: orderEx });
 
-  const classifyData = buildClassifyData(vocabItems);
-  if (classifyData)
-    steps.push({ type: 'classify', ...classifyData });
+  // Classify desactivado por feedback del usuario (no encajaba en el flujo Duolingo).
+  // Se mantienen el tipo y el componente por si se reactiva más adelante.
+  // const classifyData = buildClassifyData(vocabItems);
+  // if (classifyData) steps.push({ type: 'classify', ...classifyData });
 
   const writeEx = exercises.filter(e => e.type === 'write_answer');
   if (writeEx.length > 0)
@@ -215,9 +216,9 @@ function buildVPSteps(
   if (letterDashEx.length > 0)
     steps.push({ type: 'letterdash', exercises: letterDashEx });
 
-  const memoryEx = exercises.filter(e => e.type === 'pair_memory');
-  if (memoryEx.length > 0)
-    steps.push({ type: 'memory', exercises: memoryEx });
+  // Memory cards desactivado por feedback del usuario.
+  // const memoryEx = exercises.filter(e => e.type === 'pair_memory');
+  // if (memoryEx.length > 0) steps.push({ type: 'memory', exercises: memoryEx });
 
   return steps;
 }
@@ -235,8 +236,8 @@ function StepBar({ steps, current }: {
   const cardNum = isContentStep ? null : steps.slice(0, current + 1).filter(s => s.type !== 'words' && s.type !== 'phrases').length;
 
   return (
-    <div className="mb-4 flex items-center justify-between gap-3">
-      <p className="text-[20px] font-bold text-[#1D0084] leading-tight" style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}>
+    <div className="flex-1 flex items-center gap-3 min-w-0">
+      <p className="text-[20px] font-bold text-[#1D0084] leading-tight truncate" style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}>
         {meta.emoji} {meta.label}
       </p>
       {!isContentStep && (
@@ -677,19 +678,6 @@ function ExerciseRunner({ exercises, onDone, onBack, hasBackStep, onSubProgress,
         </button>
       </div>
 
-      {/* Summary when all answered — inline, not a modal trap */}
-      {allAnswered && (
-        <div className="rounded-xl px-4 py-3 bg-[#F0F5FF] border border-[#DDE6F5] flex items-center gap-3">
-          <div className="text-2xl">{score >= exercises.length * 0.8 ? '🎉' : '📝'}</div>
-          <div className="flex-1">
-            <p className="text-[14px] font-bold text-[#1D0084]">{score} / {exercises.length} correctas</p>
-            <p className="text-[12px] text-[#5A6480]">
-              {score === exercises.length ? '¡Perfecto! Puedes revisar o pasar al siguiente paso.' : 'Puedes revisar cualquier ejercicio tocando los puntos.'}
-            </p>
-          </div>
-        </div>
-      )}
-
       {/* Mobile buttons — always visible */}
       <div className="flex items-stretch gap-2 md:hidden">
         <button
@@ -861,24 +849,24 @@ function VocabPracticeSection({
     }
   }
 
-  if (allDone) {
-    function handleReset() {
-      // Borra TODO el cache de esta lección — respuestas, índices, step actual
-      try {
-        const keys: string[] = [];
-        for (let i = 0; i < sessionStorage.length; i++) {
-          const k = sessionStorage.key(i);
-          if (k && (k.startsWith('vp-ex-') || k.startsWith('vp-step-'))) keys.push(k);
-        }
-        keys.forEach(k => sessionStorage.removeItem(k));
-      } catch {}
-      setAllDone(false);
-      setStepIndex(0);
-      setSubProgress(undefined);
-      setRunnerKey(k => k + 1);
-      onComplete();
-    }
+  function handleReset(confirm = true) {
+    if (confirm && typeof window !== 'undefined' && !window.confirm('¿Borrar todas tus respuestas y empezar de cero?')) return;
+    // Borra TODO el cache de esta lección — respuestas, índices, step actual
+    try {
+      const keys: string[] = [];
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const k = sessionStorage.key(i);
+        if (k && (k.startsWith('vp-ex-') || k.startsWith('vp-step-'))) keys.push(k);
+      }
+      keys.forEach(k => sessionStorage.removeItem(k));
+    } catch {}
+    setAllDone(false);
+    setStepIndex(0);
+    setSubProgress(undefined);
+    setRunnerKey(k => k + 1);
+  }
 
+  if (allDone) {
     return (
       <div className="space-y-4">
         <div className="flex flex-col items-center text-center rounded-2xl py-12 px-6 gap-3" style={{ background: 'linear-gradient(135deg, #1D0084 0%, #025dc7 100%)' }}>
@@ -887,16 +875,19 @@ function VocabPracticeSection({
           <p className="text-white/60 text-[14px]">Has repasado todo el vocabulario</p>
         </div>
         <button
-          onClick={handleReset}
-          className="w-full py-3.5 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200"
+          onClick={() => handleReset(false)}
+          className="w-full py-4 rounded-xl bg-[#1D0084] text-white text-[16px] font-bold hover:bg-[#025dc7] transition-colors duration-200 flex items-center justify-center gap-2"
         >
-          🔄 Reiniciar la lección desde cero
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          Hacer la práctica de nuevo
         </button>
         <button
-          onClick={() => { setAllDone(false); setStepIndex(0); setSubProgress(undefined); setRunnerKey(k => k + 1); onComplete(); }}
-          className="w-full py-3 rounded-xl bg-[#F0F5FF] text-[#1D0084] text-[14px] font-semibold border border-[#DDE6F5] hover:bg-[#e0eaff] transition-colors duration-200"
+          onClick={onComplete}
+          className="w-full py-3 rounded-xl bg-white text-[#5A6480] text-[14px] font-semibold border border-[#DDE6F5] hover:bg-[#F0F5FF] hover:text-[#1D0084] transition-colors duration-200"
         >
-          Volver al inicio sin borrar respuestas
+          Salir al menú de la lección
         </button>
       </div>
     );
@@ -906,7 +897,19 @@ function VocabPracticeSection({
 
   return (
     <div>
-      <StepBar steps={steps} current={stepIndex} />
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <StepBar steps={steps} current={stepIndex} />
+        <button
+          onClick={() => handleReset(true)}
+          title="Reiniciar todas las respuestas"
+          className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-[#9CA3AF] hover:text-[#1D0084] hover:bg-[#F0F5FF] transition-colors duration-200 -mt-1"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          Reiniciar
+        </button>
+      </div>
 
       {step.type === 'words' && (
         <WordsStep key={runnerKey} items={vocabItems} onDone={handleStepDone}
