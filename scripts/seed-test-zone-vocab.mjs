@@ -164,6 +164,30 @@ async function main() {
   console.log('✅  listen_and_choose × 1');
 
   // ══════════════════════════════════════════════════════════════════════════
+  // 1bis ─ ESCUCHA Y TRADUCE (listen_translate) — NUEVO
+  //        Frase NL grande + botón escuchar (TTS). El alumno compone la
+  //        traducción ES tocando chips. Las comillas en el prompt marcan la
+  //        parte que TTS debe leer (oculta del texto visible).
+  // ══════════════════════════════════════════════════════════════════════════
+  id = await insertItem(lessonId, {
+    sort_order: 11,
+    type: 'listen_translate',
+    question_text: 'Escucha esta frase en neerlandés y compón la traducción en español: "Ik drink water in de ochtend"',
+    correct_answer: 'Bebo agua por la mañana',
+    explanation: '"Ik drink water in de ochtend" = "Bebo agua por la mañana".',
+  });
+  await post('practice_options', [
+    { practice_item_id: id, sort_order: 1, option_text: 'Bebo',    is_correct: false },
+    { practice_item_id: id, sort_order: 2, option_text: 'agua',    is_correct: false },
+    { practice_item_id: id, sort_order: 3, option_text: 'por',     is_correct: false },
+    { practice_item_id: id, sort_order: 4, option_text: 'la',      is_correct: false },
+    { practice_item_id: id, sort_order: 5, option_text: 'mañana',  is_correct: false },
+    { practice_item_id: id, sort_order: 6, option_text: 'café',    is_correct: false }, // distractor
+    { practice_item_id: id, sort_order: 7, option_text: 'noche',   is_correct: false }, // distractor
+  ]);
+  console.log('✅  listen_translate × 1 (NUEVO)');
+
+  // ══════════════════════════════════════════════════════════════════════════
   // 2 ─ VERDADERO / FALSO
   // ══════════════════════════════════════════════════════════════════════════
   await insertItem(lessonId, {
@@ -219,17 +243,24 @@ async function main() {
   console.log('✅  multiple_choice × 3');
 
   // ══════════════════════════════════════════════════════════════════════════
-  // 4 ─ COMPLETA LA FRASE (fill_blank)
+  // 4 ─ COMPLETA LA FRASE (fill_blank con opciones)
+  //     4 botones de palabras NL — click escucha la pronunciación (TTS) +
+  //     selecciona. "Comprobar" valida.
   // ══════════════════════════════════════════════════════════════════════════
-  await insertItem(lessonId, {
+  id = await insertItem(lessonId, {
     sort_order: 40,
     type: 'fill_blank',
-    question_text: '☕ Ik drink _____ in de ochtend.',
+    question_text: '☕ Ik drink ___ in de ochtend.',
     correct_answer: 'koffie',
-    hint: 'Una bebida oscura y amarga muy común.',
     explanation: '"Koffie" = café. "In de ochtend" = por la mañana.',
   });
-  console.log('✅  fill_blank × 1');
+  await post('practice_options', [
+    { practice_item_id: id, sort_order: 1, option_text: 'koffie', is_correct: true  },
+    { practice_item_id: id, sort_order: 2, option_text: 'water',  is_correct: false },
+    { practice_item_id: id, sort_order: 3, option_text: 'melk',   is_correct: false },
+    { practice_item_id: id, sort_order: 4, option_text: 'kat',    is_correct: false },
+  ]);
+  console.log('✅  fill_blank × 1 (con opciones + TTS)');
 
   // ══════════════════════════════════════════════════════════════════════════
   // 5 ─ ORDENA LAS PALABRAS (order_sentence) — NUEVO en el Test Zone
@@ -333,14 +364,14 @@ async function main() {
   console.log('✅  pair_memory × 1 (NUEVO, 4 pares)');
 
   // ══════════════════════════════════════════════════════════════════════════
-  // 11 ─ TOCA EL EMOJI (emoji_choice)
+  // 11 ─ TOCA EL EMOJI (emoji_choice) — sin pista (explanation), tal cual
+  //      pidió el usuario; el ejercicio es fácil y la "pista" sobraba.
   // ══════════════════════════════════════════════════════════════════════════
   id = await insertItem(lessonId, {
     sort_order: 110,
     type: 'emoji_choice',
     question_text: 'koffie',
     correct_answer: '☕',
-    explanation: '"De koffie" = el café.',
   });
   await post('practice_options', [
     { practice_item_id: id, sort_order: 1, option_text: '☕', is_correct: true  },
@@ -348,7 +379,7 @@ async function main() {
     { practice_item_id: id, sort_order: 3, option_text: '💧', is_correct: false },
     { practice_item_id: id, sort_order: 4, option_text: '🍵', is_correct: false },
   ]);
-  console.log('✅  emoji_choice × 1');
+  console.log('✅  emoji_choice × 1 (sin pista)');
 
   // ══════════════════════════════════════════════════════════════════════════
   // 12 ─ ELIGE LA INTRUSA (odd_one_out)
@@ -374,20 +405,21 @@ async function main() {
   console.log('════════════════════════════════════════════════════════════');
   console.log('   • vocabulary_items     × 8');
   console.log('   • listen_and_choose    × 1');
+  console.log('   • listen_translate     × 1   (NUEVO)');
   console.log('   • true_false           × 1');
   console.log('   • multiple_choice      × 3');
-  console.log('   • fill_blank           × 1');
-  console.log('   • order_sentence       × 1   (NUEVO)');
+  console.log('   • fill_blank           × 1   (mejorado: opciones + TTS)');
+  console.log('   • order_sentence       × 1');
   console.log('   • write_answer         × 1');
   console.log('   • word_scramble        × 1');
-  console.log('   • letter_dash          × 1   (NUEVO)');
+  console.log('   • letter_dash          × 1');
   console.log('   • match_pairs          × 1');
-  console.log('   • pair_memory          × 1   (NUEVO)');
-  console.log('   • emoji_choice         × 1');
+  console.log('   • pair_memory          × 1');
+  console.log('   • emoji_choice         × 1   (sin pista)');
   console.log('   • odd_one_out          × 1');
   console.log('   ─── classify (auto, de/het) — generado por la app');
   console.log('════════════════════════════════════════════════════════════');
-  console.log('   Total: 14 ejercicios en 13 formatos distintos.');
+  console.log('   Total: 15 ejercicios en 14 formatos distintos.');
   console.log('════════════════════════════════════════════════════════════\n');
 }
 

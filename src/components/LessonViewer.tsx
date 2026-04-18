@@ -73,7 +73,7 @@ const SECTION_META: Record<SectionId, { label: string; emoji: string; desc: stri
 const VOCAB_PER_PAGE = 8;
 
 type VPStepType =
-  | 'words' | 'phrases' | 'listen' | 'truefalse' | 'test' | 'complete'
+  | 'words' | 'phrases' | 'listen' | 'translate' | 'truefalse' | 'test' | 'complete'
   | 'order' | 'classify' | 'write' | 'scramble' | 'pairs'
   | 'emoji' | 'intruder' | 'letterdash' | 'memory';
 
@@ -81,6 +81,7 @@ const VP_META: Record<VPStepType, { label: string; emoji: string }> = {
   words:      { label: 'Diccionario',           emoji: '📖' },
   phrases:    { label: 'Repaso de frases',      emoji: '💬' },
   listen:     { label: 'Escucha y elige',       emoji: '🎧' },
+  translate:  { label: 'Escucha y traduce',     emoji: '🎙️' },
   truefalse:  { label: 'Verdadero o falso',     emoji: '✅' },
   test:       { label: 'Selecciona la correcta',emoji: '🧪' },
   complete:   { label: 'Completa la frase',     emoji: '✏️' },
@@ -102,6 +103,7 @@ type VPStep =
   | { type: 'words' }
   | { type: 'phrases';    items: PhraseItem[] }
   | { type: 'listen';     exercises: ExerciseItem[] }
+  | { type: 'translate';  exercises: ExerciseItem[] }
   | { type: 'truefalse';  exercises: ExerciseItem[] }
   | { type: 'test';       exercises: ExerciseItem[] }
   | { type: 'complete';   exercises: ExerciseItem[] }
@@ -165,6 +167,10 @@ function buildVPSteps(
   if (listenEx.length > 0)
     steps.push({ type: 'listen', exercises: listenEx });
 
+  const translateEx = exercises.filter(e => e.type === 'listen_translate');
+  if (translateEx.length > 0)
+    steps.push({ type: 'translate', exercises: translateEx });
+
   const tfEx = exercises.filter(isTrueFalse);
   if (tfEx.length > 0)
     steps.push({ type: 'truefalse', exercises: tfEx });
@@ -218,38 +224,25 @@ function buildVPSteps(
 
 /* ── Step bar ── */
 
-function StepBar({ steps, current, subProgress }: {
+function StepBar({ steps, current }: {
   steps: VPStep[];
   current: number;
-  subProgress?: { done: number; total: number };
 }) {
   const meta = VP_META[steps[current].type];
-  const pct = steps.length === 0 ? 0 : Math.round(((current + (subProgress ? subProgress.done / subProgress.total : 0)) / steps.length) * 100);
   const isContentStep = steps[current].type === 'words' || steps[current].type === 'phrases';
   const exerciseNum = isContentStep ? null : steps.slice(0, current + 1).filter(s => s.type !== 'words' && s.type !== 'phrases').length;
 
   return (
-    <div className="mb-6 space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-[18px] font-bold text-[#1D0084] leading-tight">
-            {isContentStep ? `${meta.emoji} ${meta.label}` : `Ejercicio ${exerciseNum}`}
+    <div className="mb-4">
+      <div>
+        <p className="text-[18px] font-bold text-[#1D0084] leading-tight">
+          {isContentStep ? `${meta.emoji} ${meta.label}` : `Ejercicio ${exerciseNum}`}
+        </p>
+        {!isContentStep && (
+          <p className="text-[12px] text-[#9CA3AF] font-medium leading-tight mt-0.5">
+            {meta.emoji} {meta.label}
           </p>
-          {!isContentStep && (
-            <p className="text-[12px] text-[#9CA3AF] font-medium leading-tight mt-0.5">
-              {meta.emoji} {meta.label}
-            </p>
-          )}
-        </div>
-        <span className="text-[14px] font-bold text-[#025dc7] bg-[#EEF4FF] px-3 py-1 rounded-full shrink-0">
-          {pct}%
-        </span>
-      </div>
-      <div className="h-2 w-full rounded-full bg-[#DDE6F5] overflow-hidden">
-        <div
-          className="h-full rounded-full transition-all duration-500"
-          style={{ width: `${pct}%`, background: 'linear-gradient(90deg, #1D0084 0%, #4da3ff 100%)' }}
-        />
+        )}
       </div>
     </div>
   );
@@ -589,37 +582,50 @@ function ExerciseRunner({ exercises, onDone, onBack, hasBackStep, onSubProgress,
 
   return (
     <div className="space-y-4">
-      {/* Progress dots — tappable, color-coded per answer */}
-      <div className="flex items-center gap-1.5">
-        {exercises.map((ex, i) => {
-          const a = answers[i];
-          let cls = 'bg-[#DDE6F5] hover:bg-[#9CA3AF]';
-          if (a !== undefined) {
-            const correct = a.trim().toLowerCase() === (ex.correctAnswer ?? '').trim().toLowerCase();
-            cls = correct ? 'bg-green-500 hover:bg-green-600' : 'bg-red-400 hover:bg-red-500';
-          }
-          if (i === index) cls += ' ring-2 ring-[#1D0084] ring-offset-2';
-          return (
-            <button
-              key={i}
-              onClick={() => go(i)}
-              aria-label={`Ejercicio ${i + 1}`}
-              className={`h-2.5 flex-1 rounded-full transition-all duration-200 ${cls}`}
-            />
-          );
-        })}
-      </div>
-
-      {/* Counter + score */}
-      <div className="flex justify-between items-center">
-        <span className="text-[12px] text-[#9CA3AF] font-medium tabular-nums">
-          {index + 1} / {exercises.length}
-        </span>
-        <div className="flex items-center gap-1.5 text-[13px] font-bold text-[#16a34a] bg-green-50 border border-green-200 px-3 py-1 rounded-full">
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-          </svg>
-          {score}
+      {/* Single progress strip: segmented bar (color por estado) + % + score */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 flex-1">
+            {exercises.map((ex, i) => {
+              const a = answers[i];
+              let segCls = 'bg-[#DDE6F5] hover:bg-[#9CA3AF]/40';
+              if (a !== undefined) {
+                const correct = a.trim().toLowerCase() === (ex.correctAnswer ?? '').trim().toLowerCase();
+                segCls = correct
+                  ? 'bg-green-500 hover:bg-green-600'
+                  : 'bg-red-400 hover:bg-red-500';
+              }
+              if (i === index && a === undefined) {
+                segCls = 'hover:opacity-80';
+              }
+              const isCurrent = i === index;
+              return (
+                <button
+                  key={i}
+                  onClick={() => go(i)}
+                  aria-label={`Ejercicio ${i + 1}`}
+                  className={`h-2.5 flex-1 rounded-full transition-all duration-200 ${segCls} ${isCurrent ? 'ring-2 ring-[#1D0084] ring-offset-1' : ''}`}
+                  style={isCurrent && a === undefined
+                    ? { background: 'linear-gradient(90deg, #1D0084 0%, #4da3ff 100%)' }
+                    : undefined}
+                />
+              );
+            })}
+          </div>
+          <span className="text-[13px] font-bold text-[#025dc7] bg-[#EEF4FF] px-2.5 py-0.5 rounded-full shrink-0 tabular-nums">
+            {Math.round((answeredCount / exercises.length) * 100)}%
+          </span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] text-[#9CA3AF] font-medium tabular-nums">
+            {index + 1} / {exercises.length}
+          </span>
+          <div className="flex items-center gap-1.5 text-[12px] font-bold text-[#16a34a] bg-green-50 border border-green-200 px-2.5 py-0.5 rounded-full">
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+            {score}
+          </div>
         </div>
       </div>
 
@@ -860,7 +866,7 @@ function VocabPracticeSection({
 
   return (
     <div>
-      <StepBar steps={steps} current={stepIndex} subProgress={subProgress} />
+      <StepBar steps={steps} current={stepIndex} />
 
       {step.type === 'words' && (
         <WordsStep key={runnerKey} items={vocabItems} onDone={handleStepDone}
@@ -870,7 +876,7 @@ function VocabPracticeSection({
         <PhrasesStep key={runnerKey} items={step.items} onDone={handleStepDone} onBack={handleStepBack}
           onSubProgress={(done, total) => setSubProgress({ done, total })} />
       )}
-      {(step.type === 'listen' || step.type === 'truefalse' || step.type === 'test' || step.type === 'complete' || step.type === 'order' || step.type === 'write' || step.type === 'scramble' || step.type === 'pairs' || step.type === 'emoji' || step.type === 'intruder' || step.type === 'letterdash' || step.type === 'memory') && (
+      {(step.type === 'listen' || step.type === 'translate' || step.type === 'truefalse' || step.type === 'test' || step.type === 'complete' || step.type === 'order' || step.type === 'write' || step.type === 'scramble' || step.type === 'pairs' || step.type === 'emoji' || step.type === 'intruder' || step.type === 'letterdash' || step.type === 'memory') && (
         <ExerciseRunner
           key={runnerKey}
           exercises={step.exercises}
@@ -1274,9 +1280,25 @@ function FillBlankExercise({
   initialAnswer?: string;
 }) {
   const [value, setValue] = useState(initialAnswer ?? '');
-  const [submitted, setSubmitted] = useState(initialAnswer !== undefined);
+  const [submitted, setSubmitted] = useState(initialAnswer !== undefined && initialAnswer !== '');
   const isCorrect = value.trim().toLowerCase() === exercise.correctAnswer.trim().toLowerCase();
-  const parts = exercise.prompt.split('___');
+  // Soporta uno o varios "_" como hueco
+  const parts = exercise.prompt.split(/_+/);
+
+  // Modo opciones: si hay options, mostrar como botones clickables con TTS
+  // (más amable que escribir a mano la palabra). Modo input solo si no hay options.
+  const hasOptions = (exercise.options?.length ?? 0) > 1;
+
+  // Shuffle options once per exercise (estable entre re-renders)
+  const shuffledOptions = useMemo(() => {
+    if (!exercise.options?.length) return [] as string[];
+    const arr = [...exercise.options];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }, [exercise.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleSubmit() {
     if (!value.trim() || submitted) return;
@@ -1284,32 +1306,86 @@ function FillBlankExercise({
     onAnswer(isCorrect, value.trim());
   }
 
+  function pickOption(opt: string) {
+    if (submitted) return;
+    setValue(opt);
+    speakDutch(opt);
+  }
+
   return (
     <div className="space-y-4">
       <div className="bg-[#F0F5FF] rounded-2xl p-5 border border-[#DDE6F5]">
         <p className="text-[16px] font-semibold text-[#1D0084] leading-snug flex flex-wrap items-center gap-1">
           {parts[0]}
-          <input
-            type="text"
-            value={value}
-            onChange={e => setValue(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-            disabled={submitted}
-            placeholder="___"
-            className={`inline-block w-28 px-2 py-0.5 rounded-lg border text-[15px] font-semibold text-center focus:outline-none transition-colors duration-200 disabled:opacity-70 ${
-              submitted
-                ? isCorrect
-                  ? 'bg-green-50 border-green-400 text-green-800'
-                  : 'bg-red-50 border-red-400 text-red-700'
-                : 'bg-white border-[#025dc7] text-[#1D0084] focus:border-[#1D0084]'
-            }`}
-          />
+          {hasOptions ? (
+            <span
+              className={`inline-block min-w-[6rem] px-3 py-1 rounded-lg border text-[15px] font-bold text-center transition-colors duration-200 ${
+                submitted
+                  ? isCorrect
+                    ? 'bg-green-50 border-green-400 text-green-800'
+                    : 'bg-red-50 border-red-400 text-red-700'
+                  : value
+                    ? 'bg-white border-[#1D0084] text-[#1D0084]'
+                    : 'bg-white border-dashed border-[#025dc7] text-[#9CA3AF]'
+              }`}
+            >
+              {value || '___'}
+            </span>
+          ) : (
+            <input
+              type="text"
+              value={value}
+              onChange={e => setValue(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+              disabled={submitted}
+              placeholder="___"
+              className={`inline-block w-28 px-2 py-0.5 rounded-lg border text-[15px] font-semibold text-center focus:outline-none transition-colors duration-200 disabled:opacity-70 ${
+                submitted
+                  ? isCorrect
+                    ? 'bg-green-50 border-green-400 text-green-800'
+                    : 'bg-red-50 border-red-400 text-red-700'
+                  : 'bg-white border-[#025dc7] text-[#1D0084] focus:border-[#1D0084]'
+              }`}
+            />
+          )}
           {parts[1] ?? ''}
         </p>
         {exercise.hint && (
           <p className="text-[13px] text-[#9CA3AF] mt-2">💡 {exercise.hint}</p>
         )}
       </div>
+
+      {/* Botones de opciones con icono altavoz — click = escuchar + seleccionar */}
+      {hasOptions && (
+        <div className="grid grid-cols-2 gap-2">
+          {shuffledOptions.map(opt => {
+            const isSelected = value === opt;
+            const isCorrectOpt = opt.trim().toLowerCase() === exercise.correctAnswer.trim().toLowerCase();
+            let cls = 'bg-white border-[#DDE6F5] text-[#1D0084] hover:border-[#025dc7]/40 hover:bg-[#F8FAFF]';
+            if (submitted) {
+              if (isCorrectOpt) cls = 'bg-green-50 border-green-400 text-green-800';
+              else if (isSelected) cls = 'bg-red-50 border-red-400 text-red-700';
+              else cls = 'bg-[#F8F9FA] border-[#DDE6F5] text-[#9CA3AF]';
+            } else if (isSelected) {
+              cls = 'bg-[#1D0084] border-[#1D0084] text-white';
+            }
+            return (
+              <button
+                key={opt}
+                onClick={() => pickOption(opt)}
+                disabled={submitted}
+                className={`flex items-center justify-between gap-2 px-3 py-3 rounded-xl border text-[15px] font-semibold transition-all duration-200 ${cls}`}
+              >
+                <span>{opt}</span>
+                <svg className="w-4 h-4 opacity-70 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 00-2.5-4.03v8.06A4.5 4.5 0 0016.5 12zM14 3.23v2.06a7 7 0 010 13.42v2.06A9 9 0 0014 3.23z" />
+                </svg>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {!submitted && (
         <button
           onClick={handleSubmit}
@@ -2131,6 +2207,131 @@ function PairMemoryExercise({ exercise, onAnswer }: { exercise: ExerciseItem; on
   );
 }
 
+/**
+ * ListenTranslateExercise — escucha la frase NL y compón la traducción ES
+ * con chips. La frase NL se muestra entre comillas en el prompt para que
+ * TTS la pueda hablar (mismo patrón que ListenAndChoose).
+ *
+ *   prompt: "Escucha y traduce: \"Ik drink water in de ochtend\""
+ *   correctAnswer: "Bebo agua por la mañana"
+ *   options: ["Bebo", "agua", "por", "la", "mañana", "café"] (incluye distractores ES)
+ */
+function ListenTranslateExercise({ exercise, onAnswer }: { exercise: ExerciseItem; onAnswer: (correct: boolean, answer: string) => void }) {
+  const match = exercise.prompt.match(/"([^"]+)"/);
+  const dutchPhrase = match ? match[1] : exercise.prompt;
+  const visibleHint = match
+    ? exercise.prompt.replace(/\s*[:：]?\s*"[^"]+"\s*\.?\s*$/, '').trim() || 'Escucha y traduce al español'
+    : 'Escucha y traduce al español';
+
+  const [available, setAvailable] = useState<string[]>(() =>
+    [...(exercise.options ?? [])].sort(() => Math.random() - 0.5)
+  );
+  const [sentence, setSentence] = useState<string[]>([]);
+  const [submitted, setSubmitted] = useState(false);
+  const composed = sentence.join(' ');
+  const isCorrect = composed.trim().toLowerCase() === exercise.correctAnswer.trim().toLowerCase();
+
+  function addWord(word: string, idx: number) {
+    if (submitted) return;
+    setSentence(s => [...s, word]);
+    setAvailable(a => a.filter((_, i) => i !== idx));
+  }
+  function removeWord(word: string, idx: number) {
+    if (submitted) return;
+    setAvailable(a => [...a, word]);
+    setSentence(s => s.filter((_, i) => i !== idx));
+  }
+  function handleSubmit() {
+    if (!sentence.length || submitted) return;
+    setSubmitted(true);
+    onAnswer(isCorrect, composed);
+  }
+  function handleReset() {
+    setAvailable([...(exercise.options ?? [])].sort(() => Math.random() - 0.5));
+    setSentence([]);
+    setSubmitted(false);
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Frase NL + audio */}
+      <div className="rounded-2xl p-5 border border-[#DDE6F5] bg-white space-y-3">
+        <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-widest">{visibleHint}</p>
+        <p className="text-[20px] font-bold text-[#1D0084] leading-snug text-center" style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}>
+          {dutchPhrase}
+        </p>
+        <div className="flex justify-center">
+          <button
+            onClick={() => speakDutch(dutchPhrase)}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#1D0084] text-white text-[13px] font-semibold hover:bg-[#025dc7] transition-colors duration-200"
+          >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+            Escuchar
+          </button>
+        </div>
+      </div>
+
+      {/* Slot de la frase ES en construcción */}
+      <div className="min-h-[52px] rounded-xl border-2 border-dashed border-[#DDE6F5] bg-white p-3 flex flex-wrap gap-2 items-center">
+        {sentence.length === 0 && (
+          <span className="text-[13px] text-[#9CA3AF]">Toca las palabras en español para componer la traducción…</span>
+        )}
+        {sentence.map((word, i) => (
+          <button
+            key={`${word}-${i}`}
+            onClick={() => removeWord(word, i)}
+            disabled={submitted}
+            className="px-3 py-1.5 rounded-lg bg-[#1D0084] text-white text-[14px] font-medium hover:bg-[#025dc7] transition-colors duration-200 disabled:opacity-70"
+          >
+            {word}
+          </button>
+        ))}
+      </div>
+
+      {/* Chips disponibles (ES + distractores) */}
+      <div className="flex flex-wrap gap-2">
+        {available.map((word, i) => (
+          <button
+            key={`${word}-${i}`}
+            onClick={() => addWord(word, i)}
+            disabled={submitted}
+            className="px-3 py-1.5 rounded-lg bg-[#F0F5FF] border border-[#DDE6F5] text-[#1D0084] text-[14px] font-medium hover:border-[#025dc7]/40 hover:bg-[#e8f0ff] transition-colors duration-200 disabled:opacity-50"
+          >
+            {word}
+          </button>
+        ))}
+      </div>
+
+      {!submitted ? (
+        <div className="flex gap-2">
+          <button
+            onClick={handleReset}
+            className="px-4 py-3 rounded-xl bg-[#F0F5FF] text-[#5A6480] text-[14px] font-semibold border border-[#DDE6F5] hover:bg-[#e0eaff] transition-colors duration-200"
+          >
+            Reiniciar
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={sentence.length === 0}
+            className="flex-1 py-3 rounded-xl bg-[#1D0084] text-white text-[14px] font-semibold hover:bg-[#025dc7] transition-colors duration-200 disabled:opacity-40 disabled:pointer-events-none"
+          >
+            Comprobar
+          </button>
+        </div>
+      ) : (
+        <div className={`rounded-xl px-4 py-3 text-[14px] font-medium ${
+          isCorrect ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'
+        }`}>
+          {isCorrect
+            ? '✓ ¡Correcto!'
+            : `✗ La traducción correcta era: "${exercise.correctAnswer}"`}
+          {exercise.explanation && <p className="mt-1 text-[13px] opacity-80">{exercise.explanation}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ExerciseStep({
   exercise,
   onAnswer,
@@ -2143,6 +2344,7 @@ function ExerciseStep({
   if (exercise.type === 'multiple_choice') return <MultipleChoiceExercise exercise={exercise} onAnswer={onAnswer} initialAnswer={initialAnswer} />;
   if (exercise.type === 'write_answer') return <WriteAnswerExercise exercise={exercise} onAnswer={onAnswer} initialAnswer={initialAnswer} />;
   if (exercise.type === 'listen_and_choose') return <ListenAndChooseExercise exercise={exercise} onAnswer={onAnswer} initialAnswer={initialAnswer} />;
+  if (exercise.type === 'listen_translate') return <ListenTranslateExercise exercise={exercise} onAnswer={onAnswer} />;
   if (exercise.type === 'fill_blank') return <FillBlankExercise exercise={exercise} onAnswer={onAnswer} initialAnswer={initialAnswer} />;
   if (exercise.type === 'order_sentence') return <OrderSentenceExercise exercise={exercise} onAnswer={onAnswer} />;
   if (exercise.type === 'word_scramble') return <WordScrambleExercise exercise={exercise} onAnswer={onAnswer} />;
