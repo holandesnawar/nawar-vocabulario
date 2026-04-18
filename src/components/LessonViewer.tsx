@@ -2510,8 +2510,16 @@ function LezenSection({
 
   if (step === 'text') {
     return (
-      <div className="space-y-6">
+      <div className="space-y-5">
         {progressBar}
+        {exercises.length > 0 && (
+          <div className="flex items-start gap-3 rounded-xl bg-[#FEF3C7] border border-[#FCD34D] px-4 py-3">
+            <span className="text-[20px] shrink-0">💡</span>
+            <p className="text-[13px] text-[#92400E] leading-snug">
+              <strong>Primero intenta entenderlo en neerlandés.</strong> Cuando completes los ejercicios, podrás ver la traducción al español.
+            </p>
+          </div>
+        )}
         <div className="rounded-2xl border border-[#DDE6F5] bg-white p-6">
           <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-widest mb-4">Texto en neerlandés</p>
           <div className="text-[16px] text-[#1D0084] leading-relaxed whitespace-pre-line font-medium text-left">
