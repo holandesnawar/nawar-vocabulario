@@ -71,6 +71,16 @@ html, body {
 .dark body .border-\[\#E8ECF4\] { border-color: var(--app-border) !important; }
 .dark body .border-\[\#EEF0F5\] { border-color: var(--app-border) !important; }
 
+/* Letter badges (A/B/C/D) de multiple_choice — dark mode con acento azul */
+.dark body .bg-white\/70 {
+  background-color: rgba(77, 163, 255, 0.18) !important;
+  color: #bfd9ff !important;
+}
+.dark body .bg-\[\#E5E7EB\] {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  color: rgba(255, 255, 255, 0.45) !important;
+}
+
 /* ─── Botones primarios ────────────────────────────────────────────────── */
 /* Hover unificado: cambio sutil de color SOLO en desktop. Sin lift, sin zoom,
  * sin sombra. Solo un tono más claro para indicar foco. */
