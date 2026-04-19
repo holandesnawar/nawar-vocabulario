@@ -72,23 +72,23 @@ html, body {
 .dark body .border-\[\#EEF0F5\] { border-color: var(--app-border) !important; }
 
 /* ─── Botones primarios ────────────────────────────────────────────────── */
-/* Comportamiento hover unificado: sin cambio de color, lift sutil en desktop.
- * Uso translateY en vez de scale para evitar colisión con botones adyacentes. */
+/* Hover unificado: cambio sutil de color SOLO en desktop. Sin lift, sin zoom,
+ * sin sombra. Solo un tono más claro para indicar foco. */
 button.bg-\[\#1D0084\],
 a.bg-\[\#1D0084\] {
-  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+  transition: background-color 0.15s ease;
 }
+/* Light mode hover: morado un pelín más claro */
 @media (hover: hover) and (min-width: 768px) {
   button.bg-\[\#1D0084\]:hover,
   a.bg-\[\#1D0084\]:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 18px rgba(29, 0, 132, 0.22);
+    background-color: #2A12A3 !important;
   }
 }
-/* Cancelamos el cambio de color en hover — nos quedamos solo con el zoom */
+/* Cancelamos el cambio de color fuerte que Tailwind pinta en hover:bg-[#025dc7] */
 button.bg-\[\#1D0084\].hover\:bg-\[\#025dc7\]:hover,
 a.bg-\[\#1D0084\].hover\:bg-\[\#025dc7\]:hover {
-  background-color: #1D0084;
+  background-color: #2A12A3;
 }
 
 /* ─── Dark mode: botones azul claro en vez de morado ──────────────────── */
@@ -97,9 +97,16 @@ a.bg-\[\#1D0084\].hover\:bg-\[\#025dc7\]:hover {
   background-color: #4da3ff !important;
   color: #0c144b !important;
 }
+/* Dark hover: azul claro ligeramente más claro */
+@media (hover: hover) and (min-width: 768px) {
+  .dark body button.bg-\[\#1D0084\]:hover,
+  .dark body a.bg-\[\#1D0084\]:hover {
+    background-color: #6db5ff !important;
+  }
+}
 .dark body button.bg-\[\#1D0084\].hover\:bg-\[\#025dc7\]:hover,
 .dark body a.bg-\[\#1D0084\].hover\:bg-\[\#025dc7\]:hover {
-  background-color: #4da3ff !important;
+  background-color: #6db5ff !important;
 }
 /* Si el botón está disabled o tiene clases extras, lo forzamos también */
 .dark body .bg-\[\#1D0084\]:not(.brand-banner) {
@@ -178,26 +185,47 @@ a.bg-\[\#1D0084\].hover\:bg-\[\#025dc7\]:hover {
 }
 
 /* ─── AudioPlayer full variant: glass look (diálogos) ─────────────────── */
-/* Translucido con blur — más "cristal" que un bloque opaco. Reemplaza el
- * bg-[#1D0084] del player full para que tampoco le afecte la conversión
- * global a #4da3ff en dark mode. */
+/* Translúcido con blur, SIN sombra exterior — efecto cristal sutil.
+ * Light mode: tono claro bluish-white. Dark mode: navy suave. */
 .audio-player-glass {
-  background: linear-gradient(135deg, rgba(29, 0, 132, 0.92) 0%, rgba(13, 0, 60, 0.95) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(12px) saturate(140%);
-  -webkit-backdrop-filter: blur(12px) saturate(140%);
-  box-shadow: 0 4px 24px rgba(29, 0, 132, 0.12), inset 0 1px rgba(255, 255, 255, 0.08);
+  background: linear-gradient(135deg, rgba(240, 245, 255, 0.85) 0%, rgba(224, 234, 255, 0.75) 100%);
+  border: 1px solid rgba(29, 0, 132, 0.12);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  /* Tokens para controles dentro del player (text/icons) */
+  --player-text: #1D0084;
+  --player-muted: rgba(29, 0, 132, 0.55);
+  --player-chip-bg: rgba(29, 0, 132, 0.08);
+  --player-chip-bg-hover: rgba(29, 0, 132, 0.14);
+  --player-fill: #1D0084;
+  --player-empty: rgba(29, 0, 132, 0.18);
 }
 .dark .audio-player-glass {
-  background: linear-gradient(135deg, rgba(20, 24, 50, 0.85) 0%, rgba(24, 28, 60, 0.9) 100%);
+  background: linear-gradient(135deg, rgba(20, 24, 50, 0.75) 0%, rgba(24, 28, 60, 0.8) 100%);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35), inset 0 1px rgba(255, 255, 255, 0.05);
+  --player-text: #ffffff;
+  --player-muted: rgba(255, 255, 255, 0.5);
+  --player-chip-bg: rgba(255, 255, 255, 0.1);
+  --player-chip-bg-hover: rgba(255, 255, 255, 0.18);
+  --player-fill: #4da3ff;
+  --player-empty: rgba(255, 255, 255, 0.18);
 }
-/* Dentro del glass player: el icono del botón play debe ser morado fuerte
- * aunque estemos en dark mode (está sobre un botón blanco → necesita contraste). */
-.dark .audio-player-glass .text-\[\#1D0084\] { color: #1D0084 !important; }
-.dark .audio-player-glass .bg-white { background-color: #ffffff !important; }
-.dark .audio-player-glass .hover\:bg-\[\#F0F5FF\]:hover { background-color: #F0F5FF !important; }
+
+/* Invertir whites del player en light mode → tonos de marca.
+ * Estas reglas solo se aplican DENTRO del glass, no tocan el resto de la app. */
+.audio-player-glass .text-white,
+.audio-player-glass .text-white\/40,
+.audio-player-glass .text-white\/50 { color: var(--player-text) !important; }
+.audio-player-glass .text-white\/40 { color: var(--player-muted) !important; }
+.audio-player-glass .text-white\/50 { color: var(--player-muted) !important; }
+.audio-player-glass .bg-white\/10 { background-color: var(--player-chip-bg) !important; }
+.audio-player-glass .bg-white\/20,
+.audio-player-glass .hover\:bg-white\/20:hover { background-color: var(--player-chip-bg-hover) !important; }
+
+/* Play button central: blanco con icono morado siempre (contraste garantizado) */
+.audio-player-glass .bg-white { background-color: #ffffff !important; }
+.audio-player-glass .text-\[\#1D0084\] { color: #1D0084 !important; }
+.audio-player-glass .hover\:bg-\[\#F0F5FF\]:hover { background-color: #F0F5FF !important; }
 
 /* Eyebrow — mismo spec que nawar-web (Inter 900, tight tracking) */
 .eyebrow {

@@ -226,8 +226,8 @@ export default function AudioPlayer({ src, title, compact = false }: AudioPlayer
                 onChange={handleSeek}
                 className="w-full h-1.5 appearance-none rounded-full cursor-pointer"
                 style={{
-                  background: `linear-gradient(to right, #4da3ff ${progress}%, rgba(255,255,255,0.2) ${progress}%)`,
-                  accentColor: '#4da3ff',
+                  background: `linear-gradient(to right, var(--player-fill, #4da3ff) ${progress}%, var(--player-empty, rgba(255,255,255,0.2)) ${progress}%)`,
+                  accentColor: 'var(--player-fill, #4da3ff)',
                 }}
                 aria-label="Posición de reproducción"
               />

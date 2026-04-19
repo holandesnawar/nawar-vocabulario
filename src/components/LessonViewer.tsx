@@ -449,7 +449,20 @@ function PhrasesStep({ items, onDone, onBack, onSubProgress }: {
   onBack: () => void;
   onSubProgress?: (done: number, total: number) => void;
 }) {
-  const [index, setIndex] = useState(0);
+  // Persistencia del índice (efecto libro: al volver, aterriza donde estabas / en
+  // el último si el step estaba completado).
+  const storageKey = typeof window !== 'undefined' ? `vp-phrases-${window.location.pathname}` : null;
+  const [index, setIndex] = useState(() => {
+    if (!storageKey || typeof window === 'undefined') return 0;
+    try {
+      const stored = sessionStorage.getItem(storageKey);
+      if (stored !== null) {
+        const n = parseInt(stored, 10);
+        if (Number.isFinite(n) && n >= 0 && n < items.length) return n;
+      }
+    } catch {}
+    return 0;
+  });
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const phrase = items[index];
@@ -485,7 +498,17 @@ function PhrasesStep({ items, onDone, onBack, onSubProgress }: {
   function navigate(newIndex: number) {
     stopAudio();
     setIndex(newIndex);
+    if (storageKey) try { sessionStorage.setItem(storageKey, String(newIndex)); } catch {}
     onSubProgress?.(newIndex + 1, items.length);
+  }
+
+  // Al pasar al siguiente step, guarda el ÚLTIMO índice para que al volver
+  // atrás aterrice ahí (como una página atrás en un libro).
+  function handleDone() {
+    if (storageKey && items.length > 0) {
+      try { sessionStorage.setItem(storageKey, String(items.length - 1)); } catch {}
+    }
+    onDone();
   }
 
   useEffect(() => {
@@ -532,7 +555,7 @@ function PhrasesStep({ items, onDone, onBack, onSubProgress }: {
           Anterior
         </button>
         <button
-          onClick={() => { stopAudio(); if (isLast) onDone(); else navigate(index + 1); }}
+          onClick={() => { stopAudio(); if (isLast) handleDone(); else navigate(index + 1); }}
           className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-[#1D0084] text-white text-[14px] font-semibold hover:bg-[#025dc7] transition-colors duration-200"
         >
           {isLast ? 'Siguiente paso' : 'Siguiente'}
@@ -1430,12 +1453,18 @@ function FillBlankExercise({
     playTimerRef.current = setTimeout(() => setPlayingChip(null), 2200);
   }
 
+  // Dos fases: tap = escucha + rellena el hueco (no envía). "Comprobar" envía.
+  const [chipSubmitted, setChipSubmitted] = useState(initialAnswer !== undefined && initialAnswer !== null);
   function handleChipTap(opt: string) {
     playChipAudio(opt);
-    if (isChipAnswered) return; // re-tap just replays audio
+    if (chipSubmitted) return; // tras comprobar, re-tap solo reproduce audio
     setChipSelected(opt);
-    const correct = opt.trim().toLowerCase() === exercise.correctAnswer.trim().toLowerCase();
-    onAnswer(correct, opt);
+  }
+  function handleChipSubmit() {
+    if (!chipSelected || chipSubmitted) return;
+    setChipSubmitted(true);
+    const correct = chipSelected.trim().toLowerCase() === exercise.correctAnswer.trim().toLowerCase();
+    onAnswer(correct, chipSelected);
   }
 
   function handleTextSubmit() {
@@ -1448,11 +1477,17 @@ function FillBlankExercise({
   if (hasOptions) {
     function chipStyle(opt: string): string {
       const base = 'flex items-center gap-2 px-4 py-3 rounded-xl border text-[15px] font-semibold transition-all duration-200 ';
-      if (!isChipAnswered) {
-        if (opt === playingChip)
-          return base + 'bg-[#1D0084] border-[#1D0084] text-white scale-[0.97]';
+      if (!chipSubmitted) {
+        // Mientras no se ha enviado: chip seleccionado destaca, playing anima
+        if (opt === chipSelected) {
+          return base + 'bg-[#1D0084] border-[#1D0084] text-white';
+        }
+        if (opt === playingChip) {
+          return base + 'bg-[#1D0084]/10 border-[#1D0084]/40 text-[#1D0084] scale-[0.97]';
+        }
         return base + 'bg-[#F0F5FF] border-[#DDE6F5] text-[#1D0084] hover:border-[#025dc7]/40 hover:bg-[#e8f0ff] active:scale-[0.97]';
       }
+      // Después de comprobar: verde la correcta, rojo la elegida si era incorrecta
       if (opt === exercise.correctAnswer) return base + 'bg-green-50 border-green-400 text-green-800';
       if (opt === chipSelected) return base + 'bg-red-50 border-red-400 text-red-700';
       return base + 'bg-[#F8F9FA] border-[#DDE6F5] text-[#9CA3AF]';
@@ -1465,7 +1500,7 @@ function FillBlankExercise({
           <p className="text-[16px] font-semibold text-[#1D0084] leading-snug">
             {parts[0]}
             <span className={`fill-blank-slot ${
-              isChipAnswered
+              chipSubmitted
                 ? isChipCorrect ? 'is-correct' : 'is-wrong'
                 : chipSelected ? 'is-filled' : 'is-empty'
             }`}>
@@ -1476,15 +1511,15 @@ function FillBlankExercise({
           {exercise.hint && <p className="text-[13px] text-[#9CA3AF] mt-2">💡 {exercise.hint}</p>}
         </div>
 
-        {/* Option chips */}
+        {/* Option chips — tap = escucha audio + rellena el hueco (no envía) */}
         <div className="grid grid-cols-2 gap-2">
           {shuffledOptions.map(opt => (
             <button key={opt} onClick={() => handleChipTap(opt)} className={chipStyle(opt)}>
-              <svg className={`w-4 h-4 shrink-0 transition-opacity duration-150 ${opt === playingChip ? 'opacity-100' : 'opacity-40'}`} fill="currentColor" viewBox="0 0 24 24">
+              <svg className={`w-4 h-4 shrink-0 transition-opacity duration-150 ${opt === playingChip ? 'opacity-100' : 'opacity-50'}`} fill="currentColor" viewBox="0 0 24 24">
                 <path d="M8 5v14l11-7z" />
               </svg>
               <span className="truncate">{opt}</span>
-              {isChipAnswered && opt === exercise.correctAnswer && (
+              {chipSubmitted && opt === exercise.correctAnswer && (
                 <svg className="w-4 h-4 shrink-0 text-green-600 ml-auto" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
@@ -1493,12 +1528,22 @@ function FillBlankExercise({
           ))}
         </div>
 
-        {isChipAnswered && (
+        {/* Botón Comprobar: aparece cuando hay selección y aún no se ha enviado */}
+        {!chipSubmitted && (
+          <button
+            onClick={handleChipSubmit}
+            disabled={!chipSelected}
+            className="w-full py-3.5 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200 disabled:opacity-40 disabled:pointer-events-none"
+          >
+            Comprobar
+          </button>
+        )}
+
+        {chipSubmitted && (
           <FeedbackBanner
             correct={isChipCorrect}
             correctAnswer={exercise.correctAnswer}
             explanation={exercise.explanation}
-            onHear={!isChipCorrect ? () => playChipAudio(exercise.correctAnswer) : undefined}
           />
         )}
       </div>
@@ -2719,10 +2764,18 @@ function LuisterenSection({
         </div>
 
         {/* Dos audios: normal y lento */}
-        <div className="space-y-4">
+        <div className="space-y-5">
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-[12px] font-bold text-[#1D0084] uppercase tracking-wide">Velocidad normal</p>
+            <div className="flex items-center gap-2 mb-2.5">
+              <div className="w-7 h-7 rounded-full bg-[#1D0084]/10 flex items-center justify-center">
+                <svg className="w-3.5 h-3.5 text-[#1D0084]" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-[14px] font-bold text-[#1D0084] leading-tight">Velocidad normal</p>
+                <p className="text-[11px] text-[#9CA3AF] leading-tight">Ritmo natural</p>
+              </div>
             </div>
             {dialogue.audio?.url ? (
               <AudioPlayer src={dialogue.audio.url} />
@@ -2731,8 +2784,14 @@ function LuisterenSection({
             )}
           </div>
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-[12px] font-bold text-[#025dc7] uppercase tracking-wide">🐢 Versión lenta</p>
+            <div className="flex items-center gap-2 mb-2.5">
+              <div className="w-7 h-7 rounded-full bg-[#1D0084]/10 flex items-center justify-center text-base">
+                🐢
+              </div>
+              <div>
+                <p className="text-[14px] font-bold text-[#1D0084] leading-tight">Versión lenta</p>
+                <p className="text-[11px] text-[#9CA3AF] leading-tight">Para entender cada palabra</p>
+              </div>
             </div>
             {dialogue.slowAudio?.url ? (
               <AudioPlayer src={dialogue.slowAudio.url} />
@@ -2742,7 +2801,7 @@ function LuisterenSection({
           </div>
         </div>
 
-        {/* Dos botones: ver el diálogo / ir a los ejercicios */}
+        {/* Dos botones: ver el diálogo / ir a los ejercicios — misma altura */}
         <div className="space-y-2 pt-2">
           <button
             onClick={() => setView('dialogue')}
@@ -2756,7 +2815,7 @@ function LuisterenSection({
           {hasExercises && (
             <button
               onClick={() => setView('exercises')}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-white border border-[#DDE6F5] text-[#1D0084] text-[14px] font-semibold hover:bg-[#F0F5FF] transition-colors duration-200"
+              className="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-white border border-[#DDE6F5] text-[#1D0084] text-[15px] font-semibold hover:bg-[#F0F5FF] transition-colors duration-200"
             >
               Ir directamente a los ejercicios
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
@@ -3001,7 +3060,7 @@ function SectionLanding({
       {allComplete && nextLesson && moduleId && (
         <Link
           href={`/modulo/${moduleId}/leccion/${nextLesson.id}`}
-          className="w-full flex items-center justify-center gap-3 px-5 py-4 rounded-2xl text-white text-[16px] font-bold transition-all duration-150 mt-2 md:hover:-translate-y-px md:hover:shadow-lg brand-accent-line"
+          className="w-full flex items-center justify-center gap-3 px-5 py-4 rounded-2xl text-white text-[16px] font-bold transition-all duration-150 mt-2 brand-accent-line hover:brightness-110"
           style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}
         >
           Siguiente lección
