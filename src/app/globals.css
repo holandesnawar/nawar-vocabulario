@@ -71,6 +71,58 @@ html, body {
 .dark body .border-\[\#E8ECF4\] { border-color: var(--app-border) !important; }
 .dark body .border-\[\#EEF0F5\] { border-color: var(--app-border) !important; }
 
+/* ─── Botones primarios ────────────────────────────────────────────────── */
+/* Comportamiento hover unificado: sin cambio de color, zoom sutil en desktop */
+button.bg-\[\#1D0084\],
+a.bg-\[\#1D0084\] {
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+@media (hover: hover) and (min-width: 768px) {
+  button.bg-\[\#1D0084\]:hover,
+  a.bg-\[\#1D0084\]:hover {
+    transform: scale(1.02);
+  }
+}
+/* Cancelamos el cambio de color en hover — nos quedamos solo con el zoom */
+button.bg-\[\#1D0084\].hover\:bg-\[\#025dc7\]:hover,
+a.bg-\[\#1D0084\].hover\:bg-\[\#025dc7\]:hover {
+  background-color: #1D0084;
+}
+
+/* ─── Dark mode: botones azul claro en vez de morado ──────────────────── */
+.dark body button.bg-\[\#1D0084\],
+.dark body a.bg-\[\#1D0084\] {
+  background-color: #4da3ff !important;
+  color: #0c144b !important;
+}
+.dark body button.bg-\[\#1D0084\].hover\:bg-\[\#025dc7\]:hover,
+.dark body a.bg-\[\#1D0084\].hover\:bg-\[\#025dc7\]:hover {
+  background-color: #4da3ff !important;
+}
+/* Si el botón está disabled o tiene clases extras, lo forzamos también */
+.dark body .bg-\[\#1D0084\]:not(.brand-banner) {
+  background-color: #4da3ff !important;
+}
+
+/* ─── Línea accent sobre tarjetas de vocabulario ──────────────────────── */
+.brand-accent-line {
+  background: linear-gradient(90deg, #1D0084 0%, #025dc7 100%);
+}
+.dark .brand-accent-line {
+  background: linear-gradient(90deg, #4da3ff 0%, #60a5fa 100%);
+}
+
+/* Progress fill (barra % + segmento actual sin responder) */
+.progress-fill {
+  background: linear-gradient(90deg, #1D0084 0%, #4da3ff 100%);
+}
+.dark .progress-fill {
+  background: linear-gradient(90deg, #4da3ff 0%, #60a5fa 100%);
+}
+
+/* Chip de porcentaje en dark: color blue brand → azul claro */
+.dark body .text-\[\#025dc7\] { color: #4da3ff !important; }
+
 /* Eyebrow — mismo spec que nawar-web (Inter 900, tight tracking) */
 .eyebrow {
   font-family: var(--font-sans);

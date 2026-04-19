@@ -110,8 +110,8 @@ function GradientBar({ pct, label, subLabel }: { pct: number; label?: string; su
       )}
       <div className="h-2 w-full rounded-full bg-[#DDE6F5] overflow-hidden">
         <div
-          className="h-full rounded-full transition-all duration-500"
-          style={{ width: `${pct}%`, background: 'linear-gradient(90deg, #1D0084 0%, #4da3ff 100%)' }}
+          className="h-full rounded-full transition-all duration-500 progress-fill"
+          style={{ width: `${pct}%` }}
         />
       </div>
     </div>
@@ -337,7 +337,7 @@ function WordCard({ word }: { word: VocabularyItem }) {
 
   return (
     <div className="rounded-2xl border border-[#DDE6F5] bg-white overflow-hidden flex flex-col">
-      <div className="h-1.5 w-full" style={{ background: 'linear-gradient(90deg, #1D0084 0%, #025dc7 100%)' }} />
+      <div className="h-1.5 w-full brand-accent-line" />
       <div className="flex-1 px-3 py-2.5 space-y-1">
         <div className="flex items-center gap-1.5 flex-wrap">
           {word.article && (
@@ -690,10 +690,7 @@ function ExerciseRunner({ exercises, onDone, onBack, hasBackStep, onSubProgress,
                   key={i}
                   onClick={() => go(i)}
                   aria-label={`Ejercicio ${i + 1}`}
-                  className={`h-2.5 flex-1 rounded-full transition-all duration-200 ${segCls} ${isCurrent ? 'ring-2 ring-[#1D0084] ring-offset-1' : ''}`}
-                  style={isCurrent && a === undefined
-                    ? { background: 'linear-gradient(90deg, #1D0084 0%, #4da3ff 100%)' }
-                    : undefined}
+                  className={`h-2.5 flex-1 rounded-full transition-all duration-200 ${segCls} ${isCurrent ? 'ring-2 ring-[#1D0084] ring-offset-1' : ''} ${isCurrent && a === undefined ? 'progress-fill' : ''}`}
                 />
               );
             })}
@@ -3004,8 +3001,8 @@ function SectionLanding({
       {allComplete && nextLesson && moduleId && (
         <Link
           href={`/modulo/${moduleId}/leccion/${nextLesson.id}`}
-          className="w-full flex items-center justify-center gap-3 px-5 py-4 rounded-2xl text-white text-[16px] font-bold transition-colors duration-200 mt-2 hover:opacity-90"
-          style={{ background: 'linear-gradient(90deg, #1D0084 0%, #025dc7 100%)', fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}
+          className="w-full flex items-center justify-center gap-3 px-5 py-4 rounded-2xl text-white text-[16px] font-bold transition-transform duration-150 mt-2 md:hover:scale-[1.02] brand-accent-line"
+          style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}
         >
           Siguiente lección
           <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
