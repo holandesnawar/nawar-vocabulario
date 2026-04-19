@@ -61,6 +61,53 @@ function speakDutch(text: string) {
 }
 
 
+/* ── Feedback banner (correct / incorrect) ── */
+
+function FeedbackBanner({
+  correct,
+  correctAnswer,
+  explanation,
+  onHear,
+}: {
+  correct: boolean;
+  correctAnswer?: string;
+  explanation?: string;
+  /** If provided, shows a small "🔊 Escuchar" button for the correct answer */
+  onHear?: () => void;
+}) {
+  if (correct) {
+    return (
+      <div className="rounded-xl px-4 py-3 text-[14px] font-medium bg-green-50 text-green-800 border border-green-200">
+        ✓ ¡Correcto!
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-xl px-4 py-3.5 bg-red-50 border border-red-200">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[13px] font-semibold text-red-500 uppercase tracking-wide">No era esa</p>
+          <p className="text-[15px] font-bold text-red-800 mt-0.5 leading-snug">
+            &ldquo;{correctAnswer}&rdquo;
+          </p>
+        </div>
+        {onHear && (
+          <button
+            onClick={onHear}
+            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-red-200 text-red-600 text-[12px] font-semibold hover:bg-red-50 transition-colors duration-150 mt-0.5"
+          >
+            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+            Escuchar
+          </button>
+        )}
+      </div>
+      {explanation && (
+        <p className="mt-2 text-[13px] text-red-600 opacity-90 leading-snug">{explanation}</p>
+      )}
+    </div>
+  );
+}
+
 function GradientBar({ pct, label, subLabel }: { pct: number; label?: string; subLabel?: string }) {
   return (
     <div className="space-y-2">
@@ -1290,20 +1337,12 @@ function MultipleChoiceExercise({
         ))}
       </div>
       {isAnswered && (
-        <div
-          className={`rounded-xl px-4 py-3 text-[14px] font-medium ${
-            selected === exercise.correctAnswer
-              ? 'bg-green-50 text-green-800 border border-green-200'
-              : 'bg-red-50 text-red-700 border border-red-200'
-          }`}
-        >
-          {selected === exercise.correctAnswer
-            ? '✓ ¡Correcto!'
-            : `✗ La respuesta era: "${exercise.correctAnswer}"`}
-          {exercise.explanation && (
-            <p className="mt-1 text-[13px] opacity-80">{exercise.explanation}</p>
-          )}
-        </div>
+        <FeedbackBanner
+          correct={selected === exercise.correctAnswer}
+          correctAnswer={exercise.correctAnswer}
+          explanation={exercise.explanation}
+          onHear={selected !== exercise.correctAnswer ? () => speakDutch(exercise.correctAnswer) : undefined}
+        />
       )}
     </div>
   );
@@ -1355,17 +1394,11 @@ function WriteAnswerExercise({
         </button>
       )}
       {submitted && (
-        <div
-          className={`rounded-xl px-4 py-3 text-[14px] font-medium ${
-            isCorrect
-              ? 'bg-green-50 text-green-800 border border-green-200'
-              : 'bg-red-50 text-red-700 border border-red-200'
-          }`}
-        >
-          {isCorrect
-            ? '✓ ¡Correcto!'
-            : `✗ La respuesta correcta era: "${exercise.correctAnswer}"`}
-        </div>
+        <FeedbackBanner
+          correct={isCorrect}
+          correctAnswer={exercise.correctAnswer}
+          onHear={!isCorrect ? () => speakDutch(exercise.correctAnswer) : undefined}
+        />
       )}
     </div>
   );
@@ -1380,75 +1413,134 @@ function FillBlankExercise({
   onAnswer: (correct: boolean, answer: string) => void;
   initialAnswer?: string;
 }) {
+  const hasOptions = (exercise.options?.length ?? 0) > 0;
+  const parts = exercise.prompt.split('___');
+
+  // ── Text-input mode state ──
   const [value, setValue] = useState(initialAnswer ?? '');
   const [submitted, setSubmitted] = useState(initialAnswer !== undefined && initialAnswer !== '');
   const isCorrect = value.trim().toLowerCase() === exercise.correctAnswer.trim().toLowerCase();
-  // Soporta uno o varios "_" como hueco
-  const parts = exercise.prompt.split(/_+/);
 
-  // Modo opciones: si hay options, mostrar como botones clickables con TTS
-  // (más amable que escribir a mano la palabra). Modo input solo si no hay options.
-  const hasOptions = (exercise.options?.length ?? 0) > 1;
+  // ── Chip mode state ──
+  const [chipSelected, setChipSelected] = useState<string | null>(initialAnswer ?? null);
+  const [playingChip, setPlayingChip] = useState<string | null>(null);
+  const playTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isChipAnswered = chipSelected !== null;
+  const isChipCorrect = chipSelected?.trim().toLowerCase() === exercise.correctAnswer.trim().toLowerCase();
 
-  // Shuffle options once per exercise (estable entre re-renders)
   const shuffledOptions = useMemo(() => {
-    if (!exercise.options?.length) return [] as string[];
+    if (!exercise.options?.length) return [];
     const arr = [...exercise.options];
     for (let i = arr.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [arr[i], arr[j]] = [arr[j], arr[i]];
     }
     return arr;
-  }, [exercise.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function handleSubmit() {
+  function playChipAudio(opt: string) {
+    if (playTimerRef.current) clearTimeout(playTimerRef.current);
+    setPlayingChip(opt);
+    speakDutch(opt);
+    playTimerRef.current = setTimeout(() => setPlayingChip(null), 2200);
+  }
+
+  function handleChipTap(opt: string) {
+    playChipAudio(opt);
+    if (isChipAnswered) return; // re-tap just replays audio
+    setChipSelected(opt);
+    const correct = opt.trim().toLowerCase() === exercise.correctAnswer.trim().toLowerCase();
+    onAnswer(correct, opt);
+  }
+
+  function handleTextSubmit() {
     if (!value.trim() || submitted) return;
     setSubmitted(true);
     onAnswer(isCorrect, value.trim());
   }
 
-  function pickOption(opt: string) {
-    if (submitted) return;
-    setValue(opt);
-    speakDutch(opt);
+  // ── Chip variant ──
+  if (hasOptions) {
+    function chipStyle(opt: string): string {
+      const base = 'flex items-center gap-2 px-4 py-3 rounded-xl border text-[15px] font-semibold transition-all duration-200 ';
+      if (!isChipAnswered) {
+        if (opt === playingChip)
+          return base + 'bg-[#1D0084] border-[#1D0084] text-white scale-[0.97]';
+        return base + 'bg-[#F0F5FF] border-[#DDE6F5] text-[#1D0084] hover:border-[#025dc7]/40 hover:bg-[#e8f0ff] active:scale-[0.97]';
+      }
+      if (opt === exercise.correctAnswer) return base + 'bg-green-50 border-green-400 text-green-800';
+      if (opt === chipSelected) return base + 'bg-red-50 border-red-400 text-red-700';
+      return base + 'bg-[#F8F9FA] border-[#DDE6F5] text-[#9CA3AF]';
+    }
+
+    return (
+      <div className="space-y-4">
+        {/* Sentence with blank */}
+        <div className="bg-[#F0F5FF] rounded-2xl p-5 border border-[#DDE6F5]">
+          <p className="text-[16px] font-semibold text-[#1D0084] leading-snug">
+            {parts[0]}
+            <span className={`inline-block mx-1 px-3 py-0.5 rounded-lg border-b-2 min-w-[5rem] text-center transition-colors duration-300 ${
+              isChipAnswered
+                ? isChipCorrect ? 'bg-green-50 border-green-400 text-green-800' : 'bg-red-50 border-red-400 text-red-700'
+                : 'bg-white border-[#1D0084] text-[#9CA3AF]'
+            }`}>
+              {chipSelected ?? '···'}
+            </span>
+            {parts[1] ?? ''}
+          </p>
+          {exercise.hint && <p className="text-[13px] text-[#9CA3AF] mt-2">💡 {exercise.hint}</p>}
+        </div>
+
+        {/* Option chips */}
+        <div className="grid grid-cols-2 gap-2">
+          {shuffledOptions.map(opt => (
+            <button key={opt} onClick={() => handleChipTap(opt)} className={chipStyle(opt)}>
+              <svg className={`w-4 h-4 shrink-0 transition-opacity duration-150 ${opt === playingChip ? 'opacity-100' : 'opacity-40'}`} fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+              <span className="truncate">{opt}</span>
+              {isChipAnswered && opt === exercise.correctAnswer && (
+                <svg className="w-4 h-4 shrink-0 text-green-600 ml-auto" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {isChipAnswered && (
+          <FeedbackBanner
+            correct={isChipCorrect}
+            correctAnswer={exercise.correctAnswer}
+            explanation={exercise.explanation}
+            onHear={!isChipCorrect ? () => playChipAudio(exercise.correctAnswer) : undefined}
+          />
+        )}
+      </div>
+    );
   }
 
+  // ── Text-input variant (when no options) ──
   return (
     <div className="space-y-4">
       <div className="bg-[#F0F5FF] rounded-2xl p-5 border border-[#DDE6F5]">
         <p className="text-[16px] font-semibold text-[#1D0084] leading-snug flex flex-wrap items-center gap-1">
           {parts[0]}
-          {hasOptions ? (
-            <span
-              className={`inline-block min-w-[6rem] px-3 py-1 rounded-lg border text-[15px] font-bold text-center transition-colors duration-200 ${
-                submitted
-                  ? isCorrect
-                    ? 'bg-green-50 border-green-400 text-green-800'
-                    : 'bg-red-50 border-red-400 text-red-700'
-                  : value
-                    ? 'bg-white border-[#1D0084] text-[#1D0084]'
-                    : 'bg-white border-dashed border-[#025dc7] text-[#9CA3AF]'
-              }`}
-            >
-              {value || '___'}
-            </span>
-          ) : (
-            <input
-              type="text"
-              value={value}
-              onChange={e => setValue(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-              disabled={submitted}
-              placeholder="___"
-              className={`inline-block w-28 px-2 py-0.5 rounded-lg border text-[15px] font-semibold text-center focus:outline-none transition-colors duration-200 disabled:opacity-70 ${
-                submitted
-                  ? isCorrect
-                    ? 'bg-green-50 border-green-400 text-green-800'
-                    : 'bg-red-50 border-red-400 text-red-700'
-                  : 'bg-white border-[#025dc7] text-[#1D0084] focus:border-[#1D0084]'
-              }`}
-            />
-          )}
+          <input
+            type="text"
+            value={value}
+            onChange={e => setValue(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleTextSubmit()}
+            disabled={submitted}
+            placeholder="___"
+            className={`inline-block w-28 px-2 py-0.5 rounded-lg border text-[15px] font-semibold text-center focus:outline-none transition-colors duration-200 disabled:opacity-70 ${
+              submitted
+                ? isCorrect
+                  ? 'bg-green-50 border-green-400 text-green-800'
+                  : 'bg-red-50 border-red-400 text-red-700'
+                : 'bg-white border-[#025dc7] text-[#1D0084] focus:border-[#1D0084]'
+            }`}
+          />
           {parts[1] ?? ''}
         </p>
         {exercise.hint && (
@@ -1456,40 +1548,9 @@ function FillBlankExercise({
         )}
       </div>
 
-      {/* Botones de opciones con icono altavoz — click = escuchar + seleccionar */}
-      {hasOptions && (
-        <div className="grid grid-cols-2 gap-2">
-          {shuffledOptions.map(opt => {
-            const isSelected = value === opt;
-            const isCorrectOpt = opt.trim().toLowerCase() === exercise.correctAnswer.trim().toLowerCase();
-            let cls = 'bg-white border-[#DDE6F5] text-[#1D0084] hover:border-[#025dc7]/40 hover:bg-[#F8FAFF]';
-            if (submitted) {
-              if (isCorrectOpt) cls = 'bg-green-50 border-green-400 text-green-800';
-              else if (isSelected) cls = 'bg-red-50 border-red-400 text-red-700';
-              else cls = 'bg-[#F8F9FA] border-[#DDE6F5] text-[#9CA3AF]';
-            } else if (isSelected) {
-              cls = 'bg-[#1D0084] border-[#1D0084] text-white';
-            }
-            return (
-              <button
-                key={opt}
-                onClick={() => pickOption(opt)}
-                disabled={submitted}
-                className={`flex items-center justify-between gap-2 px-3 py-3 rounded-xl border text-[15px] font-semibold transition-all duration-200 ${cls}`}
-              >
-                <span>{opt}</span>
-                <svg className="w-4 h-4 opacity-70 shrink-0" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 00-2.5-4.03v8.06A4.5 4.5 0 0016.5 12zM14 3.23v2.06a7 7 0 010 13.42v2.06A9 9 0 0014 3.23z" />
-                </svg>
-              </button>
-            );
-          })}
-        </div>
-      )}
-
       {!submitted && (
         <button
-          onClick={handleSubmit}
+          onClick={handleTextSubmit}
           disabled={!value.trim()}
           className="w-full py-3.5 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200 disabled:opacity-40 disabled:pointer-events-none"
         >
@@ -1497,20 +1558,12 @@ function FillBlankExercise({
         </button>
       )}
       {submitted && (
-        <div
-          className={`rounded-xl px-4 py-3 text-[14px] font-medium ${
-            isCorrect
-              ? 'bg-green-50 text-green-800 border border-green-200'
-              : 'bg-red-50 text-red-700 border border-red-200'
-          }`}
-        >
-          {isCorrect
-            ? '✓ ¡Correcto!'
-            : `✗ La respuesta era: "${exercise.correctAnswer}"`}
-          {exercise.explanation && (
-            <p className="mt-1 text-[13px] opacity-80">{exercise.explanation}</p>
-          )}
-        </div>
+        <FeedbackBanner
+          correct={isCorrect}
+          correctAnswer={exercise.correctAnswer}
+          explanation={exercise.explanation}
+          onHear={!isCorrect ? () => speakDutch(exercise.correctAnswer) : undefined}
+        />
       )}
     </div>
   );
@@ -1608,20 +1661,12 @@ function ListenAndChooseExercise({
         ))}
       </div>
       {isAnswered && (
-        <div
-          className={`rounded-xl px-4 py-3 text-[14px] font-medium ${
-            selected === exercise.correctAnswer
-              ? 'bg-green-50 text-green-800 border border-green-200'
-              : 'bg-red-50 text-red-700 border border-red-200'
-          }`}
-        >
-          {selected === exercise.correctAnswer
-            ? '✓ ¡Correcto!'
-            : `✗ La respuesta era: "${exercise.correctAnswer}"`}
-          {exercise.explanation && (
-            <p className="mt-1 text-[13px] opacity-80">{exercise.explanation}</p>
-          )}
-        </div>
+        <FeedbackBanner
+          correct={selected === exercise.correctAnswer}
+          correctAnswer={exercise.correctAnswer}
+          explanation={exercise.explanation}
+          onHear={selected !== exercise.correctAnswer ? () => speakDutch(exercise.correctAnswer) : undefined}
+        />
       )}
     </div>
   );
@@ -1717,17 +1762,11 @@ function OrderSentenceExercise({
           </button>
         </div>
       ) : (
-        <div
-          className={`rounded-xl px-4 py-3 text-[14px] font-medium ${
-            isCorrect
-              ? 'bg-green-50 text-green-800 border border-green-200'
-              : 'bg-red-50 text-red-700 border border-red-200'
-          }`}
-        >
-          {isCorrect
-            ? '✓ ¡Correcto!'
-            : `✗ La frase correcta era: "${exercise.correctAnswer}"`}
-        </div>
+        <FeedbackBanner
+          correct={isCorrect}
+          correctAnswer={exercise.correctAnswer}
+          onHear={!isCorrect ? () => speakDutch(exercise.correctAnswer) : undefined}
+        />
       )}
     </div>
   );
@@ -1817,9 +1856,11 @@ function WordScrambleExercise({ exercise, onAnswer }: { exercise: ExerciseItem; 
           </button>
         </div>
       ) : (
-        <div className={`rounded-xl px-4 py-3 text-[14px] font-medium ${isCorrect ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
-          {isCorrect ? '✓ ¡Correcto!' : `✗ La respuesta era: "${word}"`}
-        </div>
+        <FeedbackBanner
+          correct={isCorrect}
+          correctAnswer={word}
+          onHear={!isCorrect ? () => speakDutch(word) : undefined}
+        />
       )}
     </div>
   );
