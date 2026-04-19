@@ -1464,12 +1464,12 @@ function FillBlankExercise({
         <div className="bg-[#F0F5FF] rounded-2xl p-5 border border-[#DDE6F5]">
           <p className="text-[16px] font-semibold text-[#1D0084] leading-snug">
             {parts[0]}
-            <span className={`inline-block mx-1 px-3 py-0.5 rounded-lg border-b-2 min-w-[5rem] text-center transition-colors duration-300 ${
+            <span className={`fill-blank-slot ${
               isChipAnswered
-                ? isChipCorrect ? 'bg-green-50 border-green-400 text-green-800' : 'bg-red-50 border-red-400 text-red-700'
-                : 'bg-white border-[#1D0084] text-[#9CA3AF]'
+                ? isChipCorrect ? 'is-correct' : 'is-wrong'
+                : chipSelected ? 'is-filled' : 'is-empty'
             }`}>
-              {chipSelected ?? '···'}
+              {chipSelected ?? '\u00A0'}
             </span>
             {parts[1] ?? ''}
           </p>
@@ -3001,7 +3001,7 @@ function SectionLanding({
       {allComplete && nextLesson && moduleId && (
         <Link
           href={`/modulo/${moduleId}/leccion/${nextLesson.id}`}
-          className="w-full flex items-center justify-center gap-3 px-5 py-4 rounded-2xl text-white text-[16px] font-bold transition-transform duration-150 mt-2 md:hover:scale-[1.02] brand-accent-line"
+          className="w-full flex items-center justify-center gap-3 px-5 py-4 rounded-2xl text-white text-[16px] font-bold transition-all duration-150 mt-2 md:hover:-translate-y-px md:hover:shadow-lg brand-accent-line"
           style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}
         >
           Siguiente lección

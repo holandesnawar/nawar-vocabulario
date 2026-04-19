@@ -158,7 +158,7 @@ export default function AudioPlayer({ src, title, compact = false }: AudioPlayer
 
   /* ── FULL (dialogues) ────────────────────────────────────────────────────── */
   return (
-    <div className="rounded-2xl bg-[#1D0084] overflow-hidden">
+    <div className="rounded-2xl audio-player-glass overflow-hidden">
       {sharedAudio}
       {hasError ? (
         <div className="flex items-center gap-3 px-5 py-4">
