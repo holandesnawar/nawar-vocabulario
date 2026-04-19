@@ -420,9 +420,6 @@ function PhrasesStep({ items, onDone, onBack, onSubProgress }: {
     <div className="space-y-6">
 
       <div className="bg-white rounded-2xl border border-[#DDE6F5] p-6 space-y-4">
-        {phrase.context && (
-          <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-widest">{phrase.context}</p>
-        )}
         <div className="flex items-start justify-between gap-3">
           <h2 className="text-[22px] font-bold text-[#1D0084] leading-tight flex-1" style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}>
             {phrase.dutch}
@@ -1159,7 +1156,6 @@ function MultipleChoiceExercise({
   return (
     <div className="space-y-4">
       <div className="rounded-2xl p-5 border border-[#DDE6F5] bg-white">
-        <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-widest mb-2">Pregunta</p>
         <p className="text-[17px] font-semibold text-[#1D0084] leading-snug">{exercise.prompt}</p>
       </div>
       <div className="grid grid-cols-1 gap-2">
@@ -1392,7 +1388,6 @@ function ListenAndChooseExercise({
     <div className="space-y-4">
       <div className="rounded-2xl p-5 border border-[#DDE6F5] bg-white space-y-4">
         <div>
-          <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-widest mb-2">Escucha y elige</p>
           <p className="text-[17px] font-semibold text-[#1D0084] leading-snug">{exercise.prompt}</p>
         </div>
         {exercise.audio?.url ? (
@@ -1593,7 +1588,6 @@ function WordScrambleExercise({ exercise, onAnswer }: { exercise: ExerciseItem; 
   return (
     <div className="space-y-4">
       <div className="rounded-2xl p-5 border border-[#DDE6F5] bg-white">
-        <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-widest mb-1">Deletrear en neerlandés</p>
         <p className="text-[17px] font-semibold text-[#1D0084] leading-snug">{exercise.prompt}</p>
         {exercise.hint && <p className="text-[14px] text-[#025dc7] font-medium mt-1">💡 {exercise.hint}</p>}
       </div>
@@ -1705,7 +1699,6 @@ function MatchPairsExercise({ exercise, onAnswer }: { exercise: ExerciseItem; on
   return (
     <div className="space-y-4">
       <div className="rounded-2xl p-5 border border-[#DDE6F5] bg-white">
-        <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-widest mb-1">Emparejar</p>
         <p className="text-[17px] font-semibold text-[#1D0084]">{exercise.prompt}</p>
         <p className="text-[12px] text-[#9CA3AF] mt-1">{Object.keys(matched).length}/{pairs.length} emparejadas</p>
       </div>
