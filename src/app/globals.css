@@ -13,6 +13,28 @@
   --font-display: var(--font-poppins), system-ui, sans-serif;
 }
 
+/* Tokens semánticos light/dark — usados por .app-bg, .card-surface, etc.
+ * Preferimos mantener los colores "fuertes" de marca (morado banner, verde
+ * correcto, rojo error) iguales en ambos modos; lo que cambia es el FONDO
+ * y el TEXTO principal. Menos riesgo de inconsistencias. */
+:root {
+  --app-bg:      #ffffff;
+  --app-surface: #ffffff;   /* tarjetas */
+  --app-text:    #0C0C1E;
+  --app-muted:   #5A6480;
+  --app-border:  #DDE6F5;
+  --app-subtle:  #F0F5FF;
+}
+
+.dark {
+  --app-bg:      #0E0E1B;
+  --app-surface: #181830;
+  --app-text:    #E8EAF5;
+  --app-muted:   #A0A8C0;
+  --app-border:  #2A2D48;
+  --app-subtle:  #1A1D38;
+}
+
 *, *::before, *::after { box-sizing: border-box; }
 
 /* Prevent iOS zoom-on-focus for all inputs */
@@ -20,17 +42,41 @@ input, select, textarea { font-size: 16px; }
 
 html, body {
   font-family: var(--font-sans);
-  background: #ffffff;
-  color: #0C0C1E;
+  background: var(--app-bg);
+  color: var(--app-text);
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
+/* Fondos blancos del contenido hardcodeados — en dark los convertimos */
+.dark .bg-white { background-color: var(--app-surface) !important; }
+.dark body .bg-\[\#F0F5FF\],
+.dark body .bg-\[\#f0f5ff\] { background-color: var(--app-subtle) !important; }
+.dark body .bg-\[\#F8FAFF\] { background-color: var(--app-subtle) !important; }
+.dark body .bg-\[\#EFF0F3\] { background-color: #1e2140 !important; }
+.dark body .bg-\[\#F8F9FA\] { background-color: #131326 !important; }
+.dark body .bg-\[\#EEF4FF\] { background-color: #1a2040 !important; }
+.dark body .bg-\[\#FEF3C7\] { background-color: #2e2a18 !important; }
+
+/* Texto principal en tarjetas — el morado de marca queda ilegible en dark */
+.dark body .text-\[\#1D0084\] { color: var(--app-text) !important; }
+.dark body .text-\[\#0C0C1E\] { color: var(--app-text) !important; }
+.dark body .text-\[\#5A6480\] { color: var(--app-muted) !important; }
+.dark body .text-\[\#9CA3AF\] { color: var(--app-muted) !important; }
+.dark body .text-\[\#111827\] { color: var(--app-text) !important; }
+
+/* Bordes grises claros */
+.dark body .border-\[\#DDE6F5\] { border-color: var(--app-border) !important; }
+.dark body .border-\[\#E8ECF4\] { border-color: var(--app-border) !important; }
+.dark body .border-\[\#EEF0F5\] { border-color: var(--app-border) !important; }
+
+/* Eyebrow — mismo spec que nawar-web (Inter 900, tight tracking) */
 .eyebrow {
   font-family: var(--font-sans);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.14em;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
@@ -39,7 +85,8 @@ html, body {
   background-size: 28px 28px;
 }
 
-/* Banner de marca — fade azul claro → morado oscuro (mismo que nawar-web) */
+/* Banner de marca — matches nawar-web hero: solid #1D0084 + radial glow
+ * (el glow lo pone el div absoluto que acompaña al banner en cada página) */
 .brand-banner {
-  background: linear-gradient(180deg, #2563eb 0%, #1D0084 55%, #120057 100%);
+  background: #1D0084;
 }

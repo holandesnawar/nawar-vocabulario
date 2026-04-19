@@ -10,6 +10,7 @@ import {
   markPreviousAsCompleted,
 } from '@/lib/progress';
 import AudioPlayer from './AudioPlayer';
+import DarkModeToggle from './DarkModeToggle';
 
 /* ─────────────────────────────────────────────────────────────────────────────
    HELPERS
@@ -646,7 +647,12 @@ function ExerciseRunner({ exercises, onDone, onBack, hasBackStep, onSubProgress,
     if (target < 0) { if (hasBackStep) onBack(); return; }
     // Adelante libre (skip permitido — se endurecerá más adelante)
     if (target >= exercises.length) {
-      if (indexKey) try { sessionStorage.removeItem(indexKey); } catch {}
+      // Al pasar al siguiente step, guardamos el ÚLTIMO índice del step que
+      // dejamos para que al volver atrás aterrice ahí (no en el primero).
+      // Así se comporta como "pasar página atrás en un libro".
+      if (indexKey && exercises.length > 0) {
+        try { sessionStorage.setItem(indexKey, String(exercises.length - 1)); } catch {}
+      }
       onDone();
       return;
     }
@@ -3152,12 +3158,15 @@ export default function LessonViewer({ lesson, module, prevLesson: _prev, nextLe
         <div aria-hidden className="absolute inset-0 dots-dark pointer-events-none" />
 
         <div className="relative max-w-2xl mx-auto px-6 pt-8 pb-8">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="https://docs.holandesnawar.com/img/Nawar.png"
-            alt="Holandés Nawar"
-            className="h-7 w-auto mb-5 opacity-90"
-          />
+          <div className="flex items-center justify-between mb-5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="https://docs.holandesnawar.com/img/Nawar.png"
+              alt="Holandés Nawar"
+              className="h-7 w-auto opacity-90"
+            />
+            <DarkModeToggle />
+          </div>
           {/* Back link: to module if on landing, to lesson landing if inside section */}
           {activeSection === null ? (
             <Link
