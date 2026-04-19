@@ -44,12 +44,6 @@ export default async function ModulePage({ params }: { params: Promise<{ moduleI
         <div aria-hidden className="absolute inset-0 dots-dark pointer-events-none" />
 
         <div className="relative max-w-2xl mx-auto px-6 pt-8 pb-8">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="https://docs.holandesnawar.com/img/Nawar.png"
-            alt="Holandés Nawar"
-            className="h-7 w-auto mb-5 opacity-90"
-          />
           <Link
             href="/"
             className="inline-flex items-center gap-2 text-[13px] text-white/50 hover:text-white/80 transition-colors duration-200 mb-5"

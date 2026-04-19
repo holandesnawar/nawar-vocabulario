@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Poppins } from "next/font/google";
 import "./globals.css";
 import IframeHeightWrapper from "./IframeHeightWrapper";
+import SiteHeader from "@/components/SiteHeader";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -20,6 +21,11 @@ const poppins = Poppins({
 export const metadata: Metadata = {
   title: "Vocabulario — Nawar",
   description: "Practica vocabulario neerlandés con ejercicios interactivos.",
+  icons: {
+    icon: "https://docs.holandesnawar.com/img/Nawar.favicon.png",
+    shortcut: "https://docs.holandesnawar.com/img/Nawar.favicon.png",
+    apple: "https://docs.holandesnawar.com/img/Nawar.favicon.png",
+  },
 };
 
 export default function RootLayout({
@@ -28,7 +34,10 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${inter.variable} ${poppins.variable}`}>
       <body className="min-h-screen antialiased">
-        <IframeHeightWrapper>{children}</IframeHeightWrapper>
+        <IframeHeightWrapper>
+          <SiteHeader />
+          {children}
+        </IframeHeightWrapper>
       </body>
     </html>
   );
