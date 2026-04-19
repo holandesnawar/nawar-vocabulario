@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Inter, Poppins } from "next/font/google";
 import "./globals.css";
 import IframeHeightWrapper from "./IframeHeightWrapper";
-import SiteHeader from "@/components/SiteHeader";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -34,10 +33,7 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${inter.variable} ${poppins.variable}`}>
       <body className="min-h-screen antialiased">
-        <IframeHeightWrapper>
-          <SiteHeader />
-          {children}
-        </IframeHeightWrapper>
+        <IframeHeightWrapper>{children}</IframeHeightWrapper>
       </body>
     </html>
   );
