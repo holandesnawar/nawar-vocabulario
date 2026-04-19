@@ -98,7 +98,12 @@ export default function HomePage() {
         <div aria-hidden className="absolute inset-0 dots-dark pointer-events-none" />
 
         <div className="relative max-w-2xl mx-auto px-6 py-12">
-          <p className="eyebrow text-white/40 mb-3">Nawar · Neerlandés</p>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="https://docs.holandesnawar.com/img/Nawar.png"
+            alt="Holandés Nawar"
+            className="h-8 w-auto mb-5 opacity-90"
+          />
           <h1
             className="text-[32px] font-bold text-white leading-tight"
             style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}
