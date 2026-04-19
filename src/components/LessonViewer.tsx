@@ -67,42 +67,24 @@ function FeedbackBanner({
   correct,
   correctAnswer,
   explanation,
-  onHear,
 }: {
   correct: boolean;
   correctAnswer?: string;
   explanation?: string;
-  /** If provided, shows a small "🔊 Escuchar" button for the correct answer */
+  /** @deprecated ya no se usa — se mantiene la firma para no romper llamadas */
   onHear?: () => void;
 }) {
-  if (correct) {
-    return (
-      <div className="rounded-xl px-4 py-3 text-[14px] font-medium bg-green-50 text-green-800 border border-green-200">
-        ✓ ¡Correcto!
-      </div>
-    );
-  }
   return (
-    <div className="rounded-xl px-4 py-3.5 bg-red-50 border border-red-200">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-[13px] font-semibold text-red-500 uppercase tracking-wide">No era esa</p>
-          <p className="text-[15px] font-bold text-red-800 mt-0.5 leading-snug">
-            &ldquo;{correctAnswer}&rdquo;
-          </p>
-        </div>
-        {onHear && (
-          <button
-            onClick={onHear}
-            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-red-200 text-red-600 text-[12px] font-semibold hover:bg-red-50 transition-colors duration-150 mt-0.5"
-          >
-            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
-            Escuchar
-          </button>
-        )}
-      </div>
+    <div
+      className={`rounded-xl px-4 py-3 text-[14px] font-medium ${
+        correct
+          ? 'bg-green-50 text-green-800 border border-green-200'
+          : 'bg-red-50 text-red-700 border border-red-200'
+      }`}
+    >
+      {correct ? '✓ ¡Correcto!' : `✗ La respuesta era: "${correctAnswer}"`}
       {explanation && (
-        <p className="mt-2 text-[13px] text-red-600 opacity-90 leading-snug">{explanation}</p>
+        <p className="mt-1 text-[13px] opacity-80">{explanation}</p>
       )}
     </div>
   );
@@ -3160,7 +3142,7 @@ export default function LessonViewer({ lesson, module, prevLesson: _prev, nextLe
   return (
     <>
       {/* ── Header ── */}
-      <div className="relative bg-[#1D0084] overflow-hidden">
+      <div className="relative brand-banner overflow-hidden">
         <div aria-hidden className="absolute inset-0 pointer-events-none">
           <div
             className="absolute top-[-5%] left-1/2 -translate-x-1/2 w-[700px] h-[500px]"

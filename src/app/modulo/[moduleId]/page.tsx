@@ -34,7 +34,7 @@ export default async function ModulePage({ params }: { params: Promise<{ moduleI
   return (
     <main className="min-h-screen bg-white">
       {/* Header */}
-      <div className="relative bg-[#1D0084] overflow-hidden">
+      <div className="relative brand-banner overflow-hidden">
         <div aria-hidden className="absolute inset-0 pointer-events-none">
           <div
             className="absolute top-[-5%] left-1/2 -translate-x-1/2 w-[700px] h-[500px]"
