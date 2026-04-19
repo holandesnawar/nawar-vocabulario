@@ -170,53 +170,17 @@ export default function AudioPlayer({ src, title, compact = false }: AudioPlayer
           <span className="text-[13px] text-white/50">No se pudo cargar el audio</span>
         </div>
       ) : (
-        <div className="px-5 py-4 space-y-3">
-          {title && <p className="text-[12px] font-semibold text-white/50 truncate">{title}</p>}
+        <div className="px-4 py-4 sm:px-5 space-y-3">
+          {title && <p className="text-[12px] font-semibold player-muted truncate">{title}</p>}
 
-          <div className="flex items-center gap-3">
-            {/* Skip back */}
-            <button
-              onClick={() => skip(-skipSecs)}
-              className="w-10 h-10 rounded-full bg-white/10 flex flex-col items-center justify-center text-white hover:bg-white/20 transition-colors shrink-0 gap-0.5"
-              aria-label={`Retroceder ${skipSecs}s`}
-            >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M6 6h2v12H6zm3.5 6 8.5 6V6z" />
-              </svg>
-              <span className="text-[8px] font-bold leading-none opacity-70">{skipSecs}s</span>
-            </button>
-
-            {/* Play / Pause */}
-            <button
-              onClick={handlePlayPause}
-              className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-[#1D0084] hover:bg-[#F0F5FF] transition-colors shrink-0 shadow-lg"
-              aria-label={isPlaying ? 'Pausar' : 'Reproducir'}
-            >
-              {isPlaying ? (
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
-                </svg>
-              ) : (
-                <svg className="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M8 5v14l11-7z" />
-                </svg>
-              )}
-            </button>
-
-            {/* Skip forward */}
-            <button
-              onClick={() => skip(skipSecs)}
-              className="w-10 h-10 rounded-full bg-white/10 flex flex-col items-center justify-center text-white hover:bg-white/20 transition-colors shrink-0 gap-0.5"
-              aria-label={`Avanzar ${skipSecs}s`}
-            >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M6 18l8.5-6L6 6v12zM14.5 6v12l8.5-6-8.5-6z" />
-              </svg>
-              <span className="text-[8px] font-bold leading-none opacity-70">{skipSecs}s</span>
-            </button>
-
-            {/* Progress + time */}
-            <div className="flex-1 space-y-1.5 min-w-0">
+          {/*
+            Layout responsive:
+            - Móvil: progress arriba + controles debajo centrados (más aire)
+            - Desktop: controles a la izquierda + progress flex-1 a la derecha
+          */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            {/* Progress + time — primero en mobile, segundo en desktop */}
+            <div className="flex-1 space-y-1 min-w-0 order-1 sm:order-2">
               <input
                 type="range"
                 min={0}
@@ -231,10 +195,54 @@ export default function AudioPlayer({ src, title, compact = false }: AudioPlayer
                 }}
                 aria-label="Posición de reproducción"
               />
-              <div className="flex justify-between text-[11px] text-white/40 font-medium tabular-nums">
+              <div className="flex justify-between text-[11px] player-muted font-medium tabular-nums">
                 <span>{formatTime(currentTime)}</span>
                 <span>{formatTime(duration)}</span>
               </div>
+            </div>
+
+            {/* Controles — abajo en mobile (centrados), izquierda en desktop */}
+            <div className="flex items-center justify-center gap-5 sm:gap-3 order-2 sm:order-1 shrink-0">
+              {/* Skip back */}
+              <button
+                onClick={() => skip(-skipSecs)}
+                className="player-ghost-btn flex flex-col items-center justify-center gap-0.5 transition-colors shrink-0"
+                aria-label={`Retroceder ${skipSecs}s`}
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M6 6h2v12H6zm3.5 6 8.5 6V6z" />
+                </svg>
+                <span className="text-[9px] font-bold leading-none opacity-60">-{skipSecs}s</span>
+              </button>
+
+              {/* Play / Pause */}
+              <button
+                onClick={handlePlayPause}
+                className="player-play-btn w-14 h-14 rounded-full flex items-center justify-center transition-all shrink-0"
+                aria-label={isPlaying ? 'Pausar' : 'Reproducir'}
+              >
+                {isPlaying ? (
+                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                  </svg>
+                ) : (
+                  <svg className="w-6 h-6 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                )}
+              </button>
+
+              {/* Skip forward */}
+              <button
+                onClick={() => skip(skipSecs)}
+                className="player-ghost-btn flex flex-col items-center justify-center gap-0.5 transition-colors shrink-0"
+                aria-label={`Avanzar ${skipSecs}s`}
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M6 18l8.5-6L6 6v12zM14.5 6v12l8.5-6-8.5-6z" />
+                </svg>
+                <span className="text-[9px] font-bold leading-none opacity-60">+{skipSecs}s</span>
+              </button>
             </div>
           </div>
         </div>

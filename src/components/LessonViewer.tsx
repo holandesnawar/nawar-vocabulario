@@ -2766,15 +2766,11 @@ function LuisterenSection({
         {/* Dos audios: normal y lento */}
         <div className="space-y-5">
           <div>
-            <div className="flex items-center gap-2 mb-2.5">
-              <div className="w-7 h-7 rounded-full bg-[#1D0084]/10 flex items-center justify-center">
-                <svg className="w-3.5 h-3.5 text-[#1D0084]" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              </div>
+            <div className="flex items-center gap-2.5 mb-2.5">
+              <span className="text-2xl leading-none">⚡</span>
               <div>
-                <p className="text-[14px] font-bold text-[#1D0084] leading-tight">Velocidad normal</p>
-                <p className="text-[11px] text-[#9CA3AF] leading-tight">Ritmo natural</p>
+                <p className="text-[15px] font-bold text-[#1D0084] leading-tight">Velocidad normal</p>
+                <p className="text-[12px] text-[#9CA3AF] leading-tight">Ritmo natural</p>
               </div>
             </div>
             {dialogue.audio?.url ? (
@@ -2784,13 +2780,11 @@ function LuisterenSection({
             )}
           </div>
           <div>
-            <div className="flex items-center gap-2 mb-2.5">
-              <div className="w-7 h-7 rounded-full bg-[#1D0084]/10 flex items-center justify-center text-base">
-                🐢
-              </div>
+            <div className="flex items-center gap-2.5 mb-2.5">
+              <span className="text-2xl leading-none">🐢</span>
               <div>
-                <p className="text-[14px] font-bold text-[#1D0084] leading-tight">Versión lenta</p>
-                <p className="text-[11px] text-[#9CA3AF] leading-tight">Para entender cada palabra</p>
+                <p className="text-[15px] font-bold text-[#1D0084] leading-tight">Versión lenta</p>
+                <p className="text-[12px] text-[#9CA3AF] leading-tight">Para entender cada palabra</p>
               </div>
             </div>
             {dialogue.slowAudio?.url ? (

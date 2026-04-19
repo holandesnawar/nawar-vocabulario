@@ -211,21 +211,45 @@ a.bg-\[\#1D0084\].hover\:bg-\[\#025dc7\]:hover {
   --player-empty: rgba(255, 255, 255, 0.18);
 }
 
-/* Invertir whites del player en light mode → tonos de marca.
- * Estas reglas solo se aplican DENTRO del glass, no tocan el resto de la app. */
-.audio-player-glass .text-white,
-.audio-player-glass .text-white\/40,
-.audio-player-glass .text-white\/50 { color: var(--player-text) !important; }
-.audio-player-glass .text-white\/40 { color: var(--player-muted) !important; }
-.audio-player-glass .text-white\/50 { color: var(--player-muted) !important; }
-.audio-player-glass .bg-white\/10 { background-color: var(--player-chip-bg) !important; }
-.audio-player-glass .bg-white\/20,
-.audio-player-glass .hover\:bg-white\/20:hover { background-color: var(--player-chip-bg-hover) !important; }
+/* Player text muted (labels, time) */
+.audio-player-glass .player-muted { color: var(--player-muted); }
 
-/* Play button central: blanco con icono morado siempre (contraste garantizado) */
-.audio-player-glass .bg-white { background-color: #ffffff !important; }
-.audio-player-glass .text-\[\#1D0084\] { color: #1D0084 !important; }
-.audio-player-glass .hover\:bg-\[\#F0F5FF\]:hover { background-color: #F0F5FF !important; }
+/* Botón fantasma (-5s / +5s): solo icono + label, sin fondo. */
+.audio-player-glass .player-ghost-btn {
+  color: var(--player-text);
+  opacity: 0.75;
+  border-radius: 9999px;
+  padding: 6px 4px;
+  background: transparent;
+  transition: opacity 0.15s ease, background-color 0.15s ease;
+}
+@media (hover: hover) {
+  .audio-player-glass .player-ghost-btn:hover {
+    opacity: 1;
+    background: var(--player-chip-bg);
+  }
+}
+
+/* Botón play principal — sólido con buen contraste en ambos modos.
+ * Light: solid #1D0084 con icono blanco.
+ * Dark:  blanco con icono morado. */
+.audio-player-glass .player-play-btn {
+  background: var(--player-play-bg);
+  color: var(--player-play-fg);
+}
+.audio-player-glass {
+  --player-play-bg: #1D0084;
+  --player-play-fg: #ffffff;
+}
+.dark .audio-player-glass {
+  --player-play-bg: #ffffff;
+  --player-play-fg: #1D0084;
+}
+@media (hover: hover) {
+  .audio-player-glass .player-play-btn:hover {
+    filter: brightness(1.1);
+  }
+}
 
 /* Eyebrow — mismo spec que nawar-web (Inter 900, tight tracking) */
 .eyebrow {
