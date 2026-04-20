@@ -110,9 +110,15 @@ export default function HomePage() {
           >
             Centro de aprendizaje
           </h1>
-          <p className="text-[14px] text-white/50 mt-2">
-            Formación Principiantes Nawar · {modules.length} módulo{modules.length !== 1 ? 's' : ''}
-          </p>
+          <div className="flex items-center gap-2 mt-3 flex-wrap">
+            <span className="text-[13px] text-white/60">Formación Principiantes Nawar</span>
+            <span className="glass-dark inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-semibold text-white">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+              {modules.length} módulo{modules.length !== 1 ? 's' : ''}
+            </span>
+          </div>
         </div>
       </div>
 

@@ -53,7 +53,7 @@ export default async function ModulePage({ params }: { params: Promise<{ moduleI
           />
           <Link
             href="/"
-            className="inline-flex items-center gap-2 text-[13px] text-white/50 hover:text-white/80 transition-colors duration-200 mb-5"
+            className="glass-dark inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-[13px] font-medium text-white/90 hover:text-white hover:bg-white/10 transition-all duration-200 mb-5"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M7 16l-4-4m0 0l4-4m-4 4h18" />
@@ -79,9 +79,21 @@ export default async function ModulePage({ params }: { params: Promise<{ moduleI
             </div>
           </div>
 
-          <div className="mt-5 text-[12px] text-white/40 font-medium">
-            {lessons.length} lección{lessons.length !== 1 ? 'es' : ''} en este módulo
-            {extras.length > 0 && ` · ${extras.length} extra${extras.length !== 1 ? 's' : ''}`}
+          <div className="mt-5 flex items-center gap-2 flex-wrap">
+            <span className="glass-dark inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-semibold text-white">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              {lessons.length} lección{lessons.length !== 1 ? 'es' : ''}
+            </span>
+            {extras.length > 0 && (
+              <span className="glass-dark inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-semibold text-white">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                {extras.length} extra{extras.length !== 1 ? 's' : ''}
+              </span>
+            )}
           </div>
         </div>
       </div>
