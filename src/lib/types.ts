@@ -102,7 +102,23 @@ export interface LezenBlock {
   exercises: ExerciseItem[];
 }
 
+export interface SummarySectionData {
+  heading: string;
+  body?: string;          // texto libre en markdown ligero (negritas **texto**)
+  items?: Array<{ nl?: string; es: string }>; // vocabulario/frases clave de la sección
+}
+
+export interface SummaryBlock {
+  type: 'summary';
+  title?: string;
+  intro?: string;
+  objectives?: string[];
+  sections: SummarySectionData[];
+  tip?: string;
+}
+
 export type LessonBlock =
+  | SummaryBlock
   | { type: 'vocabulary'; title?: string; items: VocabularyItem[] }
   | { type: 'phrases';    title?: string; items: PhraseItem[] }
   | { type: 'practice';   title?: string; exercises: ExerciseItem[] }

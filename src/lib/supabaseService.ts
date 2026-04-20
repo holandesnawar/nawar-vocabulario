@@ -373,6 +373,10 @@ async function assembleLessonBlocks(lessonRow: DbLesson, moduleSlug: string): Pr
   // Assemble blocks
   const blocks: LessonBlock[] = [];
 
+  // Summary (local-only por ahora — el contenido vive en courseData.ts)
+  const localSummary = localLesson?.blocks.find(b => b.type === 'summary');
+  if (localSummary) blocks.push(localSummary);
+
   if (vocabRows?.length) {
     blocks.push({
       type: 'vocabulary',

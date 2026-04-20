@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
-import type { Lesson, CourseModule, VocabularyItem, PhraseItem, ExerciseItem, Dialogue } from '@/lib/types';
+import type { Lesson, CourseModule, VocabularyItem, PhraseItem, ExerciseItem, Dialogue, SummaryBlock } from '@/lib/types';
 import {
   getLessonProgress,
   markLessonStarted,
@@ -122,9 +122,10 @@ function GradientBar({ pct, label, subLabel }: { pct: number; label?: string; su
    SECTION TYPE
 ───────────────────────────────────────────────────────────────────────────── */
 
-type SectionId = 'vocabulary' | 'flashcards' | 'lezen' | 'luisteren';
+type SectionId = 'resumen' | 'vocabulary' | 'flashcards' | 'lezen' | 'luisteren';
 
 const SECTION_META: Record<SectionId, { label: string; emoji: string; desc: string }> = {
+  resumen:     { label: 'Resumen',     emoji: '📋', desc: 'Los puntos clave de la lección' },
   vocabulary:  { label: 'Vocabulario', emoji: '📖', desc: 'Palabras, frases y ejercicios de práctica' },
   flashcards:  { label: 'Flashcards',  emoji: '🃏', desc: 'Practica con tarjetas' },
   lezen:       { label: 'Lezen',       emoji: '📝', desc: 'Lee un texto y responde preguntas' },
@@ -2527,6 +2528,118 @@ function ExerciseStep({
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
+   RESUMEN SECTION — puntos clave de la lección, antes de los ejercicios
+───────────────────────────────────────────────────────────────────────────── */
+
+/** Renderiza markdown ligero: solo **negritas** → <strong> */
+function renderInlineBold(text: string): React.ReactNode[] {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((p, i) =>
+    /^\*\*[^*]+\*\*$/.test(p)
+      ? <strong key={i} className="font-bold text-[#1D0084]">{p.slice(2, -2)}</strong>
+      : <span key={i}>{p}</span>
+  );
+}
+
+function ResumenSection({ block, onComplete }: { block: SummaryBlock; onComplete: () => void }) {
+  return (
+    <div className="space-y-6">
+      {/* Hero con intro */}
+      {(block.title || block.intro) && (
+        <div className="rounded-2xl border border-[#DDE6F5] bg-[#F0F5FF] p-6">
+          {block.title && (
+            <h2
+              className="text-[22px] font-bold text-[#1D0084] leading-tight mb-2"
+              style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}
+            >
+              {block.title}
+            </h2>
+          )}
+          {block.intro && (
+            <p className="text-[15px] text-[#5A6480] leading-relaxed">{block.intro}</p>
+          )}
+        </div>
+      )}
+
+      {/* Objetivos — lista con checks */}
+      {block.objectives && block.objectives.length > 0 && (
+        <div className="rounded-2xl border border-[#DDE6F5] bg-white p-5">
+          <p className="text-[12px] font-bold text-[#9CA3AF] uppercase tracking-wider mb-3">
+            Objetivos de la lección
+          </p>
+          <ul className="space-y-2">
+            {block.objectives.map((obj, i) => (
+              <li key={i} className="flex items-start gap-2.5">
+                <span className="mt-0.5 shrink-0 w-5 h-5 rounded-full bg-green-50 border border-green-200 flex items-center justify-center">
+                  <svg className="w-3 h-3 text-green-600" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                </span>
+                <span className="text-[14px] text-[#1D0084] leading-snug">{obj}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Secciones temáticas */}
+      {block.sections.map((sec, i) => (
+        <div key={i} className="rounded-2xl border border-[#DDE6F5] bg-white p-5 space-y-3">
+          <h3
+            className="text-[17px] font-bold text-[#1D0084] leading-tight"
+            style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}
+          >
+            {sec.heading}
+          </h3>
+          {sec.body && (
+            <p className="text-[14px] text-[#5A6480] leading-relaxed">
+              {renderInlineBold(sec.body)}
+            </p>
+          )}
+          {sec.items && sec.items.length > 0 && (
+            <div className="divide-y divide-[#DDE6F5] rounded-xl border border-[#DDE6F5] bg-[#F8FAFF] overflow-hidden">
+              {sec.items.map((item, j) => (
+                <div key={j} className="flex items-start gap-3 px-4 py-2.5">
+                  {item.nl && (
+                    <span className="text-[14px] font-semibold text-[#1D0084] flex-1 min-w-0 leading-snug">
+                      {item.nl}
+                    </span>
+                  )}
+                  <span className="text-[13px] text-[#5A6480] flex-1 min-w-0 leading-snug text-right">
+                    {item.es}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+
+      {/* Tip final */}
+      {block.tip && (
+        <div className="rounded-2xl border border-[#FCD34D]/50 bg-[#FEF3C7] p-5 flex items-start gap-3">
+          <span className="text-[20px] shrink-0">💡</span>
+          <p className="text-[14px] text-[#92400E] leading-relaxed">
+            {renderInlineBold(block.tip)}
+          </p>
+        </div>
+      )}
+
+      {/* CTA a la siguiente sección */}
+      <button
+        onClick={onComplete}
+        className="w-full py-4 rounded-xl bg-[#1D0084] text-white text-[15px] font-semibold hover:bg-[#025dc7] transition-colors duration-200 flex items-center justify-center gap-2"
+      >
+        Empezar con el vocabulario
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
    LEZEN SECTION
 ───────────────────────────────────────────────────────────────────────────── */
 
@@ -3157,11 +3270,13 @@ export default function LessonViewer({ lesson, module, prevLesson: _prev, nextLe
     return () => setWordAudioMap({});
   }, [lesson]);
 
-  // Build available sections from blocks
+  // Build available sections from blocks (order matters → landing)
   const availableSections: SectionId[] = (() => {
     const result: SectionId[] = [];
     for (const block of lesson.blocks) {
-      if (block.type === 'vocabulary') {
+      if (block.type === 'summary') {
+        result.push('resumen');
+      } else if (block.type === 'vocabulary') {
         result.push('vocabulary');
         result.push('flashcards');
       } else if (block.type === 'lezen') {
@@ -3184,6 +3299,7 @@ export default function LessonViewer({ lesson, module, prevLesson: _prev, nextLe
     setActiveSection(null);
   }
 
+  const summaryBlock  = lesson.blocks.find(b => b.type === 'summary');
   const vocabBlock    = lesson.blocks.find(b => b.type === 'vocabulary');
   const phraseBlock   = lesson.blocks.find(b => b.type === 'phrases');
   const practiceBlock = lesson.blocks.find(b => b.type === 'practice');
@@ -3285,6 +3401,14 @@ export default function LessonViewer({ lesson, module, prevLesson: _prev, nextLe
                 moduleId={module.id}
               />
             </>
+          )}
+
+          {/* RESUMEN — puntos clave de la lección */}
+          {activeSection === 'resumen' && summaryBlock && summaryBlock.type === 'summary' && (
+            <ResumenSection
+              block={summaryBlock}
+              onComplete={() => completeSection('resumen')}
+            />
           )}
 
           {/* VOCABULARY — full practice centre */}
