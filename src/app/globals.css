@@ -81,6 +81,14 @@ html, body {
   color: rgba(255, 255, 255, 0.45) !important;
 }
 
+/* Banner amarillo "💡 Primero intenta entenderlo" en Lezen — dark mode */
+.dark body .border-\[\#FCD34D\] {
+  border-color: rgba(252, 211, 77, 0.35) !important;
+}
+.dark body .text-\[\#92400E\] {
+  color: #fde68a !important;
+}
+
 /* ─── Botones primarios ────────────────────────────────────────────────── */
 /* Hover unificado: cambio sutil de color SOLO en desktop. Sin lift, sin zoom,
  * sin sombra. Solo un tono más claro para indicar foco. */
