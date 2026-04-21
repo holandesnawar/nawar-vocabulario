@@ -1,8 +1,5 @@
 import { notFound } from 'next/navigation';
 import {
-  getModules,
-  getLessonsForModule,
-  getExtrasForModule,
   getPreviousLesson,
   getNextLesson,
   getModuleAsync,
@@ -10,19 +7,9 @@ import {
 } from '@/lib/courseService';
 import LessonViewer from '@/components/LessonViewer';
 
-// Cacheamos la página 5 minutos. Las modificaciones de contenido en Supabase
-// tardarán hasta 5 min en verse para alumnos que ya habían cargado la página,
-// pero las navegaciones repetidas se sienten instantáneas.
-export const revalidate = 300;
-
-export function generateStaticParams() {
-  return getModules().flatMap((module) =>
-    [...getLessonsForModule(module.id), ...getExtrasForModule(module.id)].map((lesson) => ({
-      moduleId: module.id,
-      lessonId: lesson.id,
-    }))
-  )
-}
+// Dinámico: cada visita re-fetch desde Supabase. Garantiza que cambios de
+// contenido (audio_url, opciones nuevas, etc.) se vean inmediatamente.
+export const dynamic = 'force-dynamic';
 
 export default async function LessonPage({
   params,

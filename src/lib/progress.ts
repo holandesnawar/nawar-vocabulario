@@ -1,4 +1,5 @@
-import type { CourseProgress, LessonProgress, LessonStatus } from './types';
+import type { CourseProgress, Lesson, LessonProgress, LessonStatus } from './types';
+import { getLessonsForModule, getPreviousLessonInOrder } from './courseService';
 
 const KEY = 'nawar_course_progress';
 
@@ -83,4 +84,63 @@ export function getModuleStats(
 export function resetProgress(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(KEY);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   UNLOCK RULES
+   Lineal por defecto: necesitas terminar la anterior para abrir la siguiente.
+   Las lecciones "extras" (Test Zone, etc.) están siempre disponibles.
+───────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Returns true if the lesson is accessible (completed or next-in-line).
+ * Must be called on the client — reads localStorage.
+ */
+export function isLessonUnlocked(lesson: Lesson): boolean {
+  if (lesson.isExtra) return true;
+  const prev = getPreviousLessonInOrder(lesson);
+  if (!prev) return true; // very first lesson of the course
+  return getLessonProgress(prev.id)?.status === 'completed';
+}
+
+/**
+ * Module is unlocked if its first (non-extra) lesson is unlocked.
+ * Used in the home module grid.
+ */
+export function isModuleUnlocked(moduleId: string): boolean {
+  const lessons = getLessonsForModule(moduleId);
+  if (lessons.length === 0) return true;
+  return isLessonUnlocked(lessons[0]);
+}
+
+/**
+ * When a student lands on a lesson via direct URL (typically embedded from
+ * Circle), assume all prior non-extra lessons have been completed. This
+ * keeps the in-app module list coherent for students who progress primarily
+ * through the host platform (Circle) and open our app lesson-by-lesson.
+ *
+ * No-op for extra lessons — they never imply progression.
+ */
+export function markPreviousAsCompleted(lesson: Lesson): void {
+  if (lesson.isExtra) return;
+  // Walk backwards up the ordered chain, marking each predecessor complete
+  // (only if not already completed — preserves real completion timestamps).
+  let cursor: Lesson | undefined = getPreviousLessonInOrder(lesson);
+  let guard = 0;
+  while (cursor && guard < 500) {
+    const p = getLessonProgress(cursor.id);
+    if (p?.status !== 'completed') {
+      updateLessonProgress({
+        lessonId: cursor.id,
+        moduleId: cursor.moduleId,
+        status: 'completed',
+        score: 0,
+        total: 0,
+        completedAt: new Date().toISOString(),
+        errorIds: [],
+      });
+    }
+    cursor = getPreviousLessonInOrder(cursor);
+    guard++;
+  }
 }

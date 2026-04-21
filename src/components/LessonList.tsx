@@ -62,23 +62,27 @@ export default function LessonList({ lessons, moduleId }: { lessons: Lesson[]; m
                 const status = statuses[lesson.id] ?? 'pending';
                 const isNext = lesson.id === nextLessonId;
 
+                const cardClass = `group flex items-start gap-4 rounded-2xl border p-5 transition-all duration-300 hover:shadow-[0_8px_32px_rgba(29,0,132,0.08)] ${
+                    isNext
+                        ? 'border-[#1D0084]/30 bg-[#F0F5FF] hover:border-[#1D0084]/50'
+                        : 'border-[#DDE6F5] bg-white hover:border-[#1D0084]/20'
+                }`;
+
                 return (
                     <Link
                         key={lesson.id}
                         href={`/modulo/${moduleId}/leccion/${lesson.id}`}
-                        className={`group flex items-start gap-4 rounded-2xl border p-5 transition-all duration-300 hover:shadow-[0_8px_32px_rgba(29,0,132,0.08)] ${isNext
-                            ? 'border-[#1D0084]/30 bg-[#F0F5FF] hover:border-[#1D0084]/50'
-                            : 'border-[#DDE6F5] bg-white hover:border-[#1D0084]/20'
-                            }`}
+                        className={cardClass}
                     >
                         {/* Order number */}
                         <div
-                            className={`w-10 h-10 rounded-xl flex items-center justify-center text-[14px] font-bold shrink-0 ${status === 'completed'
-                                ? 'bg-green-100 text-green-700'
-                                : isNext
-                                    ? 'bg-[#1D0084] text-white'
-                                    : 'bg-[#F8F9FA] text-[#9CA3AF]'
-                                }`}
+                            className={`w-10 h-10 rounded-xl flex items-center justify-center text-[14px] font-bold shrink-0 ${
+                                status === 'completed'
+                                    ? 'bg-green-100 text-green-700'
+                                    : isNext
+                                        ? 'bg-[#1D0084] text-white'
+                                        : 'bg-[#F8F9FA] text-[#9CA3AF]'
+                            }`}
                         >
                             {String(lesson.order).padStart(2, '0')}
                         </div>
@@ -87,8 +91,7 @@ export default function LessonList({ lessons, moduleId }: { lessons: Lesson[]; m
                         <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-2 mb-1.5">
                                 <h3
-                                    className={`text-[15px] font-bold leading-snug ${isNext ? 'text-[#1D0084]' : 'text-[#1D0084]'
-                                        } group-hover:text-[#025dc7] transition-colors duration-200`}
+                                    className="text-[15px] font-bold leading-snug text-[#1D0084] group-hover:text-[#025dc7] transition-colors duration-200"
                                     style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}
                                 >
                                     {lesson.title}

@@ -45,6 +45,34 @@ export function getAllLessonIds(): { moduleId: string; lessonId: string }[] {
   return LESSONS.map(l => ({ moduleId: l.moduleId, lessonId: l.id }));
 }
 
+/**
+ * Returns the lesson that must be completed BEFORE this one unlocks.
+ * - Extras (isExtra) return undefined (they're always unlocked).
+ * - Lesson N>1 in a module: returns the previous lesson in the same module.
+ * - First lesson of a module: returns the last lesson of the previous module.
+ * - First lesson of the first module: returns undefined (always unlocked).
+ */
+export function getPreviousLessonInOrder(lesson: Lesson): Lesson | undefined {
+  if (lesson.isExtra) return undefined;
+
+  const orderedModules = MODULES.slice().sort((a, b) => a.order - b.order);
+  const module = orderedModules.find(m => m.id === lesson.moduleId);
+  if (!module) return undefined;
+
+  if (lesson.order > 1) {
+    const lessons = getLessonsForModule(lesson.moduleId);
+    return lessons.find(l => l.order === lesson.order - 1);
+  }
+
+  // First lesson of the module → needs the last lesson of the previous module
+  const prevModule = orderedModules.find(m => m.order === module.order - 1);
+  if (!prevModule) return undefined; // very first lesson of the course
+
+  const prevModuleLessons = getLessonsForModule(prevModule.id);
+  if (prevModuleLessons.length === 0) return undefined;
+  return prevModuleLessons[prevModuleLessons.length - 1];
+}
+
 /* ─────────────────────────────────────────────────────────────────────────────
    ASYNC VERSIONS — try Supabase first, fall back to local data silently.
    Use these in server components for progressive Supabase integration.

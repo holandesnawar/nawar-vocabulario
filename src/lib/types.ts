@@ -52,7 +52,10 @@ export type ExerciseType =
   | 'match_pairs'
   | 'true_false'   // declaración V/F con 2 botones grandes
   | 'emoji_choice' // elegir el emoji correcto entre 4
-  | 'odd_one_out'; // 4 palabras, una no pertenece
+  | 'odd_one_out'  // 4 palabras, una no pertenece
+  | 'letter_dash'    // palabra con letras faltantes (k_ff_e → koffie)
+  | 'pair_memory'    // memory cards: emparejar NL↔ES girando cartas
+  | 'listen_translate'; // escucha frase NL, compone traducción ES con chips
 
 export interface ExerciseItem {
   id: string;
@@ -99,7 +102,23 @@ export interface LezenBlock {
   exercises: ExerciseItem[];
 }
 
+export interface SummarySectionData {
+  heading: string;
+  body?: string;          // texto libre en markdown ligero (negritas **texto**)
+  items?: Array<{ nl?: string; es: string }>; // vocabulario/frases clave de la sección
+}
+
+export interface SummaryBlock {
+  type: 'summary';
+  title?: string;
+  intro?: string;
+  objectives?: string[];
+  sections: SummarySectionData[];
+  tip?: string;
+}
+
 export type LessonBlock =
+  | SummaryBlock
   | { type: 'vocabulary'; title?: string; items: VocabularyItem[] }
   | { type: 'phrases';    title?: string; items: PhraseItem[] }
   | { type: 'practice';   title?: string; exercises: ExerciseItem[] }

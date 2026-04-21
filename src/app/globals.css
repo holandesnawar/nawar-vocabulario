@@ -13,6 +13,28 @@
   --font-display: var(--font-poppins), system-ui, sans-serif;
 }
 
+/* Tokens semánticos light/dark — usados por .app-bg, .card-surface, etc.
+ * Preferimos mantener los colores "fuertes" de marca (morado banner, verde
+ * correcto, rojo error) iguales en ambos modos; lo que cambia es el FONDO
+ * y el TEXTO principal. Menos riesgo de inconsistencias. */
+:root {
+  --app-bg:      #ffffff;
+  --app-surface: #ffffff;   /* tarjetas */
+  --app-text:    #0C0C1E;
+  --app-muted:   #5A6480;
+  --app-border:  #DDE6F5;
+  --app-subtle:  #F0F5FF;
+}
+
+.dark {
+  --app-bg:      #0E0E1B;
+  --app-surface: #181830;
+  --app-text:    #E8EAF5;
+  --app-muted:   #A0A8C0;
+  --app-border:  #2A2D48;
+  --app-subtle:  #1A1D38;
+}
+
 *, *::before, *::after { box-sizing: border-box; }
 
 /* Prevent iOS zoom-on-focus for all inputs */
@@ -20,17 +42,239 @@ input, select, textarea { font-size: 16px; }
 
 html, body {
   font-family: var(--font-sans);
-  background: #ffffff;
-  color: #0C0C1E;
+  background: var(--app-bg);
+  color: var(--app-text);
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
+/* Fondos blancos del contenido hardcodeados — en dark los convertimos */
+.dark .bg-white { background-color: var(--app-surface) !important; }
+.dark body .bg-\[\#F0F5FF\],
+.dark body .bg-\[\#f0f5ff\] { background-color: var(--app-subtle) !important; }
+.dark body .bg-\[\#F8FAFF\] { background-color: var(--app-subtle) !important; }
+.dark body .bg-\[\#EFF0F3\] { background-color: #1e2140 !important; }
+.dark body .bg-\[\#F8F9FA\] { background-color: #131326 !important; }
+.dark body .bg-\[\#EEF4FF\] { background-color: #1a2040 !important; }
+.dark body .bg-\[\#FEF3C7\] { background-color: #2e2a18 !important; }
+
+/* Texto principal en tarjetas — el morado de marca queda ilegible en dark */
+.dark body .text-\[\#1D0084\] { color: var(--app-text) !important; }
+.dark body .text-\[\#0C0C1E\] { color: var(--app-text) !important; }
+.dark body .text-\[\#5A6480\] { color: var(--app-muted) !important; }
+.dark body .text-\[\#9CA3AF\] { color: var(--app-muted) !important; }
+.dark body .text-\[\#111827\] { color: var(--app-text) !important; }
+
+/* Bordes grises claros */
+.dark body .border-\[\#DDE6F5\] { border-color: var(--app-border) !important; }
+.dark body .border-\[\#E8ECF4\] { border-color: var(--app-border) !important; }
+.dark body .border-\[\#EEF0F5\] { border-color: var(--app-border) !important; }
+
+/* Letter badges (A/B/C/D) de multiple_choice — dark mode con acento azul */
+.dark body .bg-white\/70 {
+  background-color: rgba(77, 163, 255, 0.18) !important;
+  color: #bfd9ff !important;
+}
+.dark body .bg-\[\#E5E7EB\] {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  color: rgba(255, 255, 255, 0.45) !important;
+}
+
+/* Banner amarillo "💡 Primero intenta entenderlo" en Lezen — dark mode */
+.dark body .border-\[\#FCD34D\] {
+  border-color: rgba(252, 211, 77, 0.35) !important;
+}
+.dark body .text-\[\#92400E\] {
+  color: #fde68a !important;
+}
+
+/* ─── Botones primarios ────────────────────────────────────────────────── */
+/* Hover unificado: cambio sutil de color SOLO en desktop. Sin lift, sin zoom,
+ * sin sombra. Solo un tono más claro para indicar foco. */
+button.bg-\[\#1D0084\],
+a.bg-\[\#1D0084\] {
+  transition: background-color 0.15s ease;
+}
+/* Light mode hover: morado un pelín más claro */
+@media (hover: hover) and (min-width: 768px) {
+  button.bg-\[\#1D0084\]:hover,
+  a.bg-\[\#1D0084\]:hover {
+    background-color: #2A12A3 !important;
+  }
+}
+/* Cancelamos el cambio de color fuerte que Tailwind pinta en hover:bg-[#025dc7] */
+button.bg-\[\#1D0084\].hover\:bg-\[\#025dc7\]:hover,
+a.bg-\[\#1D0084\].hover\:bg-\[\#025dc7\]:hover {
+  background-color: #2A12A3;
+}
+
+/* ─── Dark mode: botones azul claro en vez de morado ──────────────────── */
+.dark body button.bg-\[\#1D0084\],
+.dark body a.bg-\[\#1D0084\] {
+  background-color: #4da3ff !important;
+  color: #0c144b !important;
+}
+/* Dark hover: azul claro ligeramente más claro */
+@media (hover: hover) and (min-width: 768px) {
+  .dark body button.bg-\[\#1D0084\]:hover,
+  .dark body a.bg-\[\#1D0084\]:hover {
+    background-color: #6db5ff !important;
+  }
+}
+.dark body button.bg-\[\#1D0084\].hover\:bg-\[\#025dc7\]:hover,
+.dark body a.bg-\[\#1D0084\].hover\:bg-\[\#025dc7\]:hover {
+  background-color: #6db5ff !important;
+}
+/* Si el botón está disabled o tiene clases extras, lo forzamos también */
+.dark body .bg-\[\#1D0084\]:not(.brand-banner) {
+  background-color: #4da3ff !important;
+}
+
+/* ─── Línea accent sobre tarjetas de vocabulario ──────────────────────── */
+.brand-accent-line {
+  background: linear-gradient(90deg, #1D0084 0%, #025dc7 100%);
+}
+.dark .brand-accent-line {
+  background: linear-gradient(90deg, #4da3ff 0%, #60a5fa 100%);
+}
+
+/* Progress fill (barra % + segmento actual sin responder) */
+.progress-fill {
+  background: linear-gradient(90deg, #1D0084 0%, #4da3ff 100%);
+}
+.dark .progress-fill {
+  background: linear-gradient(90deg, #4da3ff 0%, #60a5fa 100%);
+}
+
+/* Chip de porcentaje en dark: color blue brand → azul claro */
+.dark body .text-\[\#025dc7\] { color: #4da3ff !important; }
+
+/* ─── Fill_blank slot: hueco donde aparece la palabra elegida ─────────── */
+.fill-blank-slot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 7rem;
+  padding: 4px 18px;
+  margin: 0 4px;
+  border-radius: 9999px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  vertical-align: middle;
+}
+.fill-blank-slot.is-empty {
+  background: transparent;
+  border: 2px dashed rgba(29, 0, 132, 0.28);
+  color: transparent;
+}
+.dark .fill-blank-slot.is-empty {
+  border-color: rgba(77, 163, 255, 0.35);
+}
+.fill-blank-slot.is-filled {
+  background: rgba(29, 0, 132, 0.08);
+  border: 2px solid rgba(29, 0, 132, 0.25);
+  color: #1D0084;
+  box-shadow: 0 2px 8px rgba(29, 0, 132, 0.08);
+}
+.dark .fill-blank-slot.is-filled {
+  background: rgba(77, 163, 255, 0.12);
+  border-color: rgba(77, 163, 255, 0.4);
+  color: #bfd9ff;
+  box-shadow: 0 2px 8px rgba(77, 163, 255, 0.12);
+}
+.fill-blank-slot.is-correct {
+  background: rgba(34, 197, 94, 0.12);
+  border: 2px solid rgba(34, 197, 94, 0.5);
+  color: #15803d;
+}
+.dark .fill-blank-slot.is-correct {
+  color: #86efac;
+}
+.fill-blank-slot.is-wrong {
+  background: rgba(239, 68, 68, 0.1);
+  border: 2px solid rgba(239, 68, 68, 0.45);
+  color: #b91c1c;
+}
+.dark .fill-blank-slot.is-wrong {
+  color: #fca5a5;
+}
+
+/* ─── AudioPlayer full variant: glass look (diálogos) ─────────────────── */
+/* Translúcido con blur, SIN sombra exterior — efecto cristal sutil.
+ * Light mode: tono claro bluish-white. Dark mode: navy suave. */
+.audio-player-glass {
+  background: linear-gradient(135deg, rgba(240, 245, 255, 0.85) 0%, rgba(224, 234, 255, 0.75) 100%);
+  border: 1px solid rgba(29, 0, 132, 0.12);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  /* Tokens para controles dentro del player (text/icons) */
+  --player-text: #1D0084;
+  --player-muted: rgba(29, 0, 132, 0.55);
+  --player-chip-bg: rgba(29, 0, 132, 0.08);
+  --player-chip-bg-hover: rgba(29, 0, 132, 0.14);
+  --player-fill: #1D0084;
+  --player-empty: rgba(29, 0, 132, 0.18);
+}
+.dark .audio-player-glass {
+  background: linear-gradient(135deg, rgba(20, 24, 50, 0.75) 0%, rgba(24, 28, 60, 0.8) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  --player-text: #ffffff;
+  --player-muted: rgba(255, 255, 255, 0.5);
+  --player-chip-bg: rgba(255, 255, 255, 0.1);
+  --player-chip-bg-hover: rgba(255, 255, 255, 0.18);
+  --player-fill: #4da3ff;
+  --player-empty: rgba(255, 255, 255, 0.18);
+}
+
+/* Player text muted (labels, time) */
+.audio-player-glass .player-muted { color: var(--player-muted); }
+
+/* Botón fantasma (-5s / +5s): solo icono + label, sin fondo. */
+.audio-player-glass .player-ghost-btn {
+  color: var(--player-text);
+  opacity: 0.75;
+  border-radius: 9999px;
+  padding: 6px 4px;
+  background: transparent;
+  transition: opacity 0.15s ease, background-color 0.15s ease;
+}
+@media (hover: hover) {
+  .audio-player-glass .player-ghost-btn:hover {
+    opacity: 1;
+    background: var(--player-chip-bg);
+  }
+}
+
+/* Botón play principal — sólido con buen contraste en ambos modos.
+ * Light: solid #1D0084 con icono blanco.
+ * Dark:  blanco con icono morado. */
+.audio-player-glass .player-play-btn {
+  background: var(--player-play-bg);
+  color: var(--player-play-fg);
+}
+.audio-player-glass {
+  --player-play-bg: #1D0084;
+  --player-play-fg: #ffffff;
+}
+.dark .audio-player-glass {
+  --player-play-bg: #ffffff;
+  --player-play-fg: #1D0084;
+}
+@media (hover: hover) {
+  .audio-player-glass .player-play-btn:hover {
+    filter: brightness(1.1);
+  }
+}
+
+/* Eyebrow — mismo spec que nawar-web (Inter 900, tight tracking) */
 .eyebrow {
   font-family: var(--font-sans);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.14em;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
@@ -65,8 +309,24 @@ html, body {
     0 10px 32px rgba(0, 0, 0, 0.25);
 }
 
+/* Dark-mode: .glass-med se adapta al fondo oscuro del tema */
+.dark .glass-med {
+  background: rgba(24, 24, 48, 0.55);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
 /* Fallback si el navegador no soporta backdrop-filter (Android low-end) */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .glass-med  { background: rgba(255, 255, 255, 0.92); }
-  .glass-dark { background: rgba(12, 12, 30, 0.75); }
+  .glass-med       { background: rgba(255, 255, 255, 0.92); }
+  .dark .glass-med { background: rgba(24, 24, 48, 0.88); }
+  .glass-dark      { background: rgba(12, 12, 30, 0.75); }
+}
+
+/* Banner de marca — matches nawar-web hero: solid #1D0084 + radial glow
+ * (el glow lo pone el div absoluto que acompaña al banner en cada página) */
+.brand-banner {
+  background: #1D0084;
 }

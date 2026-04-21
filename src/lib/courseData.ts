@@ -35,6 +35,16 @@ export const MODULES: CourseModule[] = [
     level: 'Módulo 3',
     color: '#0b7a4d',
   },
+  {
+    id: 'het-werk',
+    title: 'Het werk',
+    subtitle: 'El trabajo',
+    description: 'Habla de tu profesión, tu sector y los contratos laborales. Vocabulario para entrevistas y vida laboral en NL.',
+    order: 4,
+    emoji: '💼',
+    level: 'Módulo 4',
+    color: '#b91c1c',
+  },
 ];
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -1596,6 +1606,90 @@ const m3_les3: Lesson = {
 };
 
 /* ─────────────────────────────────────────────────────────────────────────────
+   MODULE 4 — HET WERK
+───────────────────────────────────────────────────────────────────────────── */
+
+const m4_les1: Lesson = {
+  id: 'm4-les-1-werk-beroep',
+  moduleId: 'het-werk',
+  title: 'Les 1 — Woordenschat | Werk & Beroep',
+  subtitle: 'Vocabulario de trabajo y profesiones',
+  order: 1,
+  learningObjective: 'Hablar de tu profesión, sector y contrato de trabajo',
+  estimatedMinutes: 25,
+  blocks: [
+    {
+      type: 'summary',
+      title: 'Werk & Beroep',
+      intro: 'En esta lección aprenderás a hablar de tu trabajo: qué profesión tienes, en qué sector trabajas, con quién y para quién, y el vocabulario esencial de entrevistas y contratos en Países Bajos.',
+      objectives: [
+        'Identificar profesiones y sectores laborales',
+        'Decir dónde trabajas, con quién y para quién',
+        'Usar vocabulario clave de entrevistas, contratos y empleo',
+      ],
+      sections: [
+        {
+          heading: '🏢 Sectores laborales',
+          body: 'Para decir en qué sector trabajas usamos **"Ik werk in de/het ..."** o **"Ik werk bij ..."**.',
+          items: [
+            { nl: 'de zorg / de gezondheidszorg', es: 'sanidad' },
+            { nl: 'de horeca', es: 'hostelería' },
+            { nl: 'de schoonmaak', es: 'limpieza' },
+            { nl: 'de retail sector', es: 'comercio minorista' },
+            { nl: 'de landbouw / de vee-industrie', es: 'agricultura / ganadería' },
+            { nl: 'het onderwijs', es: 'educación' },
+            { nl: 'ICT', es: 'tecnologías de la información' },
+            { nl: 'de industriële sector', es: 'sector industrial' },
+          ],
+        },
+        {
+          heading: '👥 Con quién trabajas',
+          body: 'Usamos **"Ik werk met ..."** para hablar de las personas con las que trabajas.',
+          items: [
+            { nl: "met mijn collega's", es: 'con mis compañeros' },
+            { nl: 'met mijn baas / leidinggevende', es: 'con mi jefe/a' },
+            { nl: 'in een team', es: 'en un equipo' },
+          ],
+        },
+        {
+          heading: '🏛️ Para quién trabajas',
+          body: 'Usamos **"Ik werk voor ..."** para indicar el empleador.',
+          items: [
+            { nl: 'Ik werk voor een bedrijf', es: 'Trabajo para una empresa' },
+            { nl: 'Ik werk voor de Gemeente', es: 'Trabajo para el Ayuntamiento' },
+            { nl: 'Ik werk voor mezelf', es: 'Trabajo por cuenta propia' },
+          ],
+        },
+        {
+          heading: '📝 Vocabulario clave',
+          body: 'Palabras que aparecerán en entrevistas, ofertas y contratos.',
+          items: [
+            { nl: 'de baan', es: 'el empleo, puesto de trabajo' },
+            { nl: 'de vacature', es: 'la vacante' },
+            { nl: 'solliciteren', es: 'postularse, candidatearse' },
+            { nl: 'het sollicitatiegesprek', es: 'la entrevista de trabajo' },
+            { nl: 'de werkervaring', es: 'la experiencia laboral' },
+            { nl: "zzp'er zijn", es: 'ser trabajador autónomo' },
+            { nl: 'in dienst zijn', es: 'estar en nómina' },
+          ],
+        },
+        {
+          heading: '⏱️ Tipos de jornada y contrato',
+          items: [
+            { nl: 'parttime / fulltime werken', es: 'tiempo parcial / completo' },
+            { nl: 'werken op oproepbasis', es: 'trabajo flexible sin horario fijo' },
+            { nl: 'het bandbreedtecontract', es: 'contrato con horas máx/mín por trimestre' },
+            { nl: 'een vast contract', es: 'contrato fijo / indefinido' },
+            { nl: 'een tijdelijk contract', es: 'contrato temporal' },
+          ],
+        },
+      ],
+      tip: 'En NL, **het uitzendbureau** (empresa de trabajo temporal) es la puerta de entrada al mercado laboral para muchos. Suelen buscarte empleo rápido con contrato temporal a través de ellos.',
+    },
+  ],
+};
+
+/* ─────────────────────────────────────────────────────────────────────────────
    EXPORT
 ───────────────────────────────────────────────────────────────────────────── */
 
@@ -1608,4 +1702,6 @@ export const LESSONS: Lesson[] = [
   m2_extra1, m2_extra2, m2_extra3,
   // Module 3
   m3_les1, m3_les2, m3_les3,
+  // Module 4
+  m4_les1,
 ];

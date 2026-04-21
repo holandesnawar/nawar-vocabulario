@@ -103,9 +103,8 @@ interface DbDialogue {
   id: DbId;
   lesson_id: DbId;
   title: string;
-  context: string;
-  audio_url: string | null;
-  slow_audio_url: string | null;
+  audio_normal_url: string | null;
+  audio_slow_url: string | null;
 }
 
 interface DbDialogueLine {
@@ -271,9 +270,9 @@ function mapDialogue(row: DbDialogue, lines: DbDialogueLine[]): Dialogue {
   return {
     id: String(row.id),
     title: row.title,
-    context: row.context,
-    audio: row.audio_url ? { url: row.audio_url } : undefined,
-    slowAudio: row.slow_audio_url ? { url: row.slow_audio_url } : undefined,
+    context: '',
+    audio: row.audio_normal_url ? { url: row.audio_normal_url } : undefined,
+    slowAudio: row.audio_slow_url ? { url: row.audio_slow_url } : undefined,
     lines: lines
       .filter(l => l.dialogue_id === row.id)
       .sort((a, b) => a.sort_order - b.sort_order)
@@ -374,6 +373,10 @@ async function assembleLessonBlocks(lessonRow: DbLesson, moduleSlug: string): Pr
   // Assemble blocks
   const blocks: LessonBlock[] = [];
 
+  // Summary (local-only por ahora — el contenido vive en courseData.ts)
+  const localSummary = localLesson?.blocks.find(b => b.type === 'summary');
+  if (localSummary) blocks.push(localSummary);
+
   if (vocabRows?.length) {
     blocks.push({
       type: 'vocabulary',
@@ -416,7 +419,7 @@ async function assembleLessonBlocks(lessonRow: DbLesson, moduleSlug: string): Pr
     if (localDialogue) blocks.push(localDialogue);
   }
   if (practiceRows?.length) {
-    const knownTypes = ['multiple_choice', 'write_answer', 'listen_and_choose', 'order_sentence', 'fill_blank', 'word_scramble', 'match_pairs', 'true_false', 'emoji_choice', 'odd_one_out'];
+    const knownTypes = ['multiple_choice', 'write_answer', 'listen_and_choose', 'order_sentence', 'fill_blank', 'word_scramble', 'match_pairs', 'true_false', 'emoji_choice', 'odd_one_out', 'letter_dash', 'pair_memory', 'listen_translate'];
     const exercises = (practiceRows as DbPracticeItem[])
       .map(r => mapExercise(r, (optionRows ?? []) as DbPracticeOption[], (matchPairRows ?? []) as DbMatchPairItem[]))
       .filter(e => e.prompt && knownTypes.includes(e.type));

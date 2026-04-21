@@ -7,10 +7,10 @@ import {
   getExtrasForModuleAsync,
 } from "@/lib/courseService"
 import LessonList from '@/components/LessonList';
+import DarkModeToggle from '@/components/DarkModeToggle';
 
-// Cacheamos la página 5 minutos. Navegaciones repetidas entre m\u00f3dulos se sienten
-// instant\u00e1neas. Cambios de contenido en Supabase se reflejan en m\u00e1ximo 5 min.
-export const revalidate = 300;
+// Dinámico: cada visita re-fetch. Misma razón que en la página de lección.
+export const dynamic = 'force-dynamic';
 
 export function generateStaticParams() {
   return getModules().map((module) => ({
@@ -35,7 +35,7 @@ export default async function ModulePage({ params }: { params: Promise<{ moduleI
   return (
     <main className="min-h-screen bg-white">
       {/* Header */}
-      <div className="relative bg-[#1D0084] overflow-hidden">
+      <div className="relative brand-banner overflow-hidden">
         <div aria-hidden className="absolute inset-0 pointer-events-none">
           <div
             className="absolute top-[-5%] left-1/2 -translate-x-1/2 w-[700px] h-[500px]"
@@ -45,12 +45,15 @@ export default async function ModulePage({ params }: { params: Promise<{ moduleI
         <div aria-hidden className="absolute inset-0 dots-dark pointer-events-none" />
 
         <div className="relative max-w-2xl mx-auto px-6 pt-8 pb-8">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="https://docs.holandesnawar.com/img/Nawar.png"
-            alt="Holandés Nawar"
-            className="h-7 w-auto mb-5 opacity-90"
-          />
+          <div className="flex items-center justify-between mb-5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="https://docs.holandesnawar.com/img/Nawar.png"
+              alt="Holandés Nawar"
+              className="h-7 w-auto opacity-90"
+            />
+            <DarkModeToggle />
+          </div>
           <Link
             href="/"
             className="glass-dark inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-[13px] font-medium text-white/90 hover:text-white hover:bg-white/10 transition-all duration-200 mb-5"

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { getModules, getLessonsForModule } from '@/lib/courseService';
 import { getModuleStats } from '@/lib/progress';
 import type { CourseModule } from '@/lib/types';
+import DarkModeToggle from '@/components/DarkModeToggle';
 
 function ModuleCard({ module }: { module: CourseModule }) {
   const lessons = getLessonsForModule(module.id);
@@ -88,7 +89,7 @@ export default function HomePage() {
   return (
     <main className="min-h-screen bg-white">
       {/* Hero header */}
-      <div className="relative bg-[#1D0084] overflow-hidden">
+      <div className="relative brand-banner overflow-hidden">
         <div aria-hidden className="absolute inset-0 pointer-events-none">
           <div
             className="absolute top-[-5%] left-1/2 -translate-x-1/2 w-[700px] h-[500px]"
@@ -98,12 +99,15 @@ export default function HomePage() {
         <div aria-hidden className="absolute inset-0 dots-dark pointer-events-none" />
 
         <div className="relative max-w-2xl mx-auto px-6 py-12">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="https://docs.holandesnawar.com/img/Nawar.png"
-            alt="Holandés Nawar"
-            className="h-8 w-auto mb-5 opacity-90"
-          />
+          <div className="flex items-center justify-between mb-5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="https://docs.holandesnawar.com/img/Nawar.png"
+              alt="Holandés Nawar"
+              className="h-8 w-auto opacity-90"
+            />
+            <DarkModeToggle />
+          </div>
           <h1
             className="text-[32px] font-bold text-white leading-tight"
             style={{ fontFamily: 'var(--font-poppins), system-ui, sans-serif' }}
