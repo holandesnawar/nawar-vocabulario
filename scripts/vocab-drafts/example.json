@@ -1,0 +1,8 @@
+[
+  { "article": "de", "word_nl": "woning",   "translation_es": "vivienda" },
+  { "article": "de", "word_nl": "keuken",   "translation_es": "cocina" },
+  { "article": "het","word_nl": "huis",     "translation_es": "casa" },
+  { "article": null, "word_nl": "wonen",    "translation_es": "vivir, habitar" },
+  { "article": null, "word_nl": "koken",    "translation_es": "cocinar" },
+  { "article": "de", "word_nl": "slaapkamer","translation_es": "dormitorio" }
+]
