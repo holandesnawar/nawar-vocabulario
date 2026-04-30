@@ -44,7 +44,7 @@ export default async function ModulePage({ params }: { params: Promise<{ moduleI
         </div>
         <div aria-hidden className="absolute inset-0 dots-dark pointer-events-none" />
 
-        <div className="relative max-w-2xl mx-auto px-6 pt-8 pb-8">
+        <div className="relative max-w-5xl mx-auto px-6 pt-8 pb-8">
           <div className="flex items-center justify-between mb-5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -102,7 +102,7 @@ export default async function ModulePage({ params }: { params: Promise<{ moduleI
       </div>
 
       {/* Lesson list */}
-      <div className="max-w-2xl mx-auto px-6 py-8">
+      <div className="max-w-5xl mx-auto px-6 py-8">
         <LessonList lessons={lessons} moduleId={module.id} />
 
         {extras.length > 0 && (

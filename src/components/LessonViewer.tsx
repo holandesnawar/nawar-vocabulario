@@ -2699,7 +2699,7 @@ function LezenSection({
         )}
         <div className="rounded-2xl border border-[#DDE6F5] bg-white p-6">
           <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-widest mb-4">Texto en neerlandés</p>
-          <div className="text-[16px] text-[#1D0084] leading-relaxed whitespace-pre-line font-medium text-left">
+          <div className="text-[16px] text-[#1D0084] leading-relaxed whitespace-pre-line font-medium text-left max-w-prose">
             {textNl.replace(/^[ \t]+/gm, '').trim()}
           </div>
         </div>
@@ -2762,11 +2762,11 @@ function LezenSection({
       <div className="rounded-2xl border border-[#DDE6F5] bg-white p-6 space-y-4">
         <div>
           <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-widest mb-3">Texto original</p>
-          <p className="text-[14px] text-[#5A6480] leading-relaxed whitespace-pre-line text-left">{textNl.replace(/^[ \t]+/gm, '').trim()}</p>
+          <p className="text-[14px] text-[#5A6480] leading-relaxed whitespace-pre-line text-left max-w-prose">{textNl.replace(/^[ \t]+/gm, '').trim()}</p>
         </div>
         <div className="border-t border-[#DDE6F5] pt-4">
           <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-widest mb-3">Traducción al español</p>
-          <p className="text-[15px] text-[#1D0084] font-medium leading-relaxed whitespace-pre-line text-left">{textEs.replace(/^[ \t]+/gm, '').trim()}</p>
+          <p className="text-[15px] text-[#1D0084] font-medium leading-relaxed whitespace-pre-line text-left max-w-prose">{textEs.replace(/^[ \t]+/gm, '').trim()}</p>
         </div>
       </div>
       <button
@@ -3322,7 +3322,7 @@ export default function LessonViewer({ lesson, module, prevLesson: _prev, nextLe
         </div>
         <div aria-hidden className="absolute inset-0 dots-dark pointer-events-none" />
 
-        <div className="relative max-w-2xl mx-auto px-6 pt-8 pb-8">
+        <div className="relative max-w-5xl mx-auto px-6 pt-8 pb-8">
           <div className="flex items-center justify-between mb-5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -3374,7 +3374,7 @@ export default function LessonViewer({ lesson, module, prevLesson: _prev, nextLe
 
       {/* ── Content ── */}
       <div className="bg-white min-h-[70vh] py-8 pb-20">
-        <div className={`mx-auto px-6 ${activeSection === 'vocabulary' || activeSection === 'luisteren' ? 'max-w-5xl' : 'max-w-2xl'}`}>
+        <div className="mx-auto px-6 max-w-5xl">
 
           {/* LANDING */}
           {activeSection === null && (
