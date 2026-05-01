@@ -9,8 +9,9 @@ import {
 import LessonList from '@/components/LessonList';
 import DarkModeToggle from '@/components/DarkModeToggle';
 
-// Dinámico: cada visita re-fetch. Misma razón que en la página de lección.
-export const dynamic = 'force-dynamic';
+// ISR 5 min: navegación instantánea entre módulos visitados recientemente.
+// Trade-off conocido: tras un seed, los cambios tardan hasta 5 min en aparecer.
+export const revalidate = 300;
 
 export function generateStaticParams() {
   return getModules().map((module) => ({

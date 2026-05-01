@@ -7,9 +7,10 @@ import {
 } from '@/lib/courseService';
 import LessonViewer from '@/components/LessonViewer';
 
-// Dinámico: cada visita re-fetch desde Supabase. Garantiza que cambios de
-// contenido (audio_url, opciones nuevas, etc.) se vean inmediatamente.
-export const dynamic = 'force-dynamic';
+// ISR 5 min: la primera visita hace los ~10 queries a Supabase y los demás
+// usuarios la reciben cacheada al instante. Tras un seed, hasta 5 min para
+// que los cambios se propaguen en producción.
+export const revalidate = 300;
 
 export default async function LessonPage({
   params,
